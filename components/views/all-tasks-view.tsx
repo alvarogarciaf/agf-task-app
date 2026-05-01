@@ -11,6 +11,8 @@ interface AllTasksViewProps {
   urgencies: UrgencyLevel[]
   onToggleProcessed: (id: string) => void
   onUpdate: (task: Task) => void
+  onArchiveTask?: (id: string) => void
+  onDeleteTask?: (id: string) => void
   initialContextId?: string
   initialPersonId?: string
   initialProjectId?: string

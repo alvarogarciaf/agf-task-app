@@ -18,6 +18,7 @@ export function InlineTextEditor({
   onCommit,
   onCancel,
   onTab,
+  onCtrlEnter,
 }: EditorProps & { value: string }) {
   const [text, setText] = useState(value)
   const ref = useRef<HTMLInputElement>(null)
@@ -100,6 +101,7 @@ export function InlineSelectEditor({
   onCommit,
   onCancel,
   onTab,
+  onCtrlEnter,
 }: EditorProps & { options: Option[]; currentId: string | null; allowClear?: boolean }) {
   const [query, setQuery] = useState("")
   const [highlightedIdx, setHighlightedIdx] = useState(0)
@@ -195,6 +197,7 @@ export function InlineMultiSelectEditor({
   onCommit,
   onCancel,
   onTab,
+  onCtrlEnter,
 }: EditorProps & { options: Option[]; currentIds: string[] }) {
   const [query, setQuery] = useState("")
   const [selected, setSelected] = useState<string[]>(currentIds)

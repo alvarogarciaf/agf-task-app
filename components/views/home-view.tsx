@@ -21,6 +21,8 @@ interface HomeViewProps {
   }) => void
   onUpdate: (task: Task) => void
   onToggleProcessed: (id: string) => void
+  onArchiveTask?: (id: string) => void
+  onDeleteTask?: (id: string) => void
 }
 
 export function HomeView({
@@ -32,6 +34,8 @@ export function HomeView({
   onCreate,
   onUpdate,
   onToggleProcessed,
+  onArchiveTask,
+  onDeleteTask,
 }: HomeViewProps) {
   const [text, setText] = useState("")
   const [contextIds, setContextIds] = useState<string[]>([])
@@ -228,6 +232,8 @@ export function HomeView({
               urgencies={urgencies}
               onToggleProcessed={onToggleProcessed}
               onUpdate={onUpdate}
+              onArchiveTask={onArchiveTask}
+              onDeleteTask={onDeleteTask}
               itemNoun="item"
               emptyTitle="Inbox zero"
               emptyHint="Nothing to triage right now."

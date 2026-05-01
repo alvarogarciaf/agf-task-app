@@ -15,6 +15,8 @@ interface ProjectsViewProps {
   urgencies: UrgencyLevel[]
   onToggleProcessed: (id: string) => void
   onUpdate: (task: Task) => void
+  onArchiveTask?: (id: string) => void
+  onDeleteTask?: (id: string) => void
 }
 
 export function ProjectsView({
@@ -25,6 +27,8 @@ export function ProjectsView({
   urgencies,
   onToggleProcessed,
   onUpdate,
+  onArchiveTask,
+  onDeleteTask,
 }: ProjectsViewProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<"Ongoing" | "Closed" | "All">("Ongoing")
@@ -42,6 +46,9 @@ export function ProjectsView({
         onBack={() => setSelected(null)}
         onToggleProcessed={onToggleProcessed}
         onUpdate={onUpdate}
+        onArchiveTask={onArchiveTask}
+        onDeleteTask={onDeleteTask}
+        urgencies={urgencies}
       />
     )
   }
@@ -142,15 +149,21 @@ function ProjectDetail({
   onBack,
   onToggleProcessed,
   onUpdate,
+  onArchiveTask,
+  onDeleteTask,
+  urgencies,
 }: {
   project: Project
   projects: Project[]
   tasks: Task[]
   persons: Person[]
   contexts: Context[]
+  urgencies: UrgencyLevel[]
   onBack: () => void
   onToggleProcessed: (id: string) => void
   onUpdate: (task: Task) => void
+  onArchiveTask?: (id: string) => void
+  onDeleteTask?: (id: string) => void
 }) {
   const [tab, setTab] = useState<"tasks" | "description">("tasks")
   const projTasks = tasks.filter((t) => t.project_id === project.id)
@@ -232,6 +245,8 @@ function ProjectDetail({
             urgencies={urgencies}
             onToggleProcessed={onToggleProcessed}
             onUpdate={onUpdate}
+            onArchiveTask={onArchiveTask}
+            onDeleteTask={onDeleteTask}
             storageKey={`velocity:project-${project.id}:columns`}
             hideFilters={["project"]}
             emptyTitle={`No tasks for ${project.name}`}
