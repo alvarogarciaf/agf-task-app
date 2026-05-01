@@ -5,7 +5,6 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { AppHeader } from "@/components/app-header"
 import { MobileNav } from "@/components/mobile-nav"
 import { HomeView } from "@/components/views/home-view"
-import { InboxView } from "@/components/views/inbox-view"
 import { AllTasksView } from "@/components/views/all-tasks-view"
 import { ContextsView } from "@/components/views/contexts-view"
 import { PersonsView } from "@/components/views/persons-view"
@@ -30,7 +29,8 @@ export default function Page() {
   const [allTasksContextFilter, setAllTasksContextFilter] = useState<string | undefined>()
   const [allTasksPersonFilter, setAllTasksPersonFilter] = useState<string | undefined>()
 
-  const inboxCount = useMemo(() => tasks.filter((t) => !t.processed).length, [tasks])
+  const inboxCount = useMemo(() => tasks.filter((t) => !t.processed && !t.archived).length, [tasks])
+  const activeTasks = useMemo(() => tasks.filter(t => !t.archived), [tasks])
 
   async function toggleProcessed(id: string) {
     const taskDoc = await db.tasks.findOne(id).exec()
@@ -39,10 +39,34 @@ export default function Page() {
     }
   }
 
+  async function archiveTask(id: string) {
+    const taskDoc = await db.tasks.findOne(id).exec()
+    if (taskDoc) {
+      await taskDoc.incrementalPatch({ archived: true })
+    }
+  }
+
+  async function deleteTask(id: string) {
+    const taskDoc = await db.tasks.findOne(id).exec()
+    if (taskDoc) {
+      await taskDoc.remove()
+    }
+  }
+
   async function updateTask(updated: Task) {
     const taskDoc = await db.tasks.findOne(updated.id).exec()
     if (taskDoc) {
-      await taskDoc.incrementalPatch(updated)
+      // Ensure we only pass a plain object to incrementalPatch
+      // and remove the id from the patch as it's the primary key and hasn't changed
+      const patch = typeof (updated as any).toJSON === "function" 
+        ? (updated as any).toJSON() 
+        : { ...updated }
+      
+      delete patch.id
+      
+      if (Object.keys(patch).length > 0) {
+        await taskDoc.incrementalPatch(patch)
+      }
     }
   }
 
@@ -51,6 +75,7 @@ export default function Page() {
     contextIds: string[]
     projectId: string | null
     personId: string | null
+    urgencyId?: string
   }) {
     const newTask: Task = {
       id: uuidv4(),
@@ -60,7 +85,7 @@ export default function Page() {
       person_id: input.personId,
       context_ids: input.contextIds,
       processed: false,
-      urgency_id: "u_medium", // default medium urgency
+      urgency_id: input.urgencyId || "u_medium",
     }
     await db.tasks.insert(newTask)
   }
@@ -108,27 +133,16 @@ export default function Page() {
               persons={persons}
               contexts={contexts}
               urgencies={urgencies}
-              recent={tasks.slice(0, 6)}
+              tasks={activeTasks}
               onCreate={createTask}
               onUpdate={updateTask}
-            />
-          ) : null}
-
-          {view === "inbox" ? (
-            <InboxView
-              tasks={tasks}
-              projects={projects}
-              persons={persons}
-              contexts={contexts}
-              urgencies={urgencies}
               onToggleProcessed={toggleProcessed}
-              onUpdate={updateTask}
+              onArchiveTask={archiveTask}
+              onDeleteTask={deleteTask}
             />
-          ) : null}
-
-          {view === "all" ? (
+          ) : view === "all" ? (
             <AllTasksView
-              tasks={tasks}
+              tasks={activeTasks}
               projects={projects}
               persons={persons}
               contexts={contexts}
@@ -137,10 +151,10 @@ export default function Page() {
               onUpdate={updateTask}
               initialContextId={allTasksContextFilter}
               initialPersonId={allTasksPersonFilter}
+              onArchiveTask={archiveTask}
+              onDeleteTask={deleteTask}
             />
-          ) : null}
-
-          {view === "contexts" ? (
+          ) : view === "contexts" ? (
             <ContextsView
               contexts={contexts}
               tasks={tasks}
@@ -150,9 +164,7 @@ export default function Page() {
                 setView("all")
               }}
             />
-          ) : null}
-
-          {view === "persons" ? (
+          ) : view === "persons" ? (
             <PersonsView
               persons={persons}
               tasks={tasks}
@@ -162,17 +174,17 @@ export default function Page() {
                 setView("all")
               }}
             />
-          ) : null}
-
-          {view === "projects" ? (
+          ) : view === "projects" ? (
             <ProjectsView
               projects={projects}
-              tasks={tasks}
+              tasks={activeTasks}
               persons={persons}
               contexts={contexts}
               urgencies={urgencies}
               onToggleProcessed={toggleProcessed}
               onUpdate={updateTask}
+              onArchiveTask={archiveTask}
+              onDeleteTask={deleteTask}
             />
           ) : view === "settings" ? (
             <SettingsView
@@ -181,6 +193,8 @@ export default function Page() {
               urgencies={urgencies}
               {...crud}
             />
+          ) : view === "inbox" ? (
+            null
           ) : (
             <div className="p-6 text-center text-sm text-muted-foreground">
               View &quot;{view}&quot; not found

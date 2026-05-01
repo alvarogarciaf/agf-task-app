@@ -6,8 +6,8 @@ import type { ViewKey } from "@/lib/types"
 
 const TITLES: Record<ViewKey, { title: string; subtitle: string }> = {
   home: {
-    title: "Quick Capture",
-    subtitle: "Drop a thought. We'll sort it later — your local DB writes in under a millisecond.",
+    title: "Inbox",
+    subtitle: "Capture new tasks and triage what's unprocessed.",
   },
   inbox: {
     title: "Inbox",

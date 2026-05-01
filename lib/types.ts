@@ -19,6 +19,7 @@ export interface Task {
   context_ids: string[]
   processed: boolean
   urgency_id: string
+  archived?: boolean
 }
 
 export interface Project {

@@ -1,19 +1,16 @@
 "use client"
 
-import { useState, useRef } from "react"
-import { Calendar, Circle, CircleCheck, Columns3, GripVertical, RotateCcw } from "lucide-react"
+import { useState, useRef, useCallback, useEffect } from "react"
+import { Calendar, Circle, CircleCheck, Columns3, ExternalLink, GripVertical, RotateCcw, MoreVertical, Archive, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent,
+  DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu"
 import { useTableColumns } from "@/hooks/use-table-columns"
 import { TaskDetailDialog } from "@/components/task-detail-dialog"
+import { InlineTextEditor, InlineSelectEditor, InlineMultiSelectEditor } from "@/components/inline-cell-editors"
 import type { Context, Person, Project, Task, UrgencyLevel } from "@/lib/types"
 
 export type TaskColumnKey =
@@ -82,6 +79,10 @@ const COLUMN_CELL_CLASSES: Partial<Record<TaskColumnKey, string>> = {
   details: "max-w-[360px]",
 }
 
+const EDITABLE_COLUMNS = new Set<TaskColumnKey>([
+  "description", "details", "project", "person", "contexts", "urgency",
+])
+
 interface TasksTableProps {
   tasks: Task[]
   projects: Project[]
@@ -90,6 +91,8 @@ interface TasksTableProps {
   urgencies: UrgencyLevel[]
   onToggleProcessed: (id: string) => void
   onUpdate: (task: Task) => void
+  onArchiveTask?: (id: string) => void
+  onDeleteTask?: (id: string) => void
   /** Columns that should never appear or be toggleable in this instance. */
   hideColumns?: TaskColumnKey[]
   /** Custom storage key when this instance should remember a separate column config. */
@@ -110,6 +113,8 @@ export function TasksTable({
   urgencies,
   onToggleProcessed,
   onUpdate,
+  onArchiveTask,
+  onDeleteTask,
   hideColumns,
   storageKey = "velocity:tasks-table:columns",
   emptyTitle = "No tasks match these filters",
@@ -118,14 +123,21 @@ export function TasksTable({
   inboxMode = false,
 }: TasksTableProps) {
   const { order, visibility, toggle, reorder, reset } = useTableColumns<TaskColumnKey>(
-    storageKey,
-    DEFAULT_ORDER,
-    DEFAULT_VISIBILITY,
+    storageKey, DEFAULT_ORDER, DEFAULT_VISIBILITY,
   )
-
   const [dragKey, setDragKey] = useState<TaskColumnKey | null>(null)
   const [dropTarget, setDropTarget] = useState<TaskColumnKey | null>(null)
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
+  const [selectedCell, setSelectedCell] = useState<{ taskId: string; column: TaskColumnKey } | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const cellRefs = useRef<Record<string, HTMLTableCellElement | null>>({})
+
+  // Refocus cell when exiting edit mode
+  useEffect(() => {
+    if (selectedCell && !isEditing) {
+      cellRefs.current[`${selectedCell.taskId}-${selectedCell.column}`]?.focus()
+    }
+  }, [selectedCell, isEditing])
 
   const hidden = new Set(hideColumns ?? [])
   const orderableKeys = order.filter((k) => !hidden.has(k))
@@ -161,9 +173,55 @@ export function TasksTable({
     setDropTarget(null)
   }
 
-  function handleDragEnd() {
-    setDragKey(null)
-    setDropTarget(null)
+  function handleDragEnd() { setDragKey(null); setDropTarget(null) }
+
+  function navigateCell(taskId: string, column: TaskColumnKey, rowOffset: number, colOffset: number, startEditing = false) {
+    const editableCols = visibleColumns.filter((k) => EDITABLE_COLUMNS.has(k))
+    const taskIdx = tasks.findIndex((t) => t.id === taskId)
+    const colIdx = editableCols.indexOf(column)
+
+    let nextTaskIdx = taskIdx + rowOffset
+    let nextColIdx = colIdx + colOffset
+
+    // Wrap columns if needed when tabbing
+    if (colOffset !== 0 && rowOffset === 0) {
+       if (nextColIdx >= editableCols.length) {
+         nextColIdx = 0
+         nextTaskIdx++
+       } else if (nextColIdx < 0) {
+         nextColIdx = editableCols.length - 1
+         nextTaskIdx--
+       }
+    }
+
+    if (nextTaskIdx >= 0 && nextTaskIdx < tasks.length && nextColIdx >= 0 && nextColIdx < editableCols.length) {
+      const nextTaskId = tasks[nextTaskIdx].id
+      const nextCol = editableCols[nextColIdx]
+      setSelectedCell({ taskId: nextTaskId, column: nextCol })
+      setIsEditing(startEditing)
+
+      // Focus the cell DOM element
+      setTimeout(() => {
+        cellRefs.current[`${nextTaskId}-${nextCol}`]?.focus()
+      }, 0)
+    } else {
+      setSelectedCell(null)
+      setIsEditing(false)
+    }
+  }
+
+  function commitCell(task: Task, column: TaskColumnKey, value: string | string[] | null, close = true) {
+    let patch: Partial<Task> = {}
+    if (column === "description") patch = { description: value as string }
+    else if (column === "details") patch = { details: value as string }
+    else if (column === "project") patch = { project_id: value as string | null }
+    else if (column === "person") patch = { person_id: value as string | null }
+    else if (column === "urgency") patch = { urgency_id: value as string }
+    else if (column === "contexts") patch = { context_ids: value as string[] }
+    if (Object.keys(patch).length) onUpdate({ id: task.id, ...patch } as Task)
+    if (close) {
+      setIsEditing(false)
+    }
   }
 
   return (
@@ -300,37 +358,156 @@ export function TasksTable({
                 return (
                   <tr
                     key={task.id}
-                    onClick={() => setActiveTaskId(task.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault()
-                        setActiveTaskId(task.id)
-                      }
-                    }}
-                    tabIndex={0}
-                    role="button"
-                    aria-label={`Open task: ${task.description}`}
-                    className="group cursor-pointer border-b border-border/60 last:border-b-0 transition-colors hover:bg-muted/40 focus:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/40"
+                    className="group border-b border-border/60 last:border-b-0 transition-colors hover:bg-muted/30"
                   >
-                    {visibleColumns.map((key) => (
-                      <td
-                        key={key}
-                        className={cn(
-                          "px-3 py-2 align-middle",
-                          COLUMN_CELL_CLASSES[key],
-                          dropTarget === key && dragKey !== key && "bg-primary/5",
-                        )}
-                      >
-                        {renderCell(key, {
-                          task,
-                          project,
-                          person,
-                          contexts: tCtx,
-                          urgency,
-                          onToggleProcessed,
-                        })}
-                      </td>
-                    ))}
+                    {visibleColumns.map((key) => {
+                      const isSelected = selectedCell?.taskId === task.id && selectedCell?.column === key
+                      const isEditingThis = isSelected && isEditing
+                      const isEditable = EDITABLE_COLUMNS.has(key)
+                      return (
+                        <td
+                          key={key}
+                          ref={(el) => {
+                            cellRefs.current[`${task.id}-${key}`] = el
+                          }}
+                          tabIndex={isEditable ? 0 : -1}
+                          onFocus={() => {
+                            if (isEditable && !isSelected) {
+                              setSelectedCell({ taskId: task.id, column: key })
+                              setIsEditing(false)
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (!isSelected) return
+
+                            // Start editing on alphanumeric key or Enter
+                            if (!isEditing && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                              setIsEditing(true)
+                              return
+                            }
+
+                            if (!isEditing) {
+                              if (e.key === "Enter" && e.ctrlKey) {
+                                e.preventDefault()
+                                onToggleProcessed(task.id)
+                                setSelectedCell(null)
+                                return
+                              }
+                              
+                              if (e.key === "ArrowRight") { e.preventDefault(); navigateCell(task.id, key, 0, 1) }
+                              else if (e.key === "ArrowLeft") { e.preventDefault(); navigateCell(task.id, key, 0, -1) }
+                              else if (e.key === "ArrowDown") { e.preventDefault(); navigateCell(task.id, key, 1, 0) }
+                              else if (e.key === "ArrowUp") { e.preventDefault(); navigateCell(task.id, key, -1, 0) }
+                              else if (e.key === "Tab") { e.preventDefault(); navigateCell(task.id, key, 0, e.shiftKey ? -1 : 1) }
+                              else if (e.key === "Enter") { e.preventDefault(); setIsEditing(true) }
+                              else if (e.key === "Backspace" || e.key === "Delete") {
+                                e.preventDefault()
+                                commitCell(task, key, (key === "contexts" ? [] : null))
+                              }
+                            }
+                          }}
+                          className={cn(
+                            "relative px-3 py-2 align-middle outline-none transition-shadow",
+                            COLUMN_CELL_CLASSES[key],
+                            dropTarget === key && dragKey !== key && "bg-primary/5",
+                            isEditable && "cursor-cell",
+                            isSelected && "ring-2 ring-inset ring-primary z-20",
+                            isEditingThis && "ring-primary bg-background shadow-lg",
+                          )}
+                          onClick={(e) => {
+                            if (!isEditable) return
+                            e.stopPropagation()
+                            if (!isSelected) {
+                              setSelectedCell({ taskId: task.id, column: key })
+                              setIsEditing(false)
+                            }
+                          }}
+                          onDoubleClick={(e) => {
+                            if (!isEditable) return
+                            e.stopPropagation()
+                            setSelectedCell({ taskId: task.id, column: key })
+                            setIsEditing(true)
+                          }}
+                        >
+                          {isEditingThis ? (
+                            <InlineCellEditor
+                              task={task}
+                              column={key}
+                              projects={projects}
+                              persons={persons}
+                              contexts={contexts}
+                              urgencies={urgencies}
+                              onCommit={(val, close) => {
+                                commitCell(task, key, val, close)
+                                if (close) {
+                                  // Excel behavior: move down on Enter
+                                  // navigateCell(task.id, key, 1, 0)
+                                }
+                              }}
+                              onCancel={() => setIsEditing(false)}
+                              onTab={(rev) => { navigateCell(task.id, key, 0, rev ? -1 : 1, false) }}
+                              onCtrlEnter={() => {
+                                onToggleProcessed(task.id)
+                                setSelectedCell(null)
+                                setIsEditing(false)
+                              }}
+                            />
+                          ) : (
+                            renderCell(key, { task, project, person, contexts: tCtx, urgency, onToggleProcessed })
+                          )}
+                        </td>
+                      )
+                    })}
+                    {/* Open detail & More menu */}
+                    <td className="w-16 pr-2 align-middle">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTaskId(task.id)}
+                          className="hidden rounded p-0.5 text-muted-foreground/40 transition-colors hover:text-foreground group-hover:inline-flex"
+                          title="Open detail"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </button>
+                        
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={(e) => e.stopPropagation()}
+                              className="hidden rounded p-0.5 text-muted-foreground/40 transition-colors hover:text-foreground group-hover:inline-flex"
+                              title="More actions"
+                            >
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuPortal>
+                            <DropdownMenuContent align="end" className="w-32">
+                              <DropdownMenuItem 
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onArchiveTask?.(task.id)
+                                }}
+                                className="text-xs"
+                              >
+                                <Archive className="mr-2 h-3 w-3" />
+                                Archive
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onDeleteTask?.(task.id)
+                                }}
+                                className="text-xs text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-3 w-3" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenuPortal>
+                        </DropdownMenu>
+                      </div>
+                    </td>
                   </tr>
                 )
               })}
@@ -477,6 +654,57 @@ function DateCell({ value }: { value: string }) {
       {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
     </span>
   )
+}
+
+interface InlineCellEditorProps {
+  task: Task
+  column: TaskColumnKey
+  projects: Project[]
+  persons: Person[]
+  contexts: Context[]
+  urgencies: UrgencyLevel[]
+  onCommit: (value: string | string[] | null, close?: boolean) => void
+  onCancel: () => void
+  onTab: (reverse: boolean) => void
+  onCtrlEnter?: () => void
+}
+
+function InlineCellEditor({ task, column, projects, persons, contexts, urgencies, onCommit, onCancel, onTab, onCtrlEnter }: InlineCellEditorProps) {
+  const shared = { onCommit, onCancel, onTab, onCtrlEnter }
+  switch (column) {
+    case "description":
+      return <InlineTextEditor value={task.description} {...shared} />
+    case "details":
+      return <InlineTextEditor value={task.details ?? ""} {...shared} />
+    case "project":
+      return <InlineSelectEditor
+        options={projects.map((p) => ({ id: p.id, label: p.name }))}
+        currentId={task.project_id ?? null}
+        allowClear
+        {...shared}
+      />
+    case "person":
+      return <InlineSelectEditor
+        options={persons.map((p) => ({ id: p.id, label: p.name, color: p.color }))}
+        currentId={task.person_id ?? null}
+        allowClear
+        {...shared}
+      />
+    case "urgency":
+      return <InlineSelectEditor
+        options={urgencies.map((u) => ({ id: u.id, label: u.name, color: u.color }))}
+        currentId={task.urgency_id ?? null}
+        {...shared}
+      />
+    case "contexts":
+      return <InlineMultiSelectEditor
+        options={contexts.map((c) => ({ id: c.id, label: c.name, color: c.color }))}
+        currentIds={task.context_ids ?? []}
+        {...shared}
+      />
+    default:
+      return null
+  }
 }
 
 function Empty() {

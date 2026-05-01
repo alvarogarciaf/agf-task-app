@@ -18,7 +18,7 @@ export const getDatabase = async () => {
 
   const create = async () => {
     const db = await createRxDatabase({
-      name: 'taskmanagerdb_v2',
+      name: 'taskmanagerdb_v3',
       storage: getRxStorageDexie(),
       multiInstance: true,
       eventReduce: true,

@@ -12,8 +12,7 @@ interface MobileNavProps {
 
 export function MobileNav({ active, onChange, inboxCount }: MobileNavProps) {
   const items = [
-    { key: "home" as ViewKey, label: "Capture", icon: Home },
-    { key: "inbox" as ViewKey, label: "Inbox", icon: Inbox, badge: inboxCount },
+    { key: "home" as ViewKey, label: "Inbox", icon: Home, badge: inboxCount },
     { key: "all" as ViewKey, label: "Tasks", icon: ListChecks },
     { key: "projects" as ViewKey, label: "Projects", icon: FolderKanban },
   ]

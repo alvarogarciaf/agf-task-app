@@ -22,6 +22,7 @@ export const taskSchemaLiteral = {
     },
     processed: { type: 'boolean', default: false },
     urgency_id: { type: 'string' },
+    archived: { type: 'boolean', default: false },
   },
   required: ['id', 'description', 'date_created', 'context_ids', 'processed', 'urgency_id'],
   indexes: ['date_created', 'processed'],

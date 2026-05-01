@@ -14,6 +14,8 @@ interface FilteredTasksProps {
   urgencies: UrgencyLevel[]
   onToggleProcessed: (id: string) => void
   onUpdate: (task: Task) => void
+  onArchiveTask?: (id: string) => void
+  onDeleteTask?: (id: string) => void
   initialContextId?: string
   initialPersonId?: string
   initialProjectId?: string
@@ -33,6 +35,8 @@ export function FilteredTasks({
   urgencies,
   onToggleProcessed,
   onUpdate,
+  onArchiveTask,
+  onDeleteTask,
   initialContextId,
   initialPersonId,
   initialProjectId,
@@ -60,6 +64,7 @@ export function FilteredTasks({
         if (showProcessed === "open") return !t.processed
         return t.processed
       })
+      .filter((t) => !t.archived)
       .sort((a, b) => +new Date(b.date_created) - +new Date(a.date_created))
   }, [tasks, contextId, personId, projectId, showProcessed, hideFilters, inboxMode])
 
@@ -151,6 +156,8 @@ export function FilteredTasks({
           urgencies={urgencies}
           onToggleProcessed={onToggleProcessed}
           onUpdate={onUpdate}
+          onArchiveTask={onArchiveTask}
+          onDeleteTask={onDeleteTask}
           hideColumns={hiddenCols}
           storageKey={storageKey}
           emptyTitle={emptyTitle}

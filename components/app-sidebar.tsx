@@ -1,7 +1,6 @@
 "use client"
 
 import {
-  Inbox,
   Home,
   ListChecks,
   Tags,
@@ -10,8 +9,6 @@ import {
   Zap,
   Cloud,
   CloudOff,
-  CheckCircle2,
-  Settings,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ViewKey } from "@/lib/types"
@@ -42,8 +39,7 @@ export function AppSidebar({
   onToggleOnline,
 }: AppSidebarProps) {
   const items: NavItem[] = [
-    { key: "home", label: "Quick Capture", icon: Home, shortcut: "G" },
-    { key: "inbox", label: "Inbox", icon: Inbox, badge: inboxCount, shortcut: "I" },
+    { key: "home", label: "Inbox", icon: Home, shortcut: "I" },
     { key: "all", label: "All Tasks", icon: ListChecks, badge: totalCount, shortcut: "A" },
   ]
   const browse: NavItem[] = [
