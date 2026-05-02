@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, Inbox, ListChecks, FolderKanban } from "lucide-react"
+import { Home, Inbox, ListChecks, FolderKanban, Tags, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ViewKey } from "@/lib/types"
 
@@ -15,6 +15,8 @@ export function MobileNav({ active, onChange, inboxCount }: MobileNavProps) {
     { key: "home" as ViewKey, label: "Inbox", icon: Home, badge: inboxCount },
     { key: "all" as ViewKey, label: "Tasks", icon: ListChecks },
     { key: "projects" as ViewKey, label: "Projects", icon: FolderKanban },
+    { key: "contexts" as ViewKey, label: "Contexts", icon: Tags },
+    { key: "persons" as ViewKey, label: "People", icon: Users },
   ]
 
   return (
