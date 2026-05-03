@@ -47,7 +47,7 @@ export function AppHeader({ view, onNavigate }: AppHeaderProps) {
       {/* Top utility bar */}
       <div className="flex h-12 items-center justify-between gap-3 px-6">
         <div className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
-          <span>velocity</span>
+          <span>tasker-agf</span>
           <span className="text-border">/</span>
           <span className="text-foreground">{view}</span>
         </div>

@@ -6,7 +6,7 @@ import {
   Tags,
   Users,
   FolderKanban,
-  Zap,
+  ClipboardList,
   Cloud,
   CloudOff,
 } from "lucide-react"
@@ -53,10 +53,10 @@ export function AppSidebar({
       {/* Brand */}
       <div className="flex items-center gap-2 px-4 pt-5 pb-4">
         <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/15 text-primary ring-1 ring-primary/30">
-          <Zap className="h-4 w-4" strokeWidth={2.5} />
+          <ClipboardList className="h-4 w-4" strokeWidth={2.5} />
         </div>
         <div className="flex flex-col leading-tight">
-          <span className="text-sm font-semibold tracking-tight">Velocity</span>
+          <span className="text-sm font-semibold tracking-tight">TASKER AGF</span>
           <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
             local-first
           </span>

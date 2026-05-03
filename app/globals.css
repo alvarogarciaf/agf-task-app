@@ -161,3 +161,11 @@
     linear-gradient(to bottom, color-mix(in oklch, var(--border) 60%, transparent) 1px, transparent 1px);
   background-size: 32px 32px;
 }
+
+/* Safe area insets for PWA standalone mode */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}

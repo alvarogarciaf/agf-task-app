@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import { ServiceWorkerRegister } from "@/components/service-worker-register"
 import "./globals.css"
 
 const geist = Geist({
@@ -13,15 +14,21 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Velocity — Local-first task manager",
+  title: "TASKER AGF",
   description:
     "Zero-latency, offline-first task manager. Capture, process, and ship work at the speed of local hardware.",
-  generator: "v0.app",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "TASKER AGF",
+  },
 }
 
 export const viewport: Viewport = {
   themeColor: "#0b0f1a",
   userScalable: true,
+  viewportFit: "cover",
 }
 
 import { DbProvider } from "@/components/db-provider"
@@ -37,6 +44,7 @@ export default function RootLayout({
         <DbProvider>
           {children}
         </DbProvider>
+        <ServiceWorkerRegister />
         {process.env.NODE_ENV === "production" && <Analytics />}
       </body>
     </html>
