@@ -164,6 +164,7 @@ export default function Page() {
                 setView("all")
               }}
               onUpdateContext={crud.onUpdateContext}
+              onDeleteContext={crud.onDeleteContext}
             />
           ) : view === "persons" ? (
             <PersonsView

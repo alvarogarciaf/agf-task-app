@@ -31,6 +31,7 @@ import {
   Star,
   Sun,
   Wrench,
+  Trash2,
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -87,9 +88,10 @@ interface ContextsViewProps {
   tasks: Task[]
   onSelect: (contextId: string) => void
   onUpdateContext?: (context: Context) => void
+  onDeleteContext?: (id: string) => void
 }
 
-export function ContextsView({ contexts, tasks, onSelect, onUpdateContext }: ContextsViewProps) {
+export function ContextsView({ contexts, tasks, onSelect, onUpdateContext, onDeleteContext }: ContextsViewProps) {
   const [editing, setEditing] = useState<Context | null>(null)
 
   return (
@@ -140,7 +142,14 @@ export function ContextsView({ contexts, tasks, onSelect, onUpdateContext }: Con
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation()
-                  setEditing({ ...c })
+                  // Extract plain data from RxDB proxy
+                  const plain: Context = {
+                    id: c.id,
+                    name: c.name,
+                    icon: c.icon,
+                    color: c.color,
+                  }
+                  setEditing(plain)
                 }}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:opacity-0 md:group-hover:opacity-100"
                 aria-label={`Edit ${c.name}`}
@@ -162,6 +171,10 @@ export function ContextsView({ contexts, tasks, onSelect, onUpdateContext }: Con
             onUpdateContext?.(updated)
             setEditing(null)
           }}
+          onDelete={(id) => {
+            onDeleteContext?.(id)
+            setEditing(null)
+          }}
         />
       )}
     </div>
@@ -173,11 +186,13 @@ function EditContextDialog({
   open,
   onOpenChange,
   onSave,
+  onDelete,
 }: {
   context: Context
   open: boolean
   onOpenChange: (open: boolean) => void
   onSave: (context: Context) => void
+  onDelete: (id: string) => void
 }) {
   const [name, setName] = useState(context.name)
   const [icon, setIcon] = useState(context.icon)
@@ -290,23 +305,33 @@ function EditContextDialog({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 border-t border-border bg-background/40 px-5 py-3">
+        <div className="flex items-center justify-between border-t border-border bg-background/40 px-5 py-3">
           <button
             type="button"
-            onClick={() => onOpenChange(false)}
-            className="rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs"
+            onClick={() => onDelete(context.id)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-destructive/30 px-4 py-2.5 text-sm text-destructive transition-colors hover:bg-destructive/10 md:px-3 md:py-1.5 md:text-xs"
           >
-            Cancel
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete
           </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!name.trim()}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 md:px-3 md:py-1.5 md:text-xs"
-          >
-            <Check className="h-3.5 w-3.5" />
-            Save
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!name.trim()}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 md:px-3 md:py-1.5 md:text-xs"
+            >
+              <Check className="h-3.5 w-3.5" />
+              Save
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
