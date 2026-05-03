@@ -55,7 +55,7 @@ export function AppHeader({ view, onNavigate }: AppHeaderProps) {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="flex h-8 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs text-muted-foreground transition-colors hover:bg-muted"
+            className="flex h-10 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-muted-foreground transition-colors hover:bg-muted md:h-8 md:text-xs"
           >
             <Search className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Search tasks, projects…</span>
@@ -75,7 +75,7 @@ export function AppHeader({ view, onNavigate }: AppHeaderProps) {
 
           <Button
             size="sm"
-            className="h-8 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+            className="h-10 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 md:h-8"
           >
             <Plus className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">New task</span>
@@ -86,7 +86,7 @@ export function AppHeader({ view, onNavigate }: AppHeaderProps) {
           {/* User Profile / Settings */}
           <button
             onClick={() => onNavigate?.("settings")}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/20 text-[11px] font-semibold text-primary hover:bg-primary/30 transition-colors"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary hover:bg-primary/30 transition-colors md:h-8 md:w-8 md:text-[11px]"
             title="Settings"
           >
             AP
@@ -97,7 +97,7 @@ export function AppHeader({ view, onNavigate }: AppHeaderProps) {
       {/* Page title */}
       <div className="px-6 pt-6 pb-5">
         <h1 className="text-2xl font-semibold tracking-tight text-balance">{meta.title}</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground text-pretty">{meta.subtitle}</p>
+        <p className="mt-1 max-w-2xl text-base text-muted-foreground text-pretty md:text-sm">{meta.subtitle}</p>
       </div>
     </header>
   )

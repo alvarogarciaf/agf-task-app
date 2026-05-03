@@ -78,7 +78,7 @@ export function FilteredTasks({
   return (
     <div className="flex h-full flex-col px-6 py-6 overflow-hidden">
       {/* Filter bar */}
-      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-2 shrink-0">
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3 shrink-0 md:p-2">
         <div className="flex items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
           <Filter className="h-3 w-3" />
           Filter
@@ -134,7 +134,7 @@ export function FilteredTasks({
               setPersonId(null)
               setProjectId(null)
             }}
-            className="ml-auto inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+            className="ml-auto inline-flex items-center gap-1 rounded px-3 py-2 text-sm text-muted-foreground hover:text-foreground md:px-2 md:py-1 md:text-xs"
           >
             <X className="h-3 w-3" />
             Clear all
@@ -187,7 +187,7 @@ function Segmented<T extends string>({
           type="button"
           onClick={() => onChange(o.value)}
           className={cn(
-            "rounded px-2.5 py-1 text-xs transition-colors",
+            "rounded px-3 py-2 text-sm transition-colors md:px-2.5 md:py-1 md:text-xs",
             value === o.value
               ? "bg-primary/15 text-primary"
               : "text-muted-foreground hover:text-foreground",
@@ -220,7 +220,7 @@ function FilterPill({
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors",
+          "inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm transition-colors md:px-2.5 md:py-1 md:text-xs",
           value
             ? "border-primary/40 bg-primary/10 text-primary"
             : "border-border bg-background text-muted-foreground hover:text-foreground",
@@ -255,7 +255,7 @@ function FilterPill({
                 onSelect(opt.id)
                 setOpen(false)
               }}
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+              className="flex w-full items-center gap-2 rounded px-3 py-2.5 text-left text-base hover:bg-muted md:px-2 md:py-1.5 md:text-sm"
             >
               {opt.color ? (
                 <span

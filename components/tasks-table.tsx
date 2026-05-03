@@ -769,13 +769,13 @@ function MobileSwipeTask({
           offset > 80 ? "text-primary" : "text-primary/50"
         )}
       >
-        <CircleCheck className="h-5 w-5" />
+        <CircleCheck className="h-6 w-6" />
       </div>
 
       {/* Foreground Task Card */}
       <div
         className={cn(
-          "relative flex items-center gap-3 bg-card px-4 py-3 touch-pan-y",
+          "relative flex items-center gap-3 bg-card px-5 py-4 touch-pan-y",
           !isDragging && "transition-transform duration-200"
         )}
         style={{ transform: `translateX(${offset}px)` }}
@@ -785,15 +785,15 @@ function MobileSwipeTask({
       >
         {urgency ? (
           <span
-            className="h-2 w-2 shrink-0 rounded-full"
+            className="h-2.5 w-2.5 shrink-0 rounded-full"
             style={{ backgroundColor: urgency.color }}
           />
         ) : (
-          <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/40" />
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-muted-foreground/40" />
         )}
         <span
           className={cn(
-            "flex-1 truncate text-sm",
+            "flex-1 truncate text-base",
             task.processed ? "text-muted-foreground line-through" : "text-foreground"
           )}
         >

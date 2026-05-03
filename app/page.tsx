@@ -123,7 +123,7 @@ export default function Page() {
         onToggleOnline={() => setOnline((o) => !o)}
       />
 
-      <main className="flex h-screen flex-1 flex-col overflow-hidden pb-[64px] md:pb-0">
+      <main className="flex h-screen flex-1 flex-col overflow-hidden pb-[72px] md:pb-0">
         <AppHeader view={view} onNavigate={setView} />
 
         <div className="flex-1 overflow-y-auto">

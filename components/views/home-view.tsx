@@ -189,11 +189,11 @@ export function HomeView({
             type="submit"
             disabled={!text.trim()}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40",
+              "inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2.5 text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 md:px-3.5 md:py-1.5 md:text-sm",
             )}
           >
             Capture
-            <ArrowRight className="h-3.5 w-3.5" />
+            <ArrowRight className="h-4 w-4 md:h-3.5 md:w-3.5" />
           </button>
         </div>
       </form>
@@ -326,7 +326,7 @@ const AttributePicker = forwardRef<HTMLButtonElement, AttributePickerProps>(({
           }
         }}
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors",
+          "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm transition-colors md:px-3 md:py-1.5 md:text-xs",
           selected.length > 0
             ? "border-primary/40 bg-primary/10 text-primary"
             : "border-border bg-background text-muted-foreground hover:border-border/80 hover:bg-muted hover:text-foreground"
@@ -405,7 +405,7 @@ const AttributePicker = forwardRef<HTMLButtonElement, AttributePickerProps>(({
                     }}
                     onMouseEnter={() => setHighlightedIdx(idx)}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors",
+                      "flex w-full items-center gap-2 rounded px-3 py-2.5 text-left text-base transition-colors md:px-2 md:py-1.5 md:text-sm",
                       isSel && "text-primary font-medium",
                       isHighlighted ? "bg-muted" : "hover:bg-muted/50"
                     )}

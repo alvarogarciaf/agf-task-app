@@ -135,7 +135,7 @@ export function TaskDetailDialog({
             type="button"
             onClick={() => update("processed", !draft.processed)}
             className={cn(
-              "inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-xs transition-colors",
+              "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors md:px-2.5 md:py-1 md:text-xs",
               draft.processed
                 ? "border-primary/40 bg-primary/10 text-primary"
                 : "border-border bg-background text-muted-foreground hover:text-foreground",
@@ -210,7 +210,7 @@ export function TaskDetailDialog({
                 value={draft.urgency_id}
                 onValueChange={(v) => update("urgency_id", v)}
               >
-                <SelectTrigger className="mt-1.5 w-full border-border bg-background">
+                <SelectTrigger className="mt-1.5 w-full border-border bg-background h-11 md:h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -237,7 +237,7 @@ export function TaskDetailDialog({
                   update("project_id", v === "__none__" ? null : v)
                 }
               >
-                <SelectTrigger className="mt-1.5 w-full border-border bg-background">
+                <SelectTrigger className="mt-1.5 w-full border-border bg-background h-11 md:h-9">
                   <SelectValue placeholder="No project" />
                 </SelectTrigger>
                 <SelectContent>
@@ -262,7 +262,7 @@ export function TaskDetailDialog({
                   update("person_id", v === "__none__" ? null : v)
                 }
               >
-                <SelectTrigger className="mt-1.5 w-full border-border bg-background">
+                <SelectTrigger className="mt-1.5 w-full border-border bg-background h-11 md:h-9">
                   <SelectValue placeholder="No one" />
                 </SelectTrigger>
                 <SelectContent>
@@ -300,7 +300,7 @@ export function TaskDetailDialog({
                     e.target.value === "" ? null : new Date(e.target.value).toISOString(),
                   )
                 }
-                className="mt-1.5 h-9 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
+                className="mt-1.5 h-11 w-full rounded-md border border-border bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-ring/40 md:h-9 md:text-sm"
               />
             </div>
 
@@ -316,7 +316,7 @@ export function TaskDetailDialog({
                     e.target.value === "" ? null : new Date(e.target.value).toISOString(),
                   )
                 }
-                className="mt-1.5 h-9 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
+                className="mt-1.5 h-11 w-full rounded-md border border-border bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-ring/40 md:h-9 md:text-sm"
               />
             </div>
           </div>
@@ -338,7 +338,7 @@ export function TaskDetailDialog({
                     type="button"
                     onClick={() => toggleContext(c.id)}
                     className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors",
+                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm transition-colors md:px-2.5 md:py-1 md:text-xs",
                       selected
                         ? "border-primary/40 bg-primary/10 text-primary"
                         : "border-border bg-background text-muted-foreground hover:text-foreground",
@@ -367,7 +367,7 @@ export function TaskDetailDialog({
             <button
               type="button"
               onClick={cancel}
-              className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              className="rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs"
             >
               Cancel
             </button>
@@ -375,7 +375,7 @@ export function TaskDetailDialog({
               type="button"
               onClick={save}
               disabled={!dirty || !(draft.description || "").trim()}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 md:px-3 md:py-1.5 md:text-xs"
             >
               <Check className="h-3 w-3" />
               Save changes

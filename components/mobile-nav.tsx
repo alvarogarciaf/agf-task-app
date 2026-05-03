@@ -20,7 +20,7 @@ export function MobileNav({ active, onChange, inboxCount }: MobileNavProps) {
   ]
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t border-border bg-background/90 backdrop-blur pb-safe px-2">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex h-[72px] items-center justify-around border-t border-border bg-background/90 backdrop-blur pb-safe px-2">
       {items.map((item) => {
         const Icon = item.icon
         const isActive = active === item.key
@@ -29,14 +29,14 @@ export function MobileNav({ active, onChange, inboxCount }: MobileNavProps) {
             key={item.key}
             onClick={() => onChange(item.key)}
             className={cn(
-              "relative flex flex-col items-center justify-center w-full h-full gap-1 text-[10px] font-medium transition-colors",
+              "relative flex flex-col items-center justify-center w-full h-full gap-1 text-[11px] font-medium transition-colors",
               isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
             )}
           >
             <div className="relative">
-              <Icon className="h-5 w-5" />
+              <Icon className="h-6 w-6" />
               {item.badge !== undefined && item.badge > 0 && (
-                <span className="absolute -top-1.5 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
+                <span className="absolute -top-1.5 -right-2.5 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
                   {item.badge}
                 </span>
               )}
