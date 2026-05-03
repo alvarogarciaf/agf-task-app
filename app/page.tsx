@@ -163,6 +163,7 @@ export default function Page() {
                 setAllTasksPersonFilter(undefined)
                 setView("all")
               }}
+              onUpdateContext={crud.onUpdateContext}
             />
           ) : view === "persons" ? (
             <PersonsView
