@@ -15,12 +15,13 @@ export function useDatabase() {
   return context;
 }
 
-export function DbProvider({ children }: { children: ReactNode }) {
+export function DbProvider({ userUid, children }: { userUid: string; children: ReactNode }) {
   const [db, setDb] = useState<RxDatabase | null>(null);
 
   useEffect(() => {
     let mounted = true;
-    getDatabase().then((database) => {
+    setDb(null); // Reset when user changes
+    getDatabase(userUid).then((database) => {
       if (mounted) {
         setupReplication(database);
         setDb(database);
@@ -29,7 +30,7 @@ export function DbProvider({ children }: { children: ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [userUid]);
 
   if (!db) {
     // Return a minimal loading state while the local DB initializes

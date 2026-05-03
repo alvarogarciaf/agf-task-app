@@ -1,103 +1,136 @@
 "use client"
 
-import { Search, Command, Bell, Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useState, useRef, useEffect } from "react"
+import { Search, Command, Settings, LogOut, ChevronDown } from "lucide-react"
 import type { ViewKey } from "@/lib/types"
+import type { User } from "firebase/auth"
 
-const TITLES: Record<ViewKey, { title: string; subtitle: string }> = {
-  home: {
-    title: "Inbox",
-    subtitle: "Capture new tasks and triage what's unprocessed.",
-  },
-  inbox: {
-    title: "Inbox",
-    subtitle: "Triage what you captured. Mark items as processed to move them into the system.",
-  },
-  all: {
-    title: "All Tasks",
-    subtitle: "Master archive. Filter by context, person, or project — instantly, offline.",
-  },
-  contexts: {
-    title: "Contexts",
-    subtitle: "Where, when, and how you do work. Click any tile to see related tasks.",
-  },
-  persons: {
-    title: "People",
-    subtitle: "Tasks grouped by who they involve.",
-  },
-  projects: {
-    title: "Projects",
-    subtitle: "Active workstreams. Open a project to drill into its tasks and details.",
-  },
-  settings: {
-    title: "Settings",
-    subtitle: "Manage your Contexts, People, and Urgencies.",
-  },
+const TITLES: Record<ViewKey, string> = {
+  home: "Inbox",
+  inbox: "Inbox",
+  all: "All Tasks",
+  contexts: "Contexts",
+  persons: "People",
+  projects: "Projects",
+  settings: "Settings",
 }
 
 interface AppHeaderProps {
   view: ViewKey
   onNavigate?: (view: ViewKey) => void
+  user?: User | null
+  onSignOut?: () => void
 }
 
-export function AppHeader({ view, onNavigate }: AppHeaderProps) {
-  const meta = TITLES[view]
+export function AppHeader({ view, onNavigate, user, onSignOut }: AppHeaderProps) {
+  const title = TITLES[view]
+  const [avatarOpen, setAvatarOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!avatarOpen) return
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setAvatarOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [avatarOpen])
+
+  // User initials from display name or email
+  const initials = user
+    ? (user.displayName || user.email || "U")
+        .split(/[\s@]+/)
+        .slice(0, 2)
+        .map((w) => w[0]?.toUpperCase() || "")
+        .join("")
+    : "?"
+
   return (
     <header className="border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      {/* Top utility bar */}
-      <div className="flex h-12 items-center justify-between gap-3 px-6">
-        <div className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
-          <span>tasker-agf</span>
-          <span className="text-border">/</span>
-          <span className="text-foreground">{view}</span>
-        </div>
+      <div className="flex h-14 items-center justify-between gap-3 px-4 md:px-6">
+        {/* Section title */}
+        <h1 className="text-lg font-semibold tracking-tight md:text-xl">{title}</h1>
 
+        {/* Right side controls */}
         <div className="flex items-center gap-2">
+          {/* Search */}
           <button
             type="button"
             className="flex h-10 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-muted-foreground transition-colors hover:bg-muted md:h-8 md:text-xs"
           >
             <Search className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Search tasks, projects…</span>
+            <span className="hidden sm:inline">Search…</span>
             <span className="ml-2 hidden items-center gap-1 font-mono text-[10px] sm:flex">
               <Command className="h-3 w-3" />K
             </span>
           </button>
 
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground hidden md:inline-flex"
-            aria-label="Notifications"
-          >
-            <Bell className="h-4 w-4" />
-          </Button>
-
-          <Button
-            size="sm"
-            className="h-10 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 md:h-8"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">New task</span>
-          </Button>
-
-          <div className="h-4 w-px bg-border mx-1 hidden md:block" />
-
-          {/* User Profile / Settings */}
+          {/* Settings gear */}
           <button
+            type="button"
             onClick={() => onNavigate?.("settings")}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary hover:bg-primary/30 transition-colors md:h-8 md:w-8 md:text-[11px]"
-            title="Settings"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:h-8 md:w-8"
+            aria-label="Settings"
           >
-            AP
+            <Settings className="h-4.5 w-4.5 md:h-4 md:w-4" />
           </button>
-        </div>
-      </div>
 
-      {/* Page title */}
-      <div className="px-6 pt-6 pb-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">{meta.title}</h1>
-        <p className="mt-1 max-w-2xl text-base text-muted-foreground text-pretty md:text-sm">{meta.subtitle}</p>
+          {/* Avatar dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => setAvatarOpen((o) => !o)}
+              className="flex h-10 items-center gap-1.5 rounded-full pl-1 pr-2 transition-colors hover:bg-muted md:h-8"
+              aria-label="Account menu"
+            >
+              {user?.photoURL ? (
+                <img
+                  src={user.photoURL}
+                  alt=""
+                  className="h-8 w-8 rounded-full md:h-6 md:w-6"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary md:h-6 md:w-6 md:text-[10px]">
+                  {initials}
+                </span>
+              )}
+              <ChevronDown className="h-3 w-3 text-muted-foreground" />
+            </button>
+
+            {avatarOpen && (
+              <div className="absolute right-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-lg border border-border bg-popover shadow-lg animate-in fade-in zoom-in-95 duration-100">
+                {/* User info */}
+                <div className="border-b border-border px-4 py-3">
+                  <div className="text-sm font-medium truncate">
+                    {user?.displayName || "User"}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {user?.email || ""}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="p-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAvatarOpen(false)
+                      onSignOut?.()
+                    }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:py-1.5"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </header>
   )

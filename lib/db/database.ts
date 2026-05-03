@@ -10,15 +10,17 @@ import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
 addRxPlugin(RxDBQueryBuilderPlugin);
 addRxPlugin(RxDBUpdatePlugin);
 
-let dbPromise: any = null;
+const dbCache: Record<string, Promise<any>> = {};
 
-export const getDatabase = async () => {
-  // Prevent multiple creations in React strict mode / HMR
-  if (dbPromise) return dbPromise;
+export const getDatabase = async (userUid: string) => {
+  const dbName = `taskeragf_${userUid}`;
+  
+  // Prevent multiple creations for the same user
+  if (dbCache[dbName]) return dbCache[dbName];
 
   const create = async () => {
     const db = await createRxDatabase({
-      name: 'taskmanagerdb_v3',
+      name: dbName,
       storage: getRxStorageDexie(),
       multiInstance: true,
       eventReduce: true,
@@ -41,6 +43,6 @@ export const getDatabase = async () => {
     return db;
   };
 
-  dbPromise = create();
-  return dbPromise;
+  dbCache[dbName] = create();
+  return dbCache[dbName];
 };

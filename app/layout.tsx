@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ServiceWorkerRegister } from "@/components/service-worker-register"
+import { AuthProvider } from "@/components/auth-provider"
 import "./globals.css"
 
 const geist = Geist({
@@ -31,8 +32,6 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 }
 
-import { DbProvider } from "@/components/db-provider"
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -41,9 +40,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`dark ${geist.variable} ${geistMono.variable}`}>
       <body className="bg-background text-foreground font-sans antialiased">
-        <DbProvider>
+        <AuthProvider>
           {children}
-        </DbProvider>
+        </AuthProvider>
         <ServiceWorkerRegister />
         {process.env.NODE_ENV === "production" && <Analytics />}
       </body>
