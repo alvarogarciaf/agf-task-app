@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { Filter, X, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { TasksTable } from "@/components/tasks-table"
@@ -13,6 +13,7 @@ interface FilteredTasksProps {
   contexts: Context[]
   urgencies: UrgencyLevel[]
   onToggleProcessed: (id: string) => void
+  onToggleStatus: (id: string) => void
   onUpdate: (task: Task) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
@@ -25,6 +26,14 @@ interface FilteredTasksProps {
   emptyHint?: string
   itemNoun?: string
   inboxMode?: boolean
+  onCreate?: (input: {
+    description: string
+    contextIds: string[]
+    projectId: string | null
+    personId: string | null
+    processed: boolean
+  }) => void
+  hideFilterBar?: boolean
 }
 
 export function FilteredTasks({
@@ -34,6 +43,7 @@ export function FilteredTasks({
   contexts,
   urgencies,
   onToggleProcessed,
+  onToggleStatus,
   onUpdate,
   onArchiveTask,
   onDeleteTask,
@@ -46,27 +56,97 @@ export function FilteredTasks({
   emptyHint,
   itemNoun,
   inboxMode = false,
+  onCreate,
+  hideFilterBar = false,
 }: FilteredTasksProps) {
   const [contextId, setContextId] = useState<string | null>(initialContextId ?? null)
   const [personId, setPersonId] = useState<string | null>(initialPersonId ?? null)
   const [projectId, setProjectId] = useState<string | null>(initialProjectId ?? null)
-  const [showProcessed, setShowProcessed] = useState<"all" | "open" | "done">("open")
+  const [showStatus, setShowStatus] = useState<"all" | "open" | "done">("open")
+  const [isCreating, setIsCreating] = useState(false)
+  const [autoFocusTaskId, setAutoFocusTaskId] = useState<string | null>(null)
+  const [prevTasksLength, setPrevTasksLength] = useState(tasks.length)
+  
+  // Sync state with initial props when they change (drill-down navigation)
+  useEffect(() => {
+    setContextId(initialContextId ?? null)
+    setPersonId(initialPersonId ?? null)
+    setProjectId(initialProjectId ?? null)
+  }, [initialContextId, initialPersonId, initialProjectId])
 
   const filtered = useMemo(() => {
     return tasks
-      .filter((t) => (contextId ? (t.context_ids || []).includes(contextId) : true))
-      .filter((t) => (personId ? t.person_id === personId : true))
-      .filter((t) => (projectId ? t.project_id === projectId : true))
       .filter((t) => {
-        // If the status filter is hidden, don't filter by showProcessed (or default to open depending on mode)
-        if (hideFilters.includes("status") && !inboxMode) return true
-        if (showProcessed === "all") return true
-        if (showProcessed === "open") return !t.processed
-        return t.processed
+        if (!contextId) return true
+        return (t.context_ids || []).includes(contextId)
+      })
+      .filter((t) => {
+        if (!personId) return true
+        return t.person_id === personId
+      })
+      .filter((t) => {
+        if (!projectId) return true
+        return t.project_id === projectId
+      })
+      .filter((t) => {
+        // 1. Visibility Rule: Inbox vs Everywhere Else
+        if (inboxMode) {
+          // Inbox only shows UNPROCESSED and OPEN tasks
+          if (t.processed || t.status !== "Open") return false
+        } else {
+          // Everywhere else only shows PROCESSED tasks
+          if (!t.processed) return false
+          
+          // 2. Status Filter: Open vs Done (only applies to non-inbox views)
+          if (showStatus === "all") return true
+          if (showStatus === "open") return t.status === "Open"
+          return t.status === "Done"
+        }
+
+        return true
       })
       .filter((t) => !t.archived)
       .sort((a, b) => +new Date(b.date_created) - +new Date(a.date_created))
-  }, [tasks, contextId, personId, projectId, showProcessed, hideFilters, inboxMode])
+  }, [tasks, contextId, personId, projectId, showStatus, inboxMode])
+
+  useEffect(() => {
+    if (isCreating && tasks.length > prevTasksLength) {
+      // The newest task should be at index 0 of filtered because of the date_created sort
+      const newTask = filtered[0]
+      if (newTask) {
+        setAutoFocusTaskId(newTask.id)
+      }
+      setIsCreating(false)
+    }
+    setPrevTasksLength(tasks.length)
+  }, [tasks, isCreating, prevTasksLength, filtered])
+
+  const handleAddNewTask = () => {
+    if (!onCreate) return
+    onCreate({
+      description: "New task",
+      contextIds: contextId ? [contextId] : [],
+      projectId: projectId,
+      personId: personId,
+      processed: !inboxMode,
+    })
+    setIsCreating(true)
+  }
+
+  // Keyboard shortcut: Ctrl+N for new task
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
+        // Only trigger if we're not already in an input/textarea
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+        
+        e.preventDefault()
+        handleAddNewTask()
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [handleAddNewTask])
 
   const hasFilter = contextId || personId || projectId
 
@@ -78,7 +158,8 @@ export function FilteredTasks({
   return (
     <div className="flex flex-col min-w-0 w-full rounded-xl border border-border bg-card overflow-hidden">
       {/* Filter bar - Card Header */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/20 p-3 shrink-0 md:p-2">
+      {!hideFilterBar && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/20 p-3 shrink-0 md:p-2">
         <div className="flex items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
           <Filter className="h-3 w-3" />
           Filter
@@ -86,8 +167,8 @@ export function FilteredTasks({
 
         {!hideFilters.includes("status") && (
           <Segmented
-            value={showProcessed}
-            onChange={setShowProcessed}
+            value={showStatus}
+            onChange={setShowStatus}
             options={[
               { value: "all", label: "All" },
               { value: "open", label: "Open" },
@@ -145,6 +226,7 @@ export function FilteredTasks({
           </span>
         )}
       </div>
+    )}
 
       <div className="min-h-0 min-w-0 w-full">
         <TasksTable
@@ -163,6 +245,11 @@ export function FilteredTasks({
           emptyHint={emptyHint}
           itemNoun={itemNoun}
           inboxMode={inboxMode}
+          onCreate={onCreate ? handleAddNewTask : undefined}
+          onToggleProcessed={onToggleProcessed}
+          onToggleStatus={onToggleStatus}
+          autoFocusTaskId={autoFocusTaskId}
+          onAutoFocusComplete={() => setAutoFocusTaskId(null)}
         />
       </div>
     </div>
@@ -215,11 +302,18 @@ function FilterPill({
   const [open, setOpen] = useState(false)
   return (
     <div className="relative">
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            setOpen((o) => !o)
+          }
+        }}
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm transition-colors md:px-2.5 md:py-1 md:text-xs",
+          "inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm transition-colors md:px-2.5 md:py-1 md:text-xs cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-ring",
           value
             ? "border-primary/40 bg-primary/10 text-primary"
             : "border-border bg-background text-muted-foreground hover:text-foreground",
@@ -236,14 +330,14 @@ function FilterPill({
                 e.stopPropagation()
                 onClear()
               }}
-              className="ml-0.5 rounded p-0.5 hover:bg-primary/20"
+              className="ml-0.5 rounded p-0.5 hover:bg-primary/20 transition-colors"
               aria-label="Clear"
             >
               <X className="h-2.5 w-2.5" />
             </button>
           </>
         ) : null}
-      </button>
+      </div>
       {open ? (
         <div className="absolute left-0 top-full z-20 mt-1 max-h-64 w-56 overflow-auto rounded-md border border-border bg-popover p-1 shadow-lg">
           {options.map((opt) => (

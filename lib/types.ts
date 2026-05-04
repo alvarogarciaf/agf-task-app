@@ -18,6 +18,7 @@ export interface Task {
   person_id?: string | null
   context_ids: string[]
   processed: boolean
+  status: "Open" | "Done"
   urgency_id: string
   archived?: boolean
 }

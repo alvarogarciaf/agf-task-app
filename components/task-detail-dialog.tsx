@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import {
   AlertCircle,
   Calendar,
@@ -63,6 +63,17 @@ export function TaskDetailDialog({
     setDraft(getFullPlainTask(task))
   }, [task])
 
+  const descriptionRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (open && draft?.description === "New task") {
+      setDraft((prev) => (prev ? { ...prev, description: "" } : prev))
+      setTimeout(() => {
+        descriptionRef.current?.focus()
+      }, 0)
+    }
+  }, [open, draft?.description])
+
   if (!draft) return null
 
   // Safely extract primitive properties for comparison to avoid RxDB circular reference errors
@@ -80,6 +91,7 @@ export function TaskDetailDialog({
       show_on: data.show_on,
       action_date: data.action_date,
       processed: data.processed,
+      status: data.status,
       context_ids: [...(data.context_ids || [])].sort(),
     }
   }
@@ -149,6 +161,24 @@ export function TaskDetailDialog({
             {draft.processed ? "Processed" : "Inbox"}
           </button>
 
+          <button
+            type="button"
+            onClick={() => update("status", draft.status === "Open" ? "Done" : "Open")}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors md:px-2.5 md:py-1 md:text-xs",
+              draft.status === "Done"
+                ? "border-primary/40 bg-primary/10 text-primary"
+                : "border-border bg-background text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {draft.status === "Done" ? (
+              <CircleCheck className="h-3.5 w-3.5" />
+            ) : (
+              <Circle className="h-3.5 w-3.5" />
+            )}
+            {draft.status === "Done" ? "Done" : "Open"}
+          </button>
+
           <span
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
           >
@@ -179,6 +209,7 @@ export function TaskDetailDialog({
           <div>
             <Label icon={<Zap className="h-3 w-3" />}>Description</Label>
             <Textarea
+              ref={descriptionRef}
               value={draft.description}
               onChange={(e) => update("description", e.target.value)}
               placeholder="What needs to happen?"

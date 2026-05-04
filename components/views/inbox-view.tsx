@@ -11,7 +11,15 @@ interface InboxViewProps {
   contexts: Context[]
   urgencies: UrgencyLevel[]
   onToggleProcessed: (id: string) => void
+  onToggleStatus: (id: string) => void
   onUpdate: (task: Task) => void
+  onCreate?: (input: {
+    description: string
+    contextIds: string[]
+    projectId: string | null
+    personId: string | null
+    processed: boolean
+  }) => void
 }
 
 export function InboxView({
@@ -21,7 +29,9 @@ export function InboxView({
   contexts,
   urgencies,
   onToggleProcessed,
+  onToggleStatus,
   onUpdate,
+  onCreate,
 }: InboxViewProps) {
   const inbox = tasks.filter((t) => !t.processed)
 
@@ -72,12 +82,14 @@ export function InboxView({
           contexts={contexts}
           urgencies={urgencies}
           onToggleProcessed={onToggleProcessed}
+          onToggleStatus={onToggleStatus}
           onUpdate={onUpdate}
           itemNoun="item"
           emptyTitle="Inbox zero"
           emptyHint="Nothing to triage right now."
           hideFilters={["status"]}
           inboxMode={true}
+          onCreate={onCreate}
         />
       </div>
     </div>

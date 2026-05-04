@@ -5,10 +5,12 @@ import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { DatabaseCollections } from './schema';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
+import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 
 // Add necessary plugins
 addRxPlugin(RxDBQueryBuilderPlugin);
 addRxPlugin(RxDBUpdatePlugin);
+addRxPlugin(RxDBMigrationSchemaPlugin);
 
 const dbCache: Record<string, Promise<any>> = {};
 
@@ -27,7 +29,26 @@ export const getDatabase = async (userUid: string) => {
     });
 
     // Add collections
-    await db.addCollections(DatabaseCollections);
+    await db.addCollections({
+      ...DatabaseCollections,
+      tasks: {
+        ...DatabaseCollections.tasks,
+        migrationStrategies: {
+          // 1: Migrate from version 0 to 1
+          1: (oldDoc: any) => {
+            oldDoc.status = oldDoc.status || "Open";
+            oldDoc.processed = oldDoc.processed ?? true;
+            return oldDoc;
+          },
+          // 2: Migrate from version 1 to 2
+          2: (oldDoc: any) => {
+            oldDoc.status = oldDoc.status || "Open";
+            oldDoc.processed = oldDoc.processed ?? true;
+            return oldDoc;
+          }
+        }
+      }
+    });
     
     // Seed initial data if the database is completely empty
     const tasksCount = await db.tasks.count().exec();

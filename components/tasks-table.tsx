@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from "react"
-import { Calendar, Circle, CircleCheck, Columns3, ExternalLink, GripVertical, RotateCcw, MoreVertical, Archive, Trash2 } from "lucide-react"
+import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, GripVertical, RotateCcw, MoreVertical, Archive, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent,
@@ -9,6 +9,7 @@ import {
   DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu"
 import { useTableColumns } from "@/hooks/use-table-columns"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { TaskDetailDialog } from "@/components/task-detail-dialog"
 import { InlineTextEditor, InlineSelectEditor, InlineMultiSelectEditor } from "@/components/inline-cell-editors"
 import type { Context, Person, Project, Task, UrgencyLevel } from "@/lib/types"
@@ -103,6 +104,9 @@ interface TasksTableProps {
   /** Optional label for the row count in the toolbar (defaults to "tasks"). */
   itemNoun?: string
   inboxMode?: boolean
+  onCreate?: () => void
+  autoFocusTaskId?: string | null
+  onAutoFocusComplete?: () => void
 }
 
 export function TasksTable({
@@ -112,6 +116,7 @@ export function TasksTable({
   contexts,
   urgencies,
   onToggleProcessed,
+  onToggleStatus,
   onUpdate,
   onArchiveTask,
   onDeleteTask,
@@ -121,6 +126,9 @@ export function TasksTable({
   emptyHint = "Try clearing one or capturing a new task.",
   itemNoun = "task",
   inboxMode = false,
+  onCreate,
+  autoFocusTaskId,
+  onAutoFocusComplete,
 }: TasksTableProps) {
   const { order, visibility, toggle, reorder, reset } = useTableColumns<TaskColumnKey>(
     storageKey, DEFAULT_ORDER, DEFAULT_VISIBILITY,
@@ -131,6 +139,20 @@ export function TasksTable({
   const [selectedCell, setSelectedCell] = useState<{ taskId: string; column: TaskColumnKey } | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const cellRefs = useRef<Record<string, HTMLTableCellElement | null>>({})
+  const isMobile = useIsMobile()
+
+  // Auto-focus logic for new tasks
+  useEffect(() => {
+    if (autoFocusTaskId && tasks.some(t => t.id === autoFocusTaskId)) {
+      if (isMobile) {
+        setActiveTaskId(autoFocusTaskId)
+      } else {
+        setSelectedCell({ taskId: autoFocusTaskId, column: "description" })
+        setIsEditing(true)
+      }
+      onAutoFocusComplete?.()
+    }
+  }, [autoFocusTaskId, tasks, isMobile, onAutoFocusComplete])
 
   // Refocus cell when exiting edit mode
   useEffect(() => {
@@ -232,48 +254,61 @@ export function TasksTable({
           {tasks.length} {tasks.length === 1 ? itemNoun : `${itemNoun}s`}
         </span>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <Columns3 className="h-3.5 w-3.5" />
+                Columns
+                <span className="ml-1 rounded bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
+                  {visibleCount}/{totalCount}
+                </span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuLabel className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                Toggle columns
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {orderableKeys.map((key) => {
+                const label = inboxMode && key === "status" ? "Processed" : COLUMN_MAP[key].label
+                return (
+                  <DropdownMenuCheckboxItem
+                    key={key}
+                    checked={visibility[key]}
+                    onCheckedChange={() => toggle(key)}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    {label}
+                  </DropdownMenuCheckboxItem>
+                )
+              })}
+              <DropdownMenuSeparator />
+              <div className="px-2 py-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                Drag column headers to reorder. Order &amp; visibility are saved per device.
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => reset()} className="text-xs">
+                <RotateCcw className="mr-2 h-3 w-3" />
+                Reset to defaults
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {onCreate && (
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              onClick={onCreate}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
-              <Columns3 className="h-3.5 w-3.5" />
-              Columns
-              <span className="ml-1 rounded bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
-                {visibleCount}/{totalCount}
-              </span>
+              <Plus className="h-3.5 w-3.5" />
+              Add task
             </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-60">
-            <DropdownMenuLabel className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-              Toggle columns
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {orderableKeys.map((key) => {
-              const label = inboxMode && key === "status" ? "Processed" : COLUMN_MAP[key].label
-              return (
-                <DropdownMenuCheckboxItem
-                  key={key}
-                  checked={visibility[key]}
-                  onCheckedChange={() => toggle(key)}
-                  onSelect={(e) => e.preventDefault()}
-                >
-                  {label}
-                </DropdownMenuCheckboxItem>
-              )
-            })}
-            <DropdownMenuSeparator />
-            <div className="px-2 py-1.5 text-[11px] leading-relaxed text-muted-foreground">
-              Drag column headers to reorder. Order &amp; visibility are saved per device.
-            </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => reset()} className="text-xs">
-              <RotateCcw className="mr-2 h-3 w-3" />
-              Reset to defaults
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -455,7 +490,7 @@ export function TasksTable({
                               }}
                             />
                           ) : (
-                            renderCell(key, { task, project, person, contexts: tCtx, urgency, onToggleProcessed })
+                            renderCell(key, { task, project, person, contexts: tCtx, urgency, onToggleProcessed, onToggleStatus, inboxMode })
                           )}
                         </td>
                       )
@@ -483,30 +518,50 @@ export function TasksTable({
                               <MoreVertical className="h-3.5 w-3.5" />
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuPortal>
-                            <DropdownMenuContent align="end" className="w-32">
+                          <DropdownMenuContent align="end" className="w-32">
+                            {!task.processed && (
                               <DropdownMenuItem 
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  onArchiveTask?.(task.id)
+                                  onToggleProcessed(task.id)
                                 }}
                                 className="text-xs"
                               >
-                                <Archive className="mr-2 h-3 w-3" />
-                                Archive
+                                <Check className="mr-2 h-3 w-3" />
+                                Mark as processed
                               </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  onDeleteTask?.(task.id)
-                                }}
-                                className="text-xs text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="mr-2 h-3 w-3" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenuPortal>
+                            )}
+                            <DropdownMenuItem 
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onToggleStatus(task.id)
+                              }}
+                              className="text-xs"
+                            >
+                              <Check className="mr-2 h-3 w-3" />
+                              {task.status === "Done" ? "Mark as open" : "Mark as done"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onArchiveTask?.(task.id)
+                              }}
+                              className="text-xs"
+                            >
+                              <Archive className="mr-2 h-3 w-3" />
+                              Archive
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onDeleteTask?.(task.id)
+                              }}
+                              className="text-xs text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-3 w-3" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
                     </td>
@@ -517,6 +572,17 @@ export function TasksTable({
           </table>
           </div>
         </>
+      )}
+
+      {onCreate && (
+        <button
+          type="button"
+          onClick={onCreate}
+          className="fixed bottom-[88px] right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 transition-transform md:hidden"
+          aria-label="Add task"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
       )}
 
       <TaskDetailDialog
@@ -542,27 +608,42 @@ interface CellContext {
   contexts: Context[]
   urgency?: UrgencyLevel
   onToggleProcessed: (id: string) => void
+  onToggleStatus: (id: string) => void
+  inboxMode: boolean
 }
 
 function renderCell(key: TaskColumnKey, ctx: CellContext) {
-  const { task, project, person, contexts, urgency, onToggleProcessed } = ctx
+  const { task, project, person, contexts, urgency, onToggleProcessed, onToggleStatus, inboxMode } = ctx
 
   switch (key) {
     case "status":
       return (
         <button
           type="button"
+          className={cn(
+            "mt-1 flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border transition-all md:h-4 md:w-4",
+            inboxMode
+              ? (task.processed
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-muted-foreground/40 hover:border-primary/60")
+              : (task.status === "Done"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-muted-foreground/40 hover:border-primary/60")
+          )}
           onClick={(e) => {
             e.stopPropagation()
-            onToggleProcessed(task.id)
+            if (inboxMode) {
+              onToggleProcessed(task.id)
+            } else {
+              onToggleStatus(task.id)
+            }
           }}
-          className="text-muted-foreground transition-colors hover:text-primary"
-          aria-label={task.processed ? "Mark as inbox" : "Mark as processed"}
+          aria-label={inboxMode ? "Mark as processed" : "Mark as done"}
         >
-          {task.processed ? (
-            <CircleCheck className="h-4 w-4 text-primary" />
+          {inboxMode ? (
+            task.processed && <Check className="h-3 w-3 md:h-2.5 md:w-2.5" />
           ) : (
-            <Circle className="h-4 w-4" />
+            task.status === "Done" && <Check className="h-3 w-3 md:h-2.5 md:w-2.5" />
           )}
         </button>
       )
@@ -585,7 +666,7 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
             task.processed ? "text-muted-foreground" : "text-foreground",
           )}
         >
-          {task.description}
+          {task.description === "New task" ? "" : task.description}
         </span>
       )
 
@@ -675,7 +756,7 @@ function InlineCellEditor({ task, column, projects, persons, contexts, urgencies
   const shared = { onCommit, onCancel, onTab, onCtrlEnter }
   switch (column) {
     case "description":
-      return <InlineTextEditor value={task.description} {...shared} />
+      return <InlineTextEditor value={task.description === "New task" ? "" : task.description} {...shared} />
     case "details":
       return <InlineTextEditor value={task.details ?? ""} {...shared} />
     case "project":
@@ -767,46 +848,44 @@ function MobileTaskRow({
               <MoreVertical className="h-4.5 w-4.5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuPortal>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Task Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Task Actions</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            
+            <DropdownMenuItem onClick={() => onToggleProcessed(task.id)}>
+              <CircleCheck className="mr-2 h-4 w-4" />
+              <span>Mark as Done</span>
+            </DropdownMenuItem>
+
+            {task.processed ? (
+              <DropdownMenuItem onClick={() => onToggleProcessed(task.id)}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                <span>Mark as Unprocessed</span>
+              </DropdownMenuItem>
+            ) : (
               <DropdownMenuItem onClick={() => onToggleProcessed(task.id)}>
                 <CircleCheck className="mr-2 h-4 w-4" />
-                <span>Mark as Done</span>
+                <span>Mark as Processed</span>
               </DropdownMenuItem>
+            )}
 
-              {task.processed ? (
-                <DropdownMenuItem onClick={() => onToggleProcessed(task.id)}>
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  <span>Mark as Unprocessed</span>
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem onClick={() => onToggleProcessed(task.id)}>
-                  <CircleCheck className="mr-2 h-4 w-4" />
-                  <span>Mark as Processed</span>
-                </DropdownMenuItem>
-              )}
-
-              {onArchiveTask && (
-                <DropdownMenuItem onClick={() => onArchiveTask(task.id)}>
-                  <Archive className="mr-2 h-4 w-4" />
-                  <span>Archive</span>
-                </DropdownMenuItem>
-              )}
-
-              <DropdownMenuSeparator />
-              
-              <DropdownMenuItem 
-                className="text-destructive focus:text-destructive"
-                onClick={() => onDeleteTask?.(task.id)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                <span>Delete</span>
+            {onArchiveTask && (
+              <DropdownMenuItem onClick={() => onArchiveTask(task.id)}>
+                <Archive className="mr-2 h-4 w-4" />
+                <span>Archive</span>
               </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenuPortal>
+            )}
+
+            <DropdownMenuSeparator />
+            
+            <DropdownMenuItem 
+              className="text-destructive focus:text-destructive"
+              onClick={() => onDeleteTask?.(task.id)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              <span>Delete</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
         </DropdownMenu>
       </div>
     </div>

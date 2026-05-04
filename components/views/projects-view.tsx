@@ -14,9 +14,17 @@ interface ProjectsViewProps {
   contexts: Context[]
   urgencies: UrgencyLevel[]
   onToggleProcessed: (id: string) => void
+  onToggleStatus: (id: string) => void
   onUpdate: (task: Task) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
+  onCreate?: (input: {
+    description: string
+    contextIds: string[]
+    projectId: string | null
+    personId: string | null
+    processed: boolean
+  }) => void
 }
 
 export function ProjectsView({
@@ -26,9 +34,11 @@ export function ProjectsView({
   contexts,
   urgencies,
   onToggleProcessed,
+  onToggleStatus,
   onUpdate,
   onArchiveTask,
   onDeleteTask,
+  onCreate,
 }: ProjectsViewProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<"Ongoing" | "Closed" | "All">("Ongoing")
@@ -45,10 +55,12 @@ export function ProjectsView({
         contexts={contexts}
         onBack={() => setSelected(null)}
         onToggleProcessed={onToggleProcessed}
+        onToggleStatus={onToggleStatus}
         onUpdate={onUpdate}
         onArchiveTask={onArchiveTask}
         onDeleteTask={onDeleteTask}
         urgencies={urgencies}
+        onCreate={onCreate}
       />
     )
   }
@@ -77,9 +89,9 @@ export function ProjectsView({
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((p) => {
-          const projTasks = tasks.filter((t) => t.project_id === p.id)
-          const open = projTasks.filter((t) => !t.processed).length
-          const done = projTasks.filter((t) => t.processed).length
+          const projTasks = tasks.filter((t) => t.project_id === p.id && t.processed)
+          const open = projTasks.filter((t) => t.status === "Open").length
+          const done = projTasks.filter((t) => t.status === "Done").length
           const pct = projTasks.length === 0 ? 0 : Math.round((done / projTasks.length) * 100)
           return (
             <button
@@ -148,6 +160,7 @@ function ProjectDetail({
   contexts,
   onBack,
   onToggleProcessed,
+  onToggleStatus,
   onUpdate,
   onArchiveTask,
   onDeleteTask,
@@ -161,14 +174,22 @@ function ProjectDetail({
   urgencies: UrgencyLevel[]
   onBack: () => void
   onToggleProcessed: (id: string) => void
+  onToggleStatus: (id: string) => void
   onUpdate: (task: Task) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
+  onCreate?: (input: {
+    description: string
+    contextIds: string[]
+    projectId: string | null
+    personId: string | null
+    processed: boolean
+  }) => void
 }) {
   const [tab, setTab] = useState<"tasks" | "description">("tasks")
-  const projTasks = tasks.filter((t) => t.project_id === project.id)
-  const open = projTasks.filter((t) => !t.processed)
-  const done = projTasks.filter((t) => t.processed)
+  const projTasks = tasks.filter((t) => t.project_id === project.id && t.processed)
+  const open = projTasks.filter((t) => t.status === "Open")
+  const done = projTasks.filter((t) => t.status === "Done")
 
   return (
     <div className="px-6 py-6">
@@ -244,6 +265,7 @@ function ProjectDetail({
             contexts={contexts}
             urgencies={urgencies}
             onToggleProcessed={onToggleProcessed}
+            onToggleStatus={onToggleStatus}
             onUpdate={onUpdate}
             onArchiveTask={onArchiveTask}
             onDeleteTask={onDeleteTask}
@@ -251,6 +273,7 @@ function ProjectDetail({
             hideFilters={["project"]}
             emptyTitle={`No tasks for ${project.name}`}
             emptyHint="Tasks linked to this project will appear here."
+            onCreate={onCreate}
           />
         </div>
       ) : (

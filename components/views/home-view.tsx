@@ -21,6 +21,7 @@ interface HomeViewProps {
   }) => void
   onUpdate: (task: Task) => void
   onToggleProcessed: (id: string) => void
+  onToggleStatus: (id: string) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
 }
@@ -34,6 +35,7 @@ export function HomeView({
   onCreate,
   onUpdate,
   onToggleProcessed,
+  onToggleStatus,
   onArchiveTask,
   onDeleteTask,
 }: HomeViewProps) {
@@ -223,7 +225,7 @@ export function HomeView({
             </p>
           </div>
         ) : (
-          <div className="-mx-6">
+          <div>
             <FilteredTasks
               tasks={inbox}
               projects={projects}
@@ -231,6 +233,7 @@ export function HomeView({
               contexts={contexts}
               urgencies={urgencies}
               onToggleProcessed={onToggleProcessed}
+              onToggleStatus={onToggleStatus}
               onUpdate={onUpdate}
               onArchiveTask={onArchiveTask}
               onDeleteTask={onDeleteTask}
@@ -239,6 +242,8 @@ export function HomeView({
               emptyHint="Nothing to triage right now."
               hideFilters={["status"]}
               inboxMode={true}
+              onCreate={onCreate}
+              hideFilterBar={true}
             />
           </div>
         )}

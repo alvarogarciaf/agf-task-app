@@ -1,226 +1,279 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useState } from "react"
+import { useDatabase } from "@/components/db-provider"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppHeader } from "@/components/app-header"
 import { MobileNav } from "@/components/mobile-nav"
 import { HomeView } from "@/components/views/home-view"
+import { InboxView } from "@/components/views/inbox-view"
 import { AllTasksView } from "@/components/views/all-tasks-view"
-import { ContextsView } from "@/components/views/contexts-view"
-import { PersonsView } from "@/components/views/persons-view"
 import { ProjectsView } from "@/components/views/projects-view"
+import { ContextsView } from "@/components/views/contexts-view"
 import { SettingsView } from "@/components/views/settings-view"
-import { useDatabase } from "@/components/db-provider"
-import { useRxQuery } from "@/hooks/useRxQuery"
-import { v4 as uuidv4 } from "uuid"
-import type { Task, ViewKey, Project, Person, Context, UrgencyLevel } from "@/lib/types"
+import { PersonsView } from "@/components/views/persons-view"
+import type { Context, Person, Project, Task, UrgencyLevel, ViewKey } from "@/lib/types"
 import type { User } from "firebase/auth"
 
 interface AppContentProps {
   user: User
-  onSignOut: () => Promise<void>
+  onSignOut: () => void
 }
 
 export function AppContent({ user, onSignOut }: AppContentProps) {
-  const [view, setView] = useState<ViewKey>("home")
   const db = useDatabase()
-  
-  const { result: tasks } = useRxQuery<Task>(db.tasks.find({ sort: [{ date_created: 'desc' }] }))
-  const { result: projects } = useRxQuery<Project>(db.projects.find())
-  const { result: persons } = useRxQuery<Person>(db.persons.find())
-  const { result: contexts } = useRxQuery<Context>(db.contexts.find())
-  const { result: urgencies } = useRxQuery<UrgencyLevel>(db.urgencies.find())
-
+  const [activeView, setActiveView] = useState<ViewKey>("home")
   const [online, setOnline] = useState(true)
-  const [allTasksContextFilter, setAllTasksContextFilter] = useState<string | undefined>()
-  const [allTasksPersonFilter, setAllTasksPersonFilter] = useState<string | undefined>()
 
-  const inboxCount = useMemo(() => tasks.filter((t) => !t.processed && !t.archived).length, [tasks])
-  const activeTasks = useMemo(() => tasks.filter(t => !t.archived), [tasks])
+  // Initial filter states for drill-down
+  const [initialContextId, setInitialContextId] = useState<string | undefined>()
+  const [initialPersonId, setInitialPersonId] = useState<string | undefined>()
 
-  async function toggleProcessed(id: string) {
-    const taskDoc = await db.tasks.findOne(id).exec()
-    if (taskDoc) {
-      await taskDoc.incrementalPatch({ processed: !taskDoc.processed })
-    }
-  }
+  // Data state
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  const [persons, setPersons] = useState<Person[]>([])
+  const [contexts, setContexts] = useState<Context[]>([])
+  const [urgencies, setUrgencies] = useState<UrgencyLevel[]>([])
 
-  async function archiveTask(id: string) {
-    const taskDoc = await db.tasks.findOne(id).exec()
-    if (taskDoc) {
-      await taskDoc.incrementalPatch({ archived: true })
-    }
-  }
+  // Subscriptions
+  useEffect(() => {
+    const subs = [
+      db.tasks.find().$.subscribe(setTasks),
+      db.projects.find().$.subscribe(setProjects),
+      db.persons.find().$.subscribe(setPersons),
+      db.contexts.find().$.subscribe(setContexts),
+      db.urgencies.find().$.subscribe(setUrgencies),
+    ]
+    return () => subs.forEach((s) => s.unsubscribe())
+  }, [db])
 
-  async function deleteTask(id: string) {
-    const taskDoc = await db.tasks.findOne(id).exec()
-    if (taskDoc) {
-      await taskDoc.remove()
-    }
-  }
-
-  async function updateTask(updated: Task) {
-    const taskDoc = await db.tasks.findOne(updated.id).exec()
-    if (taskDoc) {
-      // Ensure we only pass a plain object to incrementalPatch
-      // and remove the id from the patch as it's the primary key and hasn't changed
-      const patch = typeof (updated as any).toJSON === "function" 
-        ? (updated as any).toJSON() 
-        : { ...updated }
-      
-      delete patch.id
-      
-      if (Object.keys(patch).length > 0) {
-        await taskDoc.incrementalPatch(patch)
-      }
-    }
-  }
-
-  async function createTask(input: {
+  // Handlers
+  const handleCreateTask = async (input: {
     description: string
     contextIds: string[]
     projectId: string | null
     personId: string | null
     urgencyId?: string
-  }) {
-    const newTask: Task = {
-      id: uuidv4(),
+    processed?: boolean
+  }) => {
+    // Default to the first urgency if none provided
+    const defaultUrgency = urgencies.sort((a, b) => a.order - b.order)[0]?.id || "low"
+    
+    await db.tasks.insert({
+      id: crypto.randomUUID(),
       description: input.description,
-      date_created: new Date().toISOString(),
+      context_ids: input.contextIds,
       project_id: input.projectId,
       person_id: input.personId,
-      context_ids: input.contextIds,
-      processed: false,
-      urgency_id: input.urgencyId || "u_medium",
-    }
-    await db.tasks.insert(newTask)
+      urgency_id: input.urgencyId || defaultUrgency,
+      processed: input.processed ?? false,
+      status: "Open",
+      date_created: new Date().toISOString(),
+      archived: false,
+    })
   }
 
-  // --- CRUD for Settings ---
-  const crud = {
-    onAddPerson: async (p: Omit<Person, "id">) => db.persons.insert({ id: uuidv4(), ...p }),
-    onUpdatePerson: async (p: Person) => { const doc = await db.persons.findOne(p.id).exec(); if (doc) await doc.incrementalPatch(p); },
-    onDeletePerson: async (id: string) => { const doc = await db.persons.findOne(id).exec(); if (doc) await doc.remove(); },
-    
-    onAddContext: async (c: Omit<Context, "id">) => db.contexts.insert({ id: uuidv4(), ...c }),
-    onUpdateContext: async (c: Context) => { const doc = await db.contexts.findOne(c.id).exec(); if (doc) await doc.incrementalPatch(c); },
-    onDeleteContext: async (id: string) => { const doc = await db.contexts.findOne(id).exec(); if (doc) await doc.remove(); },
+  const handleUpdateTask = async (task: Task) => {
+    const doc = await db.tasks.findOne(task.id).exec()
+    if (doc) {
+      await doc.patch(task)
+    }
+  }
 
-    onAddUrgency: async (u: Omit<UrgencyLevel, "id">) => db.urgencies.insert({ id: uuidv4(), ...u }),
-    onUpdateUrgency: async (u: UrgencyLevel) => { const doc = await db.urgencies.findOne(u.id).exec(); if (doc) await doc.incrementalPatch(u); },
-    onDeleteUrgency: async (id: string) => { const doc = await db.urgencies.findOne(id).exec(); if (doc) await doc.remove(); },
+  const handleToggleProcessed = async (id: string) => {
+    const doc = await db.tasks.findOne(id).exec()
+    if (doc) {
+      await doc.patch({ processed: !doc.get("processed") })
+    }
+  }
+
+  const handleToggleStatus = async (id: string) => {
+    const doc = await db.tasks.findOne(id).exec()
+    if (doc) {
+      const current = doc.get("status")
+      await doc.patch({ status: current === "Open" ? "Done" : "Open" })
+    }
+  }
+
+  const handleArchiveTask = async (id: string) => {
+    const doc = await db.tasks.findOne(id).exec()
+    if (doc) {
+      await doc.patch({ archived: true })
+    }
+  }
+
+  const handleDeleteTask = async (id: string) => {
+    const doc = await db.tasks.findOne(id).exec()
+    if (doc) {
+      await doc.remove()
+    }
+  }
+
+  const handleNavigate = (view: ViewKey) => {
+    // Clear drill-down filters when navigating via sidebar/header
+    setInitialContextId(undefined)
+    setInitialPersonId(undefined)
+    setActiveView(view)
+  }
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      
+      const key = e.key.toUpperCase()
+      if (key === "I") handleNavigate("home")
+      if (key === "A") handleNavigate("all")
+      if (key === "P") handleNavigate("projects")
+      if (key === "C") handleNavigate("contexts")
+      if (key === "U") handleNavigate("persons")
+      if (key === "S") handleNavigate("settings")
+    }
+    window.addEventListener("keydown", handleKey)
+    return () => window.removeEventListener("keydown", handleKey)
+  }, [])
+
+  const inboxCount = tasks.filter((t) => !t.processed && !t.archived).length
+  const totalCount = tasks.filter((t) => !t.archived).length
+
+  const viewProps = {
+    tasks,
+    projects,
+    persons,
+    contexts,
+    urgencies,
+    onUpdate: handleUpdateTask,
+    onToggleProcessed: handleToggleProcessed,
+    onToggleStatus: handleToggleStatus,
+    onArchiveTask: handleArchiveTask,
+    onDeleteTask: handleDeleteTask,
+    onCreate: handleCreateTask,
+  }
+
+  const renderView = () => {
+    switch (activeView) {
+      case "home":
+        return <HomeView {...viewProps} />
+      case "inbox":
+        return <InboxView {...viewProps} />
+      case "all":
+        return (
+          <AllTasksView 
+            {...viewProps} 
+            initialContextId={initialContextId}
+            initialPersonId={initialPersonId}
+          />
+        )
+      case "projects":
+        return <ProjectsView {...viewProps} />
+      case "contexts":
+        return (
+          <ContextsView 
+            {...viewProps} 
+            onSelect={(id) => {
+              setInitialContextId(id)
+              setInitialPersonId(undefined)
+              setActiveView("all")
+            }}
+            onUpdateContext={async (c) => {
+              const doc = await db.contexts.findOne(c.id).exec()
+              if (doc) await doc.patch(c)
+            }}
+            onDeleteContext={async (id) => {
+              const doc = await db.contexts.findOne(id).exec()
+              if (doc) await doc.remove()
+            }}
+          />
+        )
+      case "persons":
+        return (
+          <PersonsView 
+            persons={persons}
+            tasks={tasks}
+            onSelect={(id) => {
+              setInitialPersonId(id)
+              setInitialContextId(undefined)
+              setActiveView("all")
+            }}
+          />
+        )
+      case "settings":
+        return (
+          <SettingsView 
+            persons={persons}
+            contexts={contexts}
+            urgencies={urgencies}
+            onAddPerson={async (p) => {
+              await db.persons.insert({ id: crypto.randomUUID(), ...p })
+            }}
+            onUpdatePerson={async (p) => {
+              const doc = await db.persons.findOne(p.id).exec()
+              if (doc) await doc.patch(p)
+            }}
+            onDeletePerson={async (id) => {
+              const doc = await db.persons.findOne(id).exec()
+              if (doc) await doc.remove()
+            }}
+            onAddContext={async (c) => {
+              await db.contexts.insert({ id: crypto.randomUUID(), ...c })
+            }}
+            onUpdateContext={async (c) => {
+              const doc = await db.contexts.findOne(c.id).exec()
+              if (doc) await doc.patch(c)
+            }}
+            onDeleteContext={async (id) => {
+              const doc = await db.contexts.findOne(id).exec()
+              if (doc) await doc.remove()
+            }}
+            onAddUrgency={async (u) => {
+              await db.urgencies.insert({ id: crypto.randomUUID(), ...u })
+            }}
+            onUpdateUrgency={async (u) => {
+              const doc = await db.urgencies.findOne(u.id).exec()
+              if (doc) await doc.patch(u)
+            }}
+            onDeleteUrgency={async (id) => {
+              const doc = await db.urgencies.findOne(id).exec()
+              if (doc) await doc.remove()
+            }}
+          />
+        )
+      default:
+        return <HomeView {...viewProps} />
+    }
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
-      <AppSidebar
-        active={view}
-        onChange={(v) => {
-          // Reset cross-view filters when navigating manually
-          if (v !== "all") {
-            setAllTasksContextFilter(undefined)
-            setAllTasksPersonFilter(undefined)
-          }
-          setView(v)
-        }}
+    <div className="flex h-screen w-full bg-background overflow-hidden">
+      <AppSidebar 
+        active={activeView} 
+        onChange={handleNavigate} 
         inboxCount={inboxCount}
-        totalCount={tasks.length}
+        totalCount={totalCount}
         online={online}
-        onToggleOnline={() => setOnline((o) => !o)}
+        onToggleOnline={() => setOnline(!online)}
       />
+      
+      <div className="flex flex-1 flex-col min-w-0 h-full overflow-hidden">
+        <AppHeader 
+          view={activeView} 
+          onNavigate={handleNavigate} 
+          user={user} 
+          onSignOut={onSignOut} 
+        />
+        
+        <main className="flex-1 overflow-y-auto pb-24 md:pb-6 px-4 md:px-6 py-6">
+          <div className="w-full h-full">
+            {renderView()}
+          </div>
+        </main>
+      </div>
 
-      <main className="flex h-screen flex-1 min-w-0 flex-col overflow-hidden pb-[72px] md:pb-0">
-        <AppHeader view={view} onNavigate={setView} user={user} onSignOut={onSignOut} />
-
-        <div className="flex-1 min-w-0 w-full overflow-y-auto overflow-x-hidden px-3 md:px-6 py-6">
-          {view === "home" ? (
-            <HomeView
-              projects={projects}
-              persons={persons}
-              contexts={contexts}
-              urgencies={urgencies}
-              tasks={activeTasks}
-              onCreate={createTask}
-              onUpdate={updateTask}
-              onToggleProcessed={toggleProcessed}
-              onArchiveTask={archiveTask}
-              onDeleteTask={deleteTask}
-            />
-          ) : view === "all" ? (
-            <AllTasksView
-              tasks={activeTasks}
-              projects={projects}
-              persons={persons}
-              contexts={contexts}
-              urgencies={urgencies}
-              onToggleProcessed={toggleProcessed}
-              onUpdate={updateTask}
-              initialContextId={allTasksContextFilter}
-              initialPersonId={allTasksPersonFilter}
-              onArchiveTask={archiveTask}
-              onDeleteTask={deleteTask}
-            />
-          ) : view === "contexts" ? (
-            <ContextsView
-              contexts={contexts}
-              tasks={tasks}
-              onSelect={(id) => {
-                setAllTasksContextFilter(id)
-                setAllTasksPersonFilter(undefined)
-                setView("all")
-              }}
-              onUpdateContext={crud.onUpdateContext}
-              onDeleteContext={crud.onDeleteContext}
-            />
-          ) : view === "persons" ? (
-            <PersonsView
-              persons={persons}
-              tasks={tasks}
-              onSelect={(id) => {
-                setAllTasksPersonFilter(id)
-                setAllTasksContextFilter(undefined)
-                setView("all")
-              }}
-            />
-          ) : view === "projects" ? (
-            <ProjectsView
-              projects={projects}
-              tasks={activeTasks}
-              persons={persons}
-              contexts={contexts}
-              urgencies={urgencies}
-              onToggleProcessed={toggleProcessed}
-              onUpdate={updateTask}
-              onArchiveTask={archiveTask}
-              onDeleteTask={deleteTask}
-            />
-          ) : view === "settings" ? (
-            <SettingsView
-              persons={persons}
-              contexts={contexts}
-              urgencies={urgencies}
-              {...crud}
-            />
-          ) : view === "inbox" ? (
-            null
-          ) : (
-            <div className="p-6 text-center text-sm text-muted-foreground">
-              View &quot;{view}&quot; not found
-            </div>
-          )}
-        </div>
-      </main>
-
-      <MobileNav
-        active={view}
-        onChange={(v) => {
-          if (v !== "all") {
-            setAllTasksContextFilter(undefined)
-            setAllTasksPersonFilter(undefined)
-          }
-          setView(v)
-        }}
-        inboxCount={inboxCount}
+      <MobileNav 
+        active={activeView} 
+        onChange={handleNavigate} 
+        inboxCount={inboxCount} 
       />
     </div>
   )

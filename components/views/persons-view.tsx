@@ -13,8 +13,8 @@ export function PersonsView({ persons, tasks, onSelect }: PersonsViewProps) {
     <div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {persons.map((p) => {
-          const count = tasks.filter((t) => t.person_id === p.id).length
-          const open = tasks.filter((t) => t.person_id === p.id && !t.processed).length
+          const count = tasks.filter((t) => t.person_id === p.id && t.processed).length
+          const open = tasks.filter((t) => t.person_id === p.id && t.processed && t.status === "Open" && !t.archived).length
           return (
             <button
               key={p.id}

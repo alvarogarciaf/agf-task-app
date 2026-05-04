@@ -10,12 +10,20 @@ interface AllTasksViewProps {
   contexts: Context[]
   urgencies: UrgencyLevel[]
   onToggleProcessed: (id: string) => void
+  onToggleStatus: (id: string) => void
   onUpdate: (task: Task) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
   initialContextId?: string
   initialPersonId?: string
   initialProjectId?: string
+  onCreate?: (input: {
+    description: string
+    contextIds: string[]
+    projectId: string | null
+    personId: string | null
+    processed: boolean
+  }) => void
 }
 
 export function AllTasksView(props: AllTasksViewProps) {
