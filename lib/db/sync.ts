@@ -6,7 +6,7 @@ import type { RxDatabase } from 'rxdb';
 export const setupReplication = (db: RxDatabase, userUid: string) => {
   if (typeof window === 'undefined') return []; // Only replicate on client
 
-  const syncCollections = ['tasks', 'projects', 'persons', 'contexts'];
+  const syncCollections = ['tasks', 'projects', 'persons', 'contexts', 'urgencies'];
 
   return syncCollections.map((collectionName) => {
     // Isolate by user path: users/{uid}/{collection}

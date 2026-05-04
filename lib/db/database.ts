@@ -18,7 +18,7 @@ export const getDatabase = async (userUid: string) => {
   const dbName = `taskeragf_${userUid}`;
   
   // Prevent multiple creations for the same user
-  if (dbCache[dbName]) return dbCache[dbName];
+  if (dbName in dbCache) return dbCache[dbName];
 
   const create = async () => {
     const db = await createRxDatabase({

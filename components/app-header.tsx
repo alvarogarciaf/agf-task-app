@@ -59,7 +59,10 @@ export function AppHeader({ view, onNavigate, user, onSignOut }: AppHeaderProps)
           {/* Search */}
           <button
             type="button"
-            className="flex h-10 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-muted-foreground transition-colors hover:bg-muted md:h-8 md:text-xs"
+            disabled
+            title="Search is not available yet"
+            aria-disabled="true"
+            className="flex h-10 cursor-not-allowed items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-muted-foreground opacity-60 md:h-8 md:text-xs"
           >
             <Search className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Search…</span>

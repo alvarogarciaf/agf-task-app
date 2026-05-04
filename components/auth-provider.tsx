@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function handleSignOut() {
     await firebaseSignOut(auth)
-    // Clear any user-specific IndexedDB databases
+    // RxDB databases remain on device (per uid) for fast re-login; clear manually if you share this device.
     setUser(null)
   }
 

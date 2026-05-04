@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
-import { Filter, X, Check } from "lucide-react"
+import { CalendarClock, Filter, X, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { TasksTable } from "@/components/tasks-table"
 import {
@@ -10,6 +10,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import type { Context, Person, Project, Task, UrgencyLevel } from "@/lib/types"
+import {
+  isTaskHiddenOnlyByShowOn,
+  isTaskVisibleByShowOnRule,
+} from "@/lib/show-on-filter"
 
 interface FilteredTasksProps {
   tasks: Task[]
@@ -75,6 +79,8 @@ export function FilteredTasks({
     key: "urgency",
     direction: "asc",
   })
+  /** When true, list only tasks hidden from the normal view because Show on is after today. */
+  const [showHiddenByShowOn, setShowHiddenByShowOn] = useState(false)
   
   // Sync state with initial props when they change (drill-down navigation)
   useEffect(() => {
@@ -115,6 +121,11 @@ export function FilteredTasks({
         return true
       })
       .filter((t) => !t.archived)
+      .filter((t) =>
+        showHiddenByShowOn
+          ? isTaskHiddenOnlyByShowOn(t)
+          : isTaskVisibleByShowOnRule(t),
+      )
       .sort((a, b) => {
         const { key, direction } = sortConfig
         let valA: any = ""
@@ -153,7 +164,20 @@ export function FilteredTasks({
         if (valA > valB) return direction === "asc" ? 1 : -1
         return 0
       })
-  }, [tasks, contextId, personId, projectId, showStatus, inboxMode, sortConfig, urgencies, projects, persons])
+  }, [
+    tasks,
+    contextId,
+    personId,
+    projectId,
+    showStatus,
+    inboxMode,
+    sortConfig,
+    urgencies,
+    projects,
+    persons,
+    contexts,
+    showHiddenByShowOn,
+  ])
 
   useEffect(() => {
     if (isCreating && tasks.length > prevTasksLength) {
@@ -203,6 +227,13 @@ export function FilteredTasks({
 
   const hasFilter = contextId || personId || projectId
 
+  const tableEmptyTitle = showHiddenByShowOn
+    ? "No tasks hidden by Show on"
+    : (emptyTitle ?? "No tasks match these filters")
+  const tableEmptyHint = showHiddenByShowOn
+    ? "Tasks with a Show on date after today appear here so you can change or clear the date."
+    : (emptyHint ?? "Try clearing one or capturing a new task.")
+
   const hiddenCols: ("status" | "urgency" | "description" | "details" | "project" | "person" | "contexts" | "show_on" | "action_date" | "date_created")[] = []
   if (inboxMode) {
     // If we have an inboxMode, maybe we hide certain columns or handle the column label differently
@@ -210,76 +241,96 @@ export function FilteredTasks({
 
   return (
     <div className="flex flex-col min-w-0 w-full rounded-lg border border-border bg-card overflow-hidden">
-      {/* Filter bar - Card Header */}
-      {!hideFilterBar && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/20 p-3 shrink-0 md:p-2">
-        <div className="flex items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-          <Filter className="h-3 w-3" />
-          Filter
-        </div>
+      {/* Filter bar + Show on visibility (toggle always available) */}
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-2 border-b border-border bg-muted/20 p-3 shrink-0 md:p-2",
+          hideFilterBar && "justify-end py-1.5",
+        )}
+      >
+        {!hideFilterBar && (
+          <>
+            <div className="flex items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              <Filter className="h-3 w-3" />
+              Filter
+            </div>
 
-        {!hideFilters.includes("status") && (
-          <Segmented
-            value={showStatus}
-            onChange={setShowStatus}
-            options={[
-              { value: "all", label: "All" },
-              { value: "open", label: "Open" },
-              { value: "done", label: "Done" },
-            ]}
-          />
+            {!hideFilters.includes("status") && (
+              <Segmented
+                value={showStatus}
+                onChange={setShowStatus}
+                options={[
+                  { value: "all", label: "All" },
+                  { value: "open", label: "Open" },
+                  { value: "done", label: "Done" },
+                ]}
+              />
+            )}
+
+            <ShowOnVisibilityToggle
+              active={showHiddenByShowOn}
+              onToggle={() => setShowHiddenByShowOn((v) => !v)}
+            />
+
+            {!hideFilters.includes("context") && (
+              <FilterPill
+                label="Context"
+                value={contextId ? contexts.find((c) => c.id === contextId)?.name : undefined}
+                options={contexts.map((c) => ({ id: c.id, label: c.name, color: c.color }))}
+                onSelect={(id) => setContextId((p) => (p === id ? null : id))}
+                onClear={() => setContextId(null)}
+              />
+            )}
+
+            {!hideFilters.includes("project") && (
+              <FilterPill
+                label="Project"
+                value={projectId ? projects.find((p) => p.id === projectId)?.name : undefined}
+                options={projects.map((p) => ({ id: p.id, label: p.name }))}
+                onSelect={(id) => setProjectId((p) => (p === id ? null : id))}
+                onClear={() => setProjectId(null)}
+              />
+            )}
+
+            {!hideFilters.includes("person") && (
+              <FilterPill
+                label="Person"
+                value={personId ? persons.find((p) => p.id === personId)?.name : undefined}
+                options={persons.map((p) => ({ id: p.id, label: p.name, color: p.color }))}
+                onSelect={(id) => setPersonId((p) => (p === id ? null : id))}
+                onClear={() => setPersonId(null)}
+              />
+            )}
+
+            {hasFilter ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setContextId(null)
+                  setPersonId(null)
+                  setProjectId(null)
+                  setShowHiddenByShowOn(false)
+                }}
+                className="ml-auto inline-flex items-center gap-1 rounded px-3 py-2 text-sm text-muted-foreground hover:text-foreground md:px-2 md:py-1 md:text-xs"
+              >
+                <X className="h-3 w-3" />
+                Clear all
+              </button>
+            ) : (
+              <span className="ml-auto px-2 font-mono text-[10px] text-muted-foreground">
+                {filtered.length} of {tasks.length}
+              </span>
+            )}
+          </>
         )}
 
-        {!hideFilters.includes("context") && (
-          <FilterPill
-            label="Context"
-            value={contextId ? contexts.find((c) => c.id === contextId)?.name : undefined}
-            options={contexts.map((c) => ({ id: c.id, label: c.name, color: c.color }))}
-            onSelect={(id) => setContextId((p) => (p === id ? null : id))}
-            onClear={() => setContextId(null)}
+        {hideFilterBar && (
+          <ShowOnVisibilityToggle
+            active={showHiddenByShowOn}
+            onToggle={() => setShowHiddenByShowOn((v) => !v)}
           />
-        )}
-        
-        {!hideFilters.includes("project") && (
-          <FilterPill
-            label="Project"
-            value={projectId ? projects.find((p) => p.id === projectId)?.name : undefined}
-            options={projects.map((p) => ({ id: p.id, label: p.name }))}
-            onSelect={(id) => setProjectId((p) => (p === id ? null : id))}
-            onClear={() => setProjectId(null)}
-          />
-        )}
-        
-        {!hideFilters.includes("person") && (
-          <FilterPill
-            label="Person"
-            value={personId ? persons.find((p) => p.id === personId)?.name : undefined}
-            options={persons.map((p) => ({ id: p.id, label: p.name, color: p.color }))}
-            onSelect={(id) => setPersonId((p) => (p === id ? null : id))}
-            onClear={() => setPersonId(null)}
-          />
-        )}
-
-        {hasFilter ? (
-          <button
-            type="button"
-            onClick={() => {
-              setContextId(null)
-              setPersonId(null)
-              setProjectId(null)
-            }}
-            className="ml-auto inline-flex items-center gap-1 rounded px-3 py-2 text-sm text-muted-foreground hover:text-foreground md:px-2 md:py-1 md:text-xs"
-          >
-            <X className="h-3 w-3" />
-            Clear all
-          </button>
-        ) : (
-          <span className="ml-auto px-2 font-mono text-[10px] text-muted-foreground">
-            {filtered.length} of {tasks.length}
-          </span>
         )}
       </div>
-    )}
 
       <div className="min-h-0 min-w-0 w-full">
         <TasksTable
@@ -294,12 +345,11 @@ export function FilteredTasks({
           onDeleteTask={onDeleteTask}
           hideColumns={hiddenCols}
           storageKey={storageKey}
-          emptyTitle={emptyTitle}
-          emptyHint={emptyHint}
+          emptyTitle={tableEmptyTitle}
+          emptyHint={tableEmptyHint}
           itemNoun={itemNoun}
           inboxMode={inboxMode}
           onCreate={onCreate ? handleAddNewTask : undefined}
-          onToggleProcessed={onToggleProcessed}
           onToggleStatus={onToggleStatus}
           autoFocusTaskId={autoFocusTaskId}
           onAutoFocusComplete={() => setAutoFocusTaskId(null)}
@@ -308,6 +358,36 @@ export function FilteredTasks({
         />
       </div>
     </div>
+  )
+}
+
+function ShowOnVisibilityToggle({
+  active,
+  onToggle,
+}: {
+  active: boolean
+  onToggle: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+        active
+          ? "border-primary bg-primary/15 text-primary"
+          : "border-border bg-background text-muted-foreground hover:bg-muted",
+      )}
+      aria-pressed={active}
+      title={
+        active
+          ? "Return to the normal list (Show on today or earlier, or unset)"
+          : "List only tasks hidden because Show on is after today"
+      }
+    >
+      <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+      {active ? "Due tasks" : "Hidden by date"}
+    </button>
   )
 }
 

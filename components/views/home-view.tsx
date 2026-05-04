@@ -5,6 +5,7 @@ import { ArrowRight, Sparkles, Tag, FolderKanban, User, Inbox as InboxIcon, Zap 
 import { cn } from "@/lib/utils"
 import { FilteredTasks } from "@/components/filtered-tasks"
 import type { Context, Person, Project, Task, UrgencyLevel } from "@/lib/types"
+import { isTaskVisibleByShowOnRule } from "@/lib/show-on-filter"
 
 interface HomeViewProps {
   projects: Project[]
@@ -48,6 +49,7 @@ export function HomeView({
   const chipRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   const inbox = tasks.filter((t) => !t.processed)
+  const inboxHasShowOnVisible = inbox.some(isTaskVisibleByShowOnRule)
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -238,8 +240,16 @@ export function HomeView({
               onArchiveTask={onArchiveTask}
               onDeleteTask={onDeleteTask}
               itemNoun="item"
-              emptyTitle="Inbox zero"
-              emptyHint="Nothing to triage right now."
+              emptyTitle={
+                inboxHasShowOnVisible
+                  ? "Inbox zero"
+                  : "Inbox is clear for today"
+              }
+              emptyHint={
+                inboxHasShowOnVisible
+                  ? "Nothing to triage right now."
+                  : "Every inbox item has a Show on date after today. Use “Hidden by date” to review or change those dates."
+              }
               hideFilters={["status"]}
               inboxMode={true}
               onCreate={onCreate}

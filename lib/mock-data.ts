@@ -73,7 +73,7 @@ function daysFromNow(n: number) {
   return d.toISOString().slice(0, 10)
 }
 
-export const tasks: Task[] = [
+const tasksSeed: Omit<Task, "status">[] = [
   {
     id: "t_001",
     description: "Replace Firestore push adapter with delta-based sync",
@@ -221,3 +221,8 @@ export const tasks: Task[] = [
     urgency_id: "u_low",
   },
 ]
+
+export const tasks: Task[] = tasksSeed.map((t) => ({
+  ...t,
+  status: "Open" as const,
+}))

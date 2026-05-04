@@ -9,9 +9,11 @@ import {
   ClipboardList,
   Cloud,
   CloudOff,
+  AlertCircle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ViewKey } from "@/lib/types"
+import type { SyncStatus } from "@/components/db-provider"
 
 interface NavItem {
   key: ViewKey
@@ -26,8 +28,9 @@ interface AppSidebarProps {
   onChange: (key: ViewKey) => void
   inboxCount: number
   totalCount: number
-  online: boolean
-  onToggleOnline: () => void
+  syncStatus: SyncStatus
+  workspaceLabel: string
+  workspaceInitial: string
 }
 
 export function AppSidebar({
@@ -35,8 +38,9 @@ export function AppSidebar({
   onChange,
   inboxCount,
   totalCount,
-  online,
-  onToggleOnline,
+  syncStatus,
+  workspaceLabel,
+  workspaceInitial,
 }: AppSidebarProps) {
   const items: NavItem[] = [
     { key: "home", label: "Inbox", icon: Home, shortcut: "I" },
@@ -63,19 +67,15 @@ export function AppSidebar({
         </div>
       </div>
 
-      {/* Workspace switcher */}
-      <button
-        type="button"
-        className="mx-3 mb-3 flex items-center justify-between rounded-md border border-sidebar-border bg-background/40 px-3 py-2 text-left text-sm hover:bg-background/70"
-      >
-        <div className="flex items-center gap-2">
-          <div className="flex h-5 w-5 items-center justify-center rounded bg-primary/20 text-[10px] font-semibold text-primary">
-            A
+      {/* Workspace switcher (single account for now) */}
+      <div className="mx-3 mb-3 flex items-center justify-between rounded-md border border-sidebar-border bg-background/40 px-3 py-2 text-left text-sm">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary/20 text-[10px] font-semibold text-primary">
+            {workspaceInitial}
           </div>
-          <span className="truncate">Anna&apos;s workspace</span>
+          <span className="truncate">{workspaceLabel}</span>
         </div>
-        <span className="font-mono text-[10px] text-muted-foreground">⌘K</span>
-      </button>
+      </div>
 
       {/* Primary nav */}
       <nav className="px-2">
@@ -103,42 +103,81 @@ export function AppSidebar({
       </nav>
 
       <div className="mt-auto border-t border-sidebar-border p-3">
-        {/* Sync status */}
-        <button
-          type="button"
-          onClick={onToggleOnline}
-          className={cn(
-            "group flex w-full items-center justify-between rounded-md border border-sidebar-border bg-background/40 px-3 py-2 text-left text-xs transition-colors hover:bg-background/70",
-          )}
-          aria-label="Toggle sync status"
-        >
-          <div className="flex items-center gap-2">
-            {online ? (
-              <Cloud className="h-3.5 w-3.5 text-primary" />
-            ) : (
-              <CloudOff className="h-3.5 w-3.5 text-muted-foreground" />
-            )}
-            <span className="font-medium">{online ? "Synced" : "Offline"}</span>
-          </div>
-          <span className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground">
-            {online ? (
-              <>
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
-                </span>
-                live
-              </>
-            ) : (
-              <>
-                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
-                queued
-              </>
-            )}
-          </span>
-        </button>
+        <SyncStatusRow syncStatus={syncStatus} />
       </div>
     </aside>
+  )
+}
+
+function SyncStatusRow({ syncStatus }: { syncStatus: SyncStatus }) {
+  const { browserOnline, replicationActive, replicationError } = syncStatus
+
+  const hasError = Boolean(replicationError)
+  const showLive =
+    browserOnline && !hasError && replicationActive
+  const showIdle = browserOnline && !hasError && !replicationActive
+
+  const title = replicationError
+    ? replicationError
+    : !browserOnline
+      ? "No network. Edits stay on this device until you are back online."
+      : showLive
+        ? "Connected. Firestore sync is active."
+        : "Connected. Sync may be idle between rounds."
+
+  const label = hasError
+    ? "Sync error"
+    : !browserOnline
+      ? "Offline"
+      : "Online"
+
+  return (
+    <div
+      className={cn(
+        "flex w-full items-center justify-between rounded-md border border-sidebar-border bg-background/40 px-3 py-2 text-left text-xs",
+        hasError && "border-destructive/40 bg-destructive/5",
+      )}
+      role="status"
+      aria-live="polite"
+      title={title}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        {hasError ? (
+          <AlertCircle className="h-3.5 w-3.5 shrink-0 text-destructive" />
+        ) : browserOnline ? (
+          <Cloud className="h-3.5 w-3.5 shrink-0 text-primary" />
+        ) : (
+          <CloudOff className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        )}
+        <span className="truncate font-medium">{label}</span>
+      </div>
+      <span className="flex shrink-0 items-center gap-1 font-mono text-[10px] text-muted-foreground">
+        {showLive ? (
+          <>
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+            </span>
+            live
+          </>
+        ) : hasError ? (
+          <>
+            <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+            retry
+          </>
+        ) : !browserOnline ? (
+          <>
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+            local
+          </>
+        ) : showIdle ? (
+          <>
+            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+            idle
+          </>
+        ) : null}
+      </span>
+    </div>
   )
 }
 

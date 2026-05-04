@@ -91,6 +91,7 @@ interface TasksTableProps {
   contexts: Context[]
   urgencies: UrgencyLevel[]
   onToggleProcessed: (id: string) => void
+  onToggleStatus: (id: string) => void
   onUpdate: (task: Task) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void

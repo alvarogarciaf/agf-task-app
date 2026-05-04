@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useDatabase } from "@/components/db-provider"
+import { useDatabase, useSyncStatus } from "@/components/db-provider"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppHeader } from "@/components/app-header"
 import { MobileNav } from "@/components/mobile-nav"
@@ -22,8 +22,14 @@ interface AppContentProps {
 
 export function AppContent({ user, onSignOut }: AppContentProps) {
   const db = useDatabase()
+  const syncStatus = useSyncStatus()
   const [activeView, setActiveView] = useState<ViewKey>("home")
-  const [online, setOnline] = useState(true)
+
+  const workspaceLabel =
+    user.displayName?.trim() ||
+    user.email?.split("@")[0]?.trim() ||
+    "Your workspace"
+  const workspaceInitial = (workspaceLabel[0] ?? "?").toUpperCase()
 
   // Initial filter states for drill-down
   const [initialContextId, setInitialContextId] = useState<string | undefined>()
@@ -57,8 +63,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     urgencyId?: string
     processed?: boolean
   }) => {
-    // Default to the first urgency if none provided
-    const defaultUrgency = urgencies.sort((a, b) => a.order - b.order)[0]?.id || "low"
+    const byOrder = [...urgencies].sort((a, b) => a.order - b.order)
+    const defaultUrgency = byOrder[0]?.id ?? "u_low"
     
     await db.tasks.insert({
       id: crypto.randomUUID(),
@@ -280,8 +286,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         onChange={handleNavigate} 
         inboxCount={inboxCount}
         totalCount={totalCount}
-        online={online}
-        onToggleOnline={() => setOnline(!online)}
+        syncStatus={syncStatus}
+        workspaceLabel={workspaceLabel}
+        workspaceInitial={workspaceInitial}
       />
       
       <div className="flex flex-1 flex-col min-w-0 h-full overflow-hidden">
