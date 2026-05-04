@@ -284,7 +284,7 @@ export function TasksTable({
         </div>
       ) : (
         <>
-          <div className="md:hidden flex w-full min-w-0 flex-col divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
+          <div className="md:hidden flex w-full min-w-0 flex-col divide-y divide-border">
             {tasks.map((task) => {
               const urgency = urgencies?.find((u) => u.id === task.urgency_id)
               return (

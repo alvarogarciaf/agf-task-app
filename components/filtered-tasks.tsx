@@ -76,9 +76,9 @@ export function FilteredTasks({
   }
 
   return (
-    <div className="flex flex-col">
-      {/* Filter bar */}
-      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3 shrink-0 md:p-2">
+    <div className="flex flex-col min-w-0 w-full rounded-xl border border-border bg-card overflow-hidden">
+      {/* Filter bar - Card Header */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/20 p-3 shrink-0 md:p-2">
         <div className="flex items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
           <Filter className="h-3 w-3" />
           Filter
