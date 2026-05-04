@@ -288,11 +288,13 @@ export function TasksTable({
             {tasks.map((task) => {
               const urgency = urgencies?.find((u) => u.id === task.urgency_id)
               return (
-                <MobileSwipeTask
+                <MobileTaskRow
                   key={task.id}
                   task={task}
                   urgency={urgency}
                   onToggleProcessed={onToggleProcessed}
+                  onArchiveTask={onArchiveTask}
+                  onDeleteTask={onDeleteTask}
                   onClick={(t) => setActiveTaskId(t.id)}
                 />
               )
@@ -711,94 +713,101 @@ function Empty() {
   return <span className="font-mono text-[11px] text-muted-foreground/40">—</span>
 }
 
-function MobileSwipeTask({
+function MobileTaskRow({
   task,
   urgency,
   onToggleProcessed,
+  onArchiveTask,
+  onDeleteTask,
   onClick,
 }: {
   task: Task
   urgency?: UrgencyLevel
   onToggleProcessed: (id: string) => void
+  onArchiveTask?: (id: string) => void
+  onDeleteTask?: (id: string) => void
   onClick: (task: Task) => void
 }) {
-  const [offset, setOffset] = useState(0)
-  const [isDragging, setIsDragging] = useState(false)
-  const startX = useRef(0)
-  const currentX = useRef(0)
-
-  function handleTouchStart(e: React.TouchEvent) {
-    startX.current = e.touches[0].clientX
-    currentX.current = e.touches[0].clientX
-    setIsDragging(true)
-  }
-
-  function handleTouchMove(e: React.TouchEvent) {
-    if (!isDragging) return
-    const x = e.touches[0].clientX
-    currentX.current = x
-    const diff = x - startX.current
-    // Only allow swiping right (to complete)
-    if (diff > 0) {
-      setOffset(diff)
-      // Note: touch-pan-y in className handles preventing vertical scroll interference
-    }
-  }
-
-  function handleTouchEnd() {
-    setIsDragging(false)
-    const diff = currentX.current - startX.current
-    if (diff > 80) {
-      // Trigger action
-      onToggleProcessed(task.id)
-      setOffset(0)
-    } else {
-      setOffset(0)
-      if (Math.abs(diff) < 5) {
-        onClick(task)
-      }
-    }
-  }
-
   return (
-    <div className="relative overflow-hidden bg-primary/20">
-      {/* Background action */}
-      <div
+    <div 
+      className="flex min-h-[64px] items-center gap-3 bg-card px-4 py-3 active:bg-muted/50"
+      onClick={() => onClick(task)}
+    >
+      {/* Description */}
+      <span
         className={cn(
-          "absolute inset-y-0 left-0 flex items-center px-6 transition-colors duration-200",
-          offset > 80 ? "text-primary" : "text-primary/50"
+          "flex-1 text-base leading-tight",
+          task.processed ? "text-muted-foreground line-through" : "text-foreground"
         )}
       >
-        <CircleCheck className="h-6 w-6" />
-      </div>
+        {task.description}
+      </span>
 
-      {/* Foreground Task Card */}
-      <div
-        className={cn(
-          "relative flex items-center gap-3 bg-card px-5 py-4 touch-pan-y",
-          !isDragging && "transition-transform duration-200"
+      {/* Right side: Urgency Chip + Menu */}
+      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        {urgency && (
+          <div 
+            className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+            style={{ 
+              backgroundColor: `${urgency.color}20`, 
+              color: urgency.color,
+              border: `1px solid ${urgency.color}40`
+            }}
+          >
+            {urgency.name}
+          </div>
         )}
-        style={{ transform: `translateX(${offset}px)` }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        {urgency ? (
-          <span
-            className="h-2.5 w-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: urgency.color }}
-          />
-        ) : (
-          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-muted-foreground/40" />
-        )}
-        <span
-          className={cn(
-            "flex-1 truncate text-base",
-            task.processed ? "text-muted-foreground line-through" : "text-foreground"
-          )}
-        >
-          {task.description}
-        </span>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted active:bg-muted"
+            >
+              <MoreVertical className="h-5 w-5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Task Actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              
+              <DropdownMenuItem onClick={() => onToggleProcessed(task.id)}>
+                <CircleCheck className="mr-2 h-4 w-4" />
+                <span>Mark as Done</span>
+              </DropdownMenuItem>
+
+              {task.processed ? (
+                <DropdownMenuItem onClick={() => onToggleProcessed(task.id)}>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  <span>Mark as Unprocessed</span>
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={() => onToggleProcessed(task.id)}>
+                  <CircleCheck className="mr-2 h-4 w-4" />
+                  <span>Mark as Processed</span>
+                </DropdownMenuItem>
+              )}
+
+              {onArchiveTask && (
+                <DropdownMenuItem onClick={() => onArchiveTask(task.id)}>
+                  <Archive className="mr-2 h-4 w-4" />
+                  <span>Archive</span>
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuSeparator />
+              
+              <DropdownMenuItem 
+                className="text-destructive focus:text-destructive"
+                onClick={() => onDeleteTask?.(task.id)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                <span>Delete</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenuPortal>
+        </DropdownMenu>
       </div>
     </div>
   )
