@@ -129,10 +129,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         onToggleOnline={() => setOnline((o) => !o)}
       />
 
-      <main className="flex h-screen flex-1 flex-col overflow-hidden pb-[72px] md:pb-0">
+      <main className="flex h-screen flex-1 min-w-0 flex-col overflow-hidden pb-[72px] md:pb-0">
         <AppHeader view={view} onNavigate={setView} user={user} onSignOut={onSignOut} />
 
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 md:px-6 py-6">
+        <div className="flex-1 min-w-0 w-full overflow-y-auto overflow-x-hidden px-3 md:px-6 py-6">
           {view === "home" ? (
             <HomeView
               projects={projects}

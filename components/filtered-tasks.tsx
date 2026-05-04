@@ -146,7 +146,7 @@ export function FilteredTasks({
         )}
       </div>
 
-      <div className="min-h-0">
+      <div className="min-h-0 min-w-0 w-full">
         <TasksTable
           tasks={filtered}
           projects={projects}
