@@ -115,6 +115,20 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     await Promise.all(all.map((doc) => doc.remove()))
   }
 
+  const handleAddProject = async (p: Omit<Project, "id">) => {
+    await db.projects.insert({ id: crypto.randomUUID(), ...p })
+  }
+
+  const handleUpdateProject = async (p: Project) => {
+    const doc = await db.projects.findOne(p.id).exec()
+    if (doc) await doc.patch(p)
+  }
+
+  const handleDeleteProject = async (id: string) => {
+    const doc = await db.projects.findOne(id).exec()
+    if (doc) await doc.remove()
+  }
+
   const handleNavigate = (view: ViewKey) => {
     // Clear drill-down filters when navigating via sidebar/header
     setInitialContextId(undefined)
@@ -171,7 +185,14 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           />
         )
       case "projects":
-        return <ProjectsView {...viewProps} />
+        return (
+          <ProjectsView 
+            {...viewProps} 
+            onAddProject={handleAddProject}
+            onUpdateProject={handleUpdateProject}
+            onDeleteProject={handleDeleteProject}
+          />
+        )
       case "contexts":
         return (
           <ContextsView 

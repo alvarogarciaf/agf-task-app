@@ -1,11 +1,28 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowLeft, FolderKanban, FileText, ListChecks, Circle, Dot } from "lucide-react"
+import { ArrowLeft, FolderKanban, FileText, ListChecks, Circle, Dot, Plus, Settings2, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { FilteredTasks } from "@/components/filtered-tasks"
 import { TaskDetailDialog } from "@/components/task-detail-dialog"
-import type { Context, Person, Project, Task, UrgencyLevel } from "@/lib/types"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import type { Context, Person, Project, Task, UrgencyLevel, ProjectStatus } from "@/lib/types"
 
 interface ProjectsViewProps {
   projects: Project[]
@@ -25,6 +42,9 @@ interface ProjectsViewProps {
     personId: string | null
     processed: boolean
   }) => void
+  onAddProject: (project: Omit<Project, "id">) => void
+  onUpdateProject: (project: Project) => void
+  onDeleteProject: (id: string) => void
 }
 
 export function ProjectsView({
@@ -39,9 +59,14 @@ export function ProjectsView({
   onArchiveTask,
   onDeleteTask,
   onCreate,
+  onAddProject,
+  onUpdateProject,
+  onDeleteProject,
 }: ProjectsViewProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<"Ongoing" | "Closed" | "All">("Ongoing")
+  const [editorOpen, setEditorOpen] = useState(false)
+  const [editingProject, setEditingProject] = useState<Project | null>(null)
 
   if (selected) {
     const project = projects.find((p) => p.id === selected)
@@ -61,31 +86,71 @@ export function ProjectsView({
         onDeleteTask={onDeleteTask}
         urgencies={urgencies}
         onCreate={onCreate}
+        onUpdateProject={onUpdateProject}
+        onDeleteProject={(id) => {
+          setSelected(null)
+          onDeleteProject(id)
+        }}
+        onEdit={() => {
+          setEditingProject(project)
+          setEditorOpen(true)
+        }}
       />
     )
+  }
+
+  const handleSaveProject = (p: Project | Omit<Project, "id">) => {
+    if ("id" in p) {
+      onUpdateProject(p as Project)
+    } else {
+      onAddProject(p as Omit<Project, "id">)
+    }
+    setEditorOpen(false)
+    setEditingProject(null)
   }
 
   const filtered = projects.filter((p) => statusFilter === "All" || p.status === statusFilter)
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-1 rounded-md border border-border bg-card p-1 w-fit">
-        {(["Ongoing", "Closed", "All"] as const).map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setStatusFilter(s)}
-            className={cn(
-              "rounded px-3 py-1 text-xs transition-colors",
-              statusFilter === s
-                ? "bg-primary/15 text-primary"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {s}
-          </button>
-        ))}
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1 rounded-md border border-border bg-card p-1 w-fit">
+          {(["Ongoing", "Closed", "All"] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setStatusFilter(s)}
+              className={cn(
+                "rounded px-3 py-1 text-xs transition-colors",
+                statusFilter === s
+                  ? "bg-primary/15 text-primary"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            setEditingProject(null)
+            setEditorOpen(true)
+          }}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          New Project
+        </button>
       </div>
+
+      <ProjectEditor
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        project={editingProject}
+        onSave={handleSaveProject}
+      />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((p) => {
@@ -185,6 +250,9 @@ function ProjectDetail({
     personId: string | null
     processed: boolean
   }) => void
+  onUpdateProject: (project: Project) => void
+  onDeleteProject: (id: string) => void
+  onEdit: () => void
 }) {
   const [tab, setTab] = useState<"tasks" | "description">("tasks")
   const projTasks = tasks.filter((t) => t.project_id === project.id && t.processed)
@@ -227,17 +295,31 @@ function ProjectDetail({
           </div>
         </div>
 
-        <button
-          type="button"
-          className={cn(
-            "rounded-md border px-3 py-1.5 text-xs transition-colors",
-            project.status === "Ongoing"
-              ? "border-border bg-card hover:bg-muted"
-              : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20",
-          )}
-        >
-          {project.status === "Ongoing" ? "Mark as Closed" : "Reopen project"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground"
+            title="Edit project"
+          >
+            <Settings2 className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const current = project.status
+              onUpdateProject({ ...project, status: current === "Ongoing" ? "Closed" : "Ongoing" })
+            }}
+            className={cn(
+              "rounded-md border px-3 py-1.5 text-xs transition-colors h-8 flex items-center",
+              project.status === "Ongoing"
+                ? "border-border bg-card hover:bg-muted"
+                : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20",
+            )}
+          >
+            {project.status === "Ongoing" ? "Close project" : "Reopen project"}
+          </button>
+        </div>
       </div>
 
       <div className="mt-5 flex items-center gap-1 border-b border-border">
@@ -317,5 +399,101 @@ function TabButton({
         <span className="absolute inset-x-0 -bottom-px h-px bg-primary" />
       ) : null}
     </button>
+  )
+}
+
+function ProjectEditor({
+  open,
+  onOpenChange,
+  project,
+  onSave,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  project: Project | null
+  onSave: (p: Project | Omit<Project, "id">) => void
+}) {
+  const [name, setName] = useState("")
+  const [details, setDetails] = useState("")
+  const [status, setStatus] = useState<ProjectStatus>("Ongoing")
+
+  const handleSave = () => {
+    if (!name.trim()) return
+    onSave({
+      ...(project ? { id: project.id } : {}),
+      name: name.trim(),
+      details: details.trim() || undefined,
+      status,
+    } as any)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent 
+        className="max-w-lg" 
+        onOpenAutoFocus={() => {
+          setName(project?.name ?? "")
+          setDetails(project?.details ?? "")
+          setStatus(project?.status ?? "Ongoing")
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>{project ? "Edit Project" : "New Project"}</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="name">Name</Label>
+            <Input
+              id="name"
+              placeholder="Project name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="details">Description</Label>
+            <Textarea
+              id="details"
+              placeholder="Add details, goals, or notes..."
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
+              rows={4}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="status">Status</Label>
+            <Select value={status} onValueChange={(v: any) => setStatus(v)}>
+              <SelectTrigger id="status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Ongoing">Ongoing</SelectItem>
+                <SelectItem value="Closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="rounded-md px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!name.trim()}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {project ? "Save Changes" : "Create Project"}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
