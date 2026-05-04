@@ -95,7 +95,7 @@ export function ContextsView({ contexts, tasks, onSelect, onUpdateContext, onDel
   const [editing, setEditing] = useState<Context | null>(null)
 
   return (
-    <div className="px-3 md:px-6 py-6">
+    <div>
       <div className="space-y-1.5">
         {contexts.map((c) => {
           const Icon = ICONS[c.icon] ?? Brain

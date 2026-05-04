@@ -75,7 +75,7 @@ export function HomeView({
   }
 
   return (
-    <div className="px-3 md:px-6 py-6 space-y-6">
+    <div className="space-y-6">
       {/* Capture form */}
       <form 
         onSubmit={submit} 

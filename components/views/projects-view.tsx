@@ -56,7 +56,7 @@ export function ProjectsView({
   const filtered = projects.filter((p) => statusFilter === "All" || p.status === statusFilter)
 
   return (
-    <div className="px-3 md:px-6 py-6">
+    <div>
       <div className="mb-4 flex items-center gap-1 rounded-md border border-border bg-card p-1 w-fit">
         {(["Ongoing", "Closed", "All"] as const).map((s) => (
           <button
