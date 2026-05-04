@@ -18,9 +18,10 @@ interface SettingsViewProps {
   onAddUrgency: (urgency: Omit<UrgencyLevel, "id">) => void
   onUpdateUrgency: (urgency: UrgencyLevel) => void
   onDeleteUrgency: (id: string) => void
+  onDeleteAllTasks?: () => void
 }
 
-type TabKey = "persons" | "contexts" | "urgencies"
+type TabKey = "persons" | "contexts" | "urgencies" | "data"
 
 export function SettingsView({
   persons,
@@ -35,6 +36,7 @@ export function SettingsView({
   onAddUrgency,
   onUpdateUrgency,
   onDeleteUrgency,
+  onDeleteAllTasks,
 }: SettingsViewProps) {
   const [tab, setTab] = useState<TabKey>("persons")
 
@@ -50,6 +52,9 @@ export function SettingsView({
         </TabButton>
         <TabButton active={tab === "urgencies"} onClick={() => setTab("urgencies")} icon={AlertCircle}>
           Urgencies
+        </TabButton>
+        <TabButton active={tab === "data"} onClick={() => setTab("data")} icon={Trash2}>
+          Data
         </TabButton>
       </div>
 
@@ -121,6 +126,36 @@ export function SettingsView({
               />
             )}
           />
+        )}
+
+        {tab === "data" && (
+          <div className="p-8">
+            <h3 className="text-lg font-semibold mb-2">Data Management</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Use these tools to clear your account data. These actions are permanent.
+            </p>
+
+            <div className="space-y-4">
+              <div className="p-4 border border-destructive/20 bg-destructive/5 rounded-lg flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium text-destructive">Clear All Tasks</h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Permanently delete every task in your account.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    if (confirm("Are you sure you want to delete ALL tasks? This cannot be undone.")) {
+                      onDeleteAllTasks?.()
+                    }
+                  }}
+                  className="px-4 py-2 bg-destructive text-destructive-foreground text-xs font-medium rounded-md hover:bg-destructive/90 transition-colors"
+                >
+                  Delete Everything
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

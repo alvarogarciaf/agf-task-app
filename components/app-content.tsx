@@ -110,6 +110,11 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }
   }
 
+  const handleDeleteAllTasks = async () => {
+    const all = await db.tasks.find().exec()
+    await Promise.all(all.map((doc) => doc.remove()))
+  }
+
   const handleNavigate = (view: ViewKey) => {
     // Clear drill-down filters when navigating via sidebar/header
     setInitialContextId(undefined)
@@ -237,6 +242,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
               const doc = await db.urgencies.findOne(id).exec()
               if (doc) await doc.remove()
             }}
+            onDeleteAllTasks={handleDeleteAllTasks}
           />
         )
       default:
