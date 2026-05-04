@@ -1,4 +1,4 @@
-const CACHE_NAME = "tasker-agf-v1";
+const CACHE_NAME = "tasker-agf-v2";
 const PRECACHE_URLS = ["/", "/index.html"];
 
 self.addEventListener("install", (event) => {

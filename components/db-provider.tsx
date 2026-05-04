@@ -20,15 +20,21 @@ export function DbProvider({ userUid, children }: { userUid: string; children: R
 
   useEffect(() => {
     let mounted = true;
+    let replications: any[] = [];
+
     setDb(null); // Reset when user changes
+    
     getDatabase(userUid).then((database) => {
       if (mounted) {
-        setupReplication(database, userUid);
+        replications = setupReplication(database, userUid);
         setDb(database);
       }
     });
+
     return () => {
       mounted = false;
+      // Stop all active replications when user changes or unmounts
+      replications.forEach((rep) => rep.cancel());
     };
   }, [userUid]);
 

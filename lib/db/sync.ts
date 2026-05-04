@@ -4,15 +4,15 @@ import { collection } from 'firebase/firestore';
 import type { RxDatabase } from 'rxdb';
 
 export const setupReplication = (db: RxDatabase, userUid: string) => {
-  if (typeof window === 'undefined') return; // Only replicate on client
+  if (typeof window === 'undefined') return []; // Only replicate on client
 
   const syncCollections = ['tasks', 'projects', 'persons', 'contexts'];
 
-  syncCollections.forEach((collectionName) => {
+  return syncCollections.map((collectionName) => {
     // Isolate by user path: users/{uid}/{collection}
     const firestoreCollection = collection(firestoreDb, 'users', userUid, collectionName);
     
-    replicateFirestore({
+    return replicateFirestore({
       replicationIdentifier: `firestore-sync-${userUid}-${collectionName}`,
       collection: db[collectionName],
       firestore: {
