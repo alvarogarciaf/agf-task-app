@@ -50,15 +50,11 @@ export const getDatabase = async (userUid: string) => {
       }
     });
     
-    // Seed initial data if the database is completely empty
-    const tasksCount = await db.tasks.count().exec();
-    if (tasksCount === 0) {
+    // Seed system data (Urgencies) if missing
+    const urgencyCount = await db.urgencies.count().exec();
+    if (urgencyCount === 0) {
       const mockData = await import('../mock-data');
       await db.urgencies.bulkInsert(mockData.urgencies);
-      await db.contexts.bulkInsert(mockData.contexts);
-      await db.persons.bulkInsert(mockData.persons);
-      await db.projects.bulkInsert(mockData.projects);
-      await db.tasks.bulkInsert(mockData.tasks);
     }
     
     return db;
