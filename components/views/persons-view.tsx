@@ -20,7 +20,7 @@ export function PersonsView({ persons, tasks, onSelect }: PersonsViewProps) {
               key={p.id}
               type="button"
               onClick={() => onSelect(p.id)}
-              className="group relative flex aspect-[4/3] flex-col justify-between overflow-hidden rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/40 hover:bg-card/80"
+              className="group relative flex aspect-[4/3] flex-col justify-between overflow-hidden rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-primary/40 hover:bg-card/80"
             >
               <div
                 className="absolute -right-10 -top-10 h-28 w-28 rounded-full opacity-20 blur-2xl transition-opacity group-hover:opacity-40"

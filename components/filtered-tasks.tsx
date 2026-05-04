@@ -4,6 +4,11 @@ import { useMemo, useState, useEffect } from "react"
 import { Filter, X, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { TasksTable } from "@/components/tasks-table"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import type { Context, Person, Project, Task, UrgencyLevel } from "@/lib/types"
 
 interface FilteredTasksProps {
@@ -156,7 +161,7 @@ export function FilteredTasks({
   }
 
   return (
-    <div className="flex flex-col min-w-0 w-full rounded-xl border border-border bg-card overflow-hidden">
+    <div className="flex flex-col min-w-0 w-full rounded-lg border border-border bg-card overflow-hidden">
       {/* Filter bar - Card Header */}
       {!hideFilterBar && (
         <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/20 p-3 shrink-0 md:p-2">
@@ -286,6 +291,7 @@ function Segmented<T extends string>({
   )
 }
 
+
 function FilterPill({
   label,
   value,
@@ -301,45 +307,40 @@ function FilterPill({
 }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="relative">
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => setOpen((o) => !o)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault()
-            setOpen((o) => !o)
-          }
-        }}
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm transition-colors md:px-2.5 md:py-1 md:text-xs cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          value
-            ? "border-primary/40 bg-primary/10 text-primary"
-            : "border-border bg-background text-muted-foreground hover:text-foreground",
-        )}
-      >
-        <span className="font-mono text-[10px] uppercase tracking-wider">{label}</span>
-        {value ? (
-          <>
-            <span className="h-3 w-px bg-primary/30" />
-            <span className="text-foreground">{value}</span>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onClear()
-              }}
-              className="ml-0.5 rounded p-0.5 hover:bg-primary/20 transition-colors"
-              aria-label="Clear"
-            >
-              <X className="h-2.5 w-2.5" />
-            </button>
-          </>
-        ) : null}
-      </div>
-      {open ? (
-        <div className="absolute left-0 top-full z-20 mt-1 max-h-64 w-56 overflow-auto rounded-md border border-border bg-popover p-1 shadow-lg">
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <div
+          role="button"
+          tabIndex={0}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm transition-colors md:px-2.5 md:py-1 md:text-xs cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            value
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border bg-background text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <span className="font-mono text-[10px] uppercase tracking-wider">{label}</span>
+          {value ? (
+            <>
+              <span className="h-3 w-px bg-primary/30" />
+              <span className="text-foreground">{value}</span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onClear()
+                }}
+                className="ml-0.5 rounded p-0.5 hover:bg-primary/20 transition-colors"
+                aria-label="Clear"
+              >
+                <X className="h-2.5 w-2.5" />
+              </button>
+            </>
+          ) : null}
+        </div>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-56 p-1">
+        <div className="max-h-64 overflow-auto">
           {options.map((opt) => (
             <button
               key={opt.id}
@@ -363,7 +364,7 @@ function FilterPill({
             </button>
           ))}
         </div>
-      ) : null}
-    </div>
+      </PopoverContent>
+    </Popover>
   )
 }

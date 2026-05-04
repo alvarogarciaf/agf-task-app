@@ -98,7 +98,7 @@ export function ProjectsView({
               key={p.id}
               type="button"
               onClick={() => setSelected(p.id)}
-              className="group flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/40"
+              className="group flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-primary/40"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/15 text-primary">

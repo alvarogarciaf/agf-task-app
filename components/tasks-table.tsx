@@ -169,6 +169,33 @@ export function TasksTable({
 
   const activeTask = activeTaskId ? tasks.find((t) => t.id === activeTaskId) ?? null : null
 
+  // History management for back button on mobile
+  useEffect(() => {
+    if (!isMobile) return
+
+    const handlePopState = () => {
+      setActiveTaskId(null)
+    }
+
+    if (activeTaskId) {
+      window.history.pushState({ type: "task-detail" }, "")
+      window.addEventListener("popstate", handlePopState)
+    }
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState)
+    }
+  }, [activeTaskId, isMobile])
+
+  const handleCloseTask = useCallback(() => {
+    if (isMobile && activeTaskId) {
+      // On mobile, let popstate handle the state update
+      window.history.back()
+    } else {
+      setActiveTaskId(null)
+    }
+  }, [isMobile, activeTaskId])
+
   function handleDragStart(e: React.DragEvent<HTMLDivElement>, key: TaskColumnKey) {
     setDragKey(key)
     e.dataTransfer.effectAllowed = "move"
@@ -589,7 +616,7 @@ export function TasksTable({
         task={activeTask}
         open={activeTask !== null}
         onOpenChange={(o) => {
-          if (!o) setActiveTaskId(null)
+          if (!o) handleCloseTask()
         }}
         projects={projects}
         persons={persons}
@@ -818,7 +845,7 @@ function MobileTaskRow({
       <span
         className={cn(
           "flex-1 min-w-0 truncate text-base leading-tight",
-          task.processed ? "text-muted-foreground line-through" : "text-foreground"
+          task.status === "Done" ? "text-muted-foreground line-through" : (task.processed ? "text-muted-foreground" : "text-foreground")
         )}
       >
         {task.description}

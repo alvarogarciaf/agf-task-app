@@ -38,7 +38,7 @@ export function InboxView({
   if (inbox.length === 0) {
     return (
       <div className="px-6 py-12">
-        <div className="mx-auto flex max-w-md flex-col items-center rounded-xl border border-dashed border-border bg-card px-8 py-12 text-center">
+        <div className="mx-auto flex max-w-md flex-col items-center rounded-lg border border-dashed border-border bg-card px-8 py-12 text-center">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
             <Sparkles className="h-5 w-5" />
           </div>

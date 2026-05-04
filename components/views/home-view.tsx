@@ -86,7 +86,7 @@ export function HomeView({
             submit(e)
           }
         }}
-        className="rounded-xl border border-border bg-card shadow-sm"
+        className="rounded-lg border border-border bg-card shadow-sm"
       >
         <div className="flex items-center gap-2 border-b border-border bg-background/40 px-4 py-2.5">
           <Sparkles className="h-3.5 w-3.5 text-primary" />
@@ -215,7 +215,7 @@ export function HomeView({
         </div>
 
         {inbox.length === 0 ? (
-          <div className="flex flex-col items-center rounded-xl border border-dashed border-border bg-card px-8 py-12 text-center">
+          <div className="flex flex-col items-center rounded-lg border border-dashed border-border bg-card px-8 py-12 text-center">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
               <Sparkles className="h-5 w-5" />
             </div>

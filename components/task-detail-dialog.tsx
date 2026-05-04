@@ -15,6 +15,7 @@ import {
   Zap,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useIsMobile } from "@/hooks/use-mobile"
 import {
   Dialog,
   DialogContent,
@@ -51,6 +52,7 @@ export function TaskDetailDialog({
   urgencies,
   onUpdate,
 }: TaskDetailDialogProps) {
+  const isMobile = useIsMobile()
   function getFullPlainTask(t: Task | null): Task | null {
     if (!t) return null
     return typeof (t as any).toJSON === "function" ? (t as any).toJSON() : t
@@ -135,7 +137,13 @@ export function TaskDetailDialog({
     <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(o) : cancel())}>
       <DialogContent
         showCloseButton={false}
-        className="max-w-2xl gap-0 overflow-hidden p-0 sm:rounded-xl"
+        overlayClassName={isMobile ? "hidden" : ""}
+        className={cn(
+          "gap-0 overflow-hidden p-0",
+          isMobile 
+            ? "fixed inset-0 z-50 flex h-full w-full max-w-none translate-x-0 translate-y-0 flex-col rounded-none border-none duration-200 shadow-none" 
+            : "max-w-2xl sm:rounded-lg"
+        )}
       >
         <DialogTitle className="sr-only">
           {draft.description || "Edit task"}
@@ -204,7 +212,7 @@ export function TaskDetailDialog({
         </div>
 
         {/* Body */}
-        <div className="max-h-[70vh] overflow-y-auto px-5 py-5">
+        <div className={cn("overflow-y-auto px-5 py-5", isMobile ? "flex-1" : "max-h-[70vh]")}>
           {/* Description */}
           <div>
             <Label icon={<Zap className="h-3 w-3" />}>Description</Label>
@@ -257,6 +265,41 @@ export function TaskDetailDialog({
                   })}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Contexts */}
+            <div>
+              <Label icon={<Tag className="h-3 w-3" />}>
+                Contexts
+                <span className="ml-1.5 font-mono text-[10px] text-muted-foreground/70">
+                  {(draft.context_ids || []).length} selected
+                </span>
+              </Label>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {contexts.map((c) => {
+                  const selected = (draft.context_ids || []).includes(c.id)
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => toggleContext(c.id)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm transition-colors md:px-2.5 md:py-1 md:text-xs",
+                        selected
+                          ? "border-primary/40 bg-primary/10 text-primary"
+                          : "border-border bg-background text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <span
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ backgroundColor: c.color }}
+                      />
+                      {c.name}
+                      {selected ? <Check className="h-3 w-3" /> : null}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
             {/* Project */}
@@ -349,41 +392,6 @@ export function TaskDetailDialog({
                 }
                 className="mt-1.5 h-11 w-full rounded-md border border-border bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-ring/40 md:h-9 md:text-sm"
               />
-            </div>
-          </div>
-
-          {/* Contexts */}
-          <div className="mt-5">
-            <Label icon={<Tag className="h-3 w-3" />}>
-              Contexts
-              <span className="ml-1.5 font-mono text-[10px] text-muted-foreground/70">
-                {(draft.context_ids || []).length} selected
-              </span>
-            </Label>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {contexts.map((c) => {
-                const selected = (draft.context_ids || []).includes(c.id)
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => toggleContext(c.id)}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm transition-colors md:px-2.5 md:py-1 md:text-xs",
-                      selected
-                        ? "border-primary/40 bg-primary/10 text-primary"
-                        : "border-border bg-background text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    <span
-                      className="h-1.5 w-1.5 rounded-full"
-                      style={{ backgroundColor: c.color }}
-                    />
-                    {c.name}
-                    {selected ? <Check className="h-3 w-3" /> : null}
-                  </button>
-                )
-              })}
             </div>
           </div>
         </div>
