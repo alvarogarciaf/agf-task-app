@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react"
 import { Search, Command, Settings, LogOut, ChevronDown } from "lucide-react"
 import type { ViewKey } from "@/lib/types"
 import type { User } from "firebase/auth"
+import type { SyncStatus } from "./db-provider"
+import { Cloud, CloudOff, AlertCircle } from "lucide-react"
 
 const TITLES: Record<ViewKey, string> = {
   home: "Inbox",
@@ -20,9 +22,10 @@ interface AppHeaderProps {
   onNavigate?: (view: ViewKey) => void
   user?: User | null
   onSignOut?: () => void
+  syncStatus?: SyncStatus
 }
 
-export function AppHeader({ view, onNavigate, user, onSignOut }: AppHeaderProps) {
+export function AppHeader({ view, onNavigate, user, onSignOut, syncStatus }: AppHeaderProps) {
   const title = TITLES[view]
   const [avatarOpen, setAvatarOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -102,6 +105,23 @@ export function AppHeader({ view, onNavigate, user, onSignOut }: AppHeaderProps)
                 </span>
               )}
               <ChevronDown className="h-3 w-3 text-muted-foreground" />
+              
+              {/* Sync Status Dot overlay on avatar */}
+              {syncStatus && (
+                <div className="absolute -right-0.5 -top-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-background p-0.5">
+                  {syncStatus.replicationError ? (
+                    <div className="h-full w-full rounded-full bg-destructive" title={syncStatus.replicationError} />
+                  ) : !syncStatus.browserOnline ? (
+                    <div className="h-full w-full rounded-full bg-muted-foreground" title="Offline" />
+                  ) : syncStatus.replicationActive ? (
+                    <div className="h-full w-full rounded-full bg-primary" title="Sync active">
+                       <span className="absolute inset-0 animate-ping rounded-full bg-primary opacity-40" />
+                    </div>
+                  ) : (
+                    <div className="h-full w-full rounded-full bg-orange-400" title="Sync idle" />
+                  )}
+                </div>
+              )}
             </button>
 
             {avatarOpen && (

@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Users, Tags, AlertCircle, Plus, Edit2, Trash2, Check, X } from "lucide-react"
+import { Users, Tags, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Info, Database } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Context, Person, UrgencyLevel } from "@/lib/types"
+import type { SyncStatus } from "@/components/db-provider"
 
 interface SettingsViewProps {
   persons: Person[]
@@ -19,9 +20,12 @@ interface SettingsViewProps {
   onUpdateUrgency: (urgency: UrgencyLevel) => void
   onDeleteUrgency: (id: string) => void
   onDeleteAllTasks?: () => void
+  onResetDatabase?: () => void
+  syncStatus?: SyncStatus
+  userUid?: string
 }
 
-type TabKey = "persons" | "contexts" | "urgencies" | "data"
+type TabKey = "persons" | "contexts" | "urgencies" | "data" | "troubleshoot"
 
 export function SettingsView({
   persons,
@@ -37,6 +41,9 @@ export function SettingsView({
   onUpdateUrgency,
   onDeleteUrgency,
   onDeleteAllTasks,
+  onResetDatabase,
+  syncStatus,
+  userUid,
 }: SettingsViewProps) {
   const [tab, setTab] = useState<TabKey>("persons")
 
@@ -55,6 +62,9 @@ export function SettingsView({
         </TabButton>
         <TabButton active={tab === "data"} onClick={() => setTab("data")} icon={Trash2}>
           Data
+        </TabButton>
+        <TabButton active={tab === "troubleshoot"} onClick={() => setTab("troubleshoot")} icon={Info}>
+          Sync & Debug
         </TabButton>
       </div>
 

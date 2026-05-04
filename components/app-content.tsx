@@ -272,6 +272,12 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
               if (doc) await doc.remove()
             }}
             onDeleteAllTasks={handleDeleteAllTasks}
+            onResetDatabase={async () => {
+              await db.remove()
+              window.location.reload()
+            }}
+            syncStatus={syncStatus}
+            userUid={user.uid}
           />
         )
       default:
@@ -297,6 +303,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           onNavigate={handleNavigate} 
           user={user} 
           onSignOut={onSignOut} 
+          syncStatus={syncStatus}
         />
         
         <main className="flex-1 overflow-y-auto pb-24 md:pb-6 px-4 md:px-6 py-6">

@@ -44,17 +44,31 @@ export const getDatabase = async (userUid: string) => {
           2: (oldDoc: any) => {
             oldDoc.status = oldDoc.status || "Open";
             oldDoc.processed = oldDoc.processed ?? true;
+            oldDoc.urgency_id = oldDoc.urgency_id || "u_medium";
             return oldDoc;
           }
         }
       }
     });
     
-    // Seed system data (Urgencies) if missing
-    const urgencyCount = await db.urgencies.count().exec();
-    if (urgencyCount === 0) {
-      const mockData = await import('../mock-data');
-      await db.urgencies.bulkInsert(mockData.urgencies);
+    // Seed system data if missing
+    const mockData = await import('../mock-data');
+    
+    const [urgencyCount, projectCount, personCount, contextCount] = await Promise.all([
+      db.urgencies.count().exec(),
+      db.projects.count().exec(),
+      db.persons.count().exec(),
+      db.contexts.count().exec(),
+    ]);
+
+    const seeds = [];
+    if (urgencyCount === 0) seeds.push(db.urgencies.bulkInsert(mockData.urgencies));
+    if (projectCount === 0) seeds.push(db.projects.bulkInsert(mockData.projects));
+    if (personCount === 0) seeds.push(db.persons.bulkInsert(mockData.persons));
+    if (contextCount === 0) seeds.push(db.contexts.bulkInsert(mockData.contexts));
+    
+    if (seeds.length > 0) {
+      await Promise.all(seeds);
     }
     
     return db;
