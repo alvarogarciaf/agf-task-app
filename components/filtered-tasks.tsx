@@ -76,7 +76,7 @@ export function FilteredTasks({
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex flex-col">
       {/* Filter bar */}
       <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3 shrink-0 md:p-2">
         <div className="flex items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -146,8 +146,7 @@ export function FilteredTasks({
         )}
       </div>
 
-      {/* Table Container - flex-1 for scrolling */}
-      <div className="flex-1 overflow-auto">
+      <div className="min-h-0">
         <TasksTable
           tasks={filtered}
           projects={projects}

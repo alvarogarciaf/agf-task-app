@@ -730,7 +730,7 @@ function MobileTaskRow({
 }) {
   return (
     <div 
-      className="flex min-h-[56px] items-center gap-1.5 bg-card pl-3 pr-1 py-2 active:bg-muted/50"
+      className="flex min-h-[56px] items-center gap-2 bg-card px-4 py-2 active:bg-muted/50"
       onClick={() => onClick(task)}
     >
       {/* Description - Maximize horizontal space and prevent overflow */}
