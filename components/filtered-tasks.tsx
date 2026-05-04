@@ -71,6 +71,10 @@ export function FilteredTasks({
   const [isCreating, setIsCreating] = useState(false)
   const [autoFocusTaskId, setAutoFocusTaskId] = useState<string | null>(null)
   const [prevTasksLength, setPrevTasksLength] = useState(tasks.length)
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" }>({
+    key: "urgency",
+    direction: "asc",
+  })
   
   // Sync state with initial props when they change (drill-down navigation)
   useEffect(() => {
@@ -111,8 +115,45 @@ export function FilteredTasks({
         return true
       })
       .filter((t) => !t.archived)
-      .sort((a, b) => +new Date(b.date_created) - +new Date(a.date_created))
-  }, [tasks, contextId, personId, projectId, showStatus, inboxMode])
+      .sort((a, b) => {
+        const { key, direction } = sortConfig
+        let valA: any = ""
+        let valB: any = ""
+
+        if (key === "urgency") {
+          valA = urgencies.find((u) => u.id === a.urgency_id)?.order ?? 999
+          valB = urgencies.find((u) => u.id === b.urgency_id)?.order ?? 999
+        } else if (key === "date_created") {
+          valA = new Date(a.date_created).getTime()
+          valB = new Date(b.date_created).getTime()
+        } else if (key === "description") {
+          valA = a.description.toLowerCase()
+          valB = b.description.toLowerCase()
+        } else if (key === "status") {
+          valA = a.status
+          valB = b.status
+        } else if (key === "project") {
+          valA = projects.find((p) => p.id === a.project_id)?.name.toLowerCase() ?? ""
+          valB = projects.find((p) => p.id === b.project_id)?.name.toLowerCase() ?? ""
+        } else if (key === "person") {
+          valA = persons.find((p) => p.id === a.person_id)?.name.toLowerCase() ?? ""
+          valB = persons.find((p) => p.id === b.person_id)?.name.toLowerCase() ?? ""
+        } else if (key === "action_date") {
+          valA = a.action_date ? new Date(a.action_date).getTime() : 0
+          valB = b.action_date ? new Date(b.action_date).getTime() : 0
+        } else if (key === "show_on") {
+          valA = a.show_on ? new Date(a.show_on).getTime() : 0
+          valB = b.show_on ? new Date(b.show_on).getTime() : 0
+        } else if (key === "contexts") {
+          valA = contexts.filter((c) => (a.context_ids || []).includes(c.id)).map((c) => c.name).sort().join(",").toLowerCase()
+          valB = contexts.filter((c) => (b.context_ids || []).includes(c.id)).map((c) => c.name).sort().join(",").toLowerCase()
+        }
+
+        if (valA < valB) return direction === "asc" ? -1 : 1
+        if (valA > valB) return direction === "asc" ? 1 : -1
+        return 0
+      })
+  }, [tasks, contextId, personId, projectId, showStatus, inboxMode, sortConfig, urgencies, projects, persons])
 
   useEffect(() => {
     if (isCreating && tasks.length > prevTasksLength) {
@@ -136,6 +177,13 @@ export function FilteredTasks({
       processed: !inboxMode,
     })
     setIsCreating(true)
+  }
+
+  const handleSort = (key: string) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }))
   }
 
   // Keyboard shortcut: Ctrl+N for new task
@@ -255,6 +303,8 @@ export function FilteredTasks({
           onToggleStatus={onToggleStatus}
           autoFocusTaskId={autoFocusTaskId}
           onAutoFocusComplete={() => setAutoFocusTaskId(null)}
+          sortConfig={sortConfig}
+          onSort={handleSort}
         />
       </div>
     </div>

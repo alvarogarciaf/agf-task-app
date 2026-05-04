@@ -68,37 +68,6 @@ export function ProjectsView({
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
 
-  if (selected) {
-    const project = projects.find((p) => p.id === selected)
-    if (!project) return null
-    return (
-      <ProjectDetail
-        project={project}
-        projects={projects}
-        tasks={tasks}
-        persons={persons}
-        contexts={contexts}
-        onBack={() => setSelected(null)}
-        onToggleProcessed={onToggleProcessed}
-        onToggleStatus={onToggleStatus}
-        onUpdate={onUpdate}
-        onArchiveTask={onArchiveTask}
-        onDeleteTask={onDeleteTask}
-        urgencies={urgencies}
-        onCreate={onCreate}
-        onUpdateProject={onUpdateProject}
-        onDeleteProject={(id) => {
-          setSelected(null)
-          onDeleteProject(id)
-        }}
-        onEdit={() => {
-          setEditingProject(project)
-          setEditorOpen(true)
-        }}
-      />
-    )
-  }
-
   const handleSaveProject = (p: Project | Omit<Project, "id">) => {
     if ("id" in p) {
       onUpdateProject(p as Project)
@@ -112,39 +81,7 @@ export function ProjectsView({
   const filtered = projects.filter((p) => statusFilter === "All" || p.status === statusFilter)
 
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1 rounded-md border border-border bg-card p-1 w-fit">
-          {(["Ongoing", "Closed", "All"] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setStatusFilter(s)}
-              className={cn(
-                "rounded px-3 py-1 text-xs transition-colors",
-                statusFilter === s
-                  ? "bg-primary/15 text-primary"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => {
-            setEditingProject(null)
-            setEditorOpen(true)
-          }}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          New Project
-        </button>
-      </div>
-
+    <>
       <ProjectEditor
         open={editorOpen}
         onOpenChange={setEditorOpen}
@@ -152,7 +89,72 @@ export function ProjectsView({
         onSave={handleSaveProject}
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {selected ? (
+        (() => {
+          const project = projects.find((p) => p.id === selected)
+          if (!project) return null
+          return (
+            <ProjectDetail
+              project={project}
+              projects={projects}
+              tasks={tasks}
+              persons={persons}
+              contexts={contexts}
+              onBack={() => setSelected(null)}
+              onToggleProcessed={onToggleProcessed}
+              onToggleStatus={onToggleStatus}
+              onUpdate={onUpdate}
+              onArchiveTask={onArchiveTask}
+              onDeleteTask={onDeleteTask}
+              urgencies={urgencies}
+              onCreate={onCreate}
+              onUpdateProject={onUpdateProject}
+              onDeleteProject={(id) => {
+                setSelected(null)
+                onDeleteProject(id)
+              }}
+              onEdit={() => {
+                setEditingProject(project)
+                setEditorOpen(true)
+              }}
+            />
+          )
+        })()
+      ) : (
+        <div>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1 rounded-md border border-border bg-card p-1 w-fit">
+              {(["Ongoing", "Closed", "All"] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatusFilter(s)}
+                  className={cn(
+                    "rounded px-3 py-1 text-xs transition-colors",
+                    statusFilter === s
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEditingProject(null)
+                setEditorOpen(true)
+              }}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              New Project
+            </button>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((p) => {
           const projTasks = tasks.filter((t) => t.project_id === p.id && t.processed)
           const open = projTasks.filter((t) => t.status === "Open").length
@@ -214,6 +216,8 @@ export function ProjectsView({
         })}
       </div>
     </div>
+  )}
+</>
   )
 }
 
@@ -233,6 +237,7 @@ function ProjectDetail({
   onUpdateProject,
   onDeleteProject,
   onEdit,
+  onCreate,
 }: {
   project: Project
   projects: Project[]
@@ -311,7 +316,12 @@ function ProjectDetail({
             type="button"
             onClick={() => {
               const current = project.status
-              onUpdateProject({ ...project, status: current === "Ongoing" ? "Closed" : "Ongoing" })
+              onUpdateProject({ 
+                id: project.id,
+                name: project.name,
+                details: project.details,
+                status: current === "Ongoing" ? "Closed" : "Ongoing" 
+              })
             }}
             className={cn(
               "rounded-md border px-3 py-1.5 text-xs transition-colors h-8 flex items-center",

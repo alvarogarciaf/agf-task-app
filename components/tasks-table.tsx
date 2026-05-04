@@ -107,6 +107,8 @@ interface TasksTableProps {
   onCreate?: () => void
   autoFocusTaskId?: string | null
   onAutoFocusComplete?: () => void
+  sortConfig?: { key: string; direction: "asc" | "desc" }
+  onSort?: (key: string) => void
 }
 
 export function TasksTable({
@@ -129,6 +131,8 @@ export function TasksTable({
   onCreate,
   autoFocusTaskId,
   onAutoFocusComplete,
+  sortConfig,
+  onSort,
 }: TasksTableProps) {
   const { order, visibility, toggle, reorder, reset } = useTableColumns<TaskColumnKey>(
     storageKey, DEFAULT_ORDER, DEFAULT_VISIBILITY,
@@ -273,6 +277,16 @@ export function TasksTable({
     }
   }
 
+  function getCellValue(task: Task, column: TaskColumnKey): any {
+    if (column === "description") return task.description
+    if (column === "details") return task.details
+    if (column === "project") return task.project_id
+    if (column === "person") return task.person_id
+    if (column === "urgency") return task.urgency_id
+    if (column === "contexts") return task.context_ids
+    return null
+  }
+
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       {/* Toolbar */}
@@ -378,11 +392,13 @@ export function TasksTable({
                       onDragOver={(e) => handleDragOver(e, key)}
                       onDragLeave={() => handleDragLeave(key)}
                       onDrop={(e) => handleDrop(e, key)}
+                      onClick={() => onSort?.(key)}
                       className={cn(
-                        "relative px-3 py-2 text-left font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground transition-colors",
+                        "relative px-3 py-2 text-left font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground transition-colors cursor-pointer select-none hover:bg-muted/50",
                         COLUMN_HEADER_CLASSES[key],
                         isDragging && "opacity-40",
                         isDropTarget && "bg-primary/10",
+                        sortConfig?.key === key && "text-foreground",
                       )}
                     >
                       {isDropTarget ? (
@@ -397,16 +413,22 @@ export function TasksTable({
                         onDragStart={(e) => handleDragStart(e, key)}
                         onDragEnd={handleDragEnd}
                         className={cn(
-                          "group/handle inline-flex cursor-grab select-none items-center gap-1 active:cursor-grabbing",
+                          "group/handle inline-flex items-center gap-1",
                           isDragging && "cursor-grabbing",
                         )}
-                        title="Drag to reorder"
+                        title="Click to sort, drag to reorder"
                       >
                         <GripVertical
-                          className="h-3 w-3 opacity-0 transition-opacity group-hover/handle:opacity-100"
+                          className="h-3 w-3 opacity-0 transition-opacity group-hover/handle:opacity-100 cursor-grab active:cursor-grabbing"
                           aria-hidden
+                          onClick={(e) => e.stopPropagation()}
                         />
                         <span>{label}</span>
+                        {sortConfig?.key === key && (
+                          <span className="ml-1 text-[10px] text-primary">
+                            {sortConfig.direction === "asc" ? "↑" : "↓"}
+                          </span>
+                        )}
                       </div>
                     </th>
                   )
@@ -491,6 +513,33 @@ export function TasksTable({
                             e.stopPropagation()
                             setSelectedCell({ taskId: task.id, column: key })
                             setIsEditing(true)
+                          }}
+                          onCopy={(e) => {
+                            if (isEditing) return // Let the default behavior handle it when editing text
+                            e.preventDefault()
+                            const val = getCellValue(task, key)
+                            if (val !== undefined && val !== null) {
+                              const text = typeof val === "string" ? val : JSON.stringify(val)
+                              e.clipboardData.setData("text/plain", text)
+                            }
+                          }}
+                          onPaste={(e) => {
+                            if (isEditing) return // Let the default behavior handle it when editing text
+                            e.preventDefault()
+                            const text = e.clipboardData.getData("text/plain")
+                            if (!text) return
+                            
+                            let val: any = text
+                            try {
+                              // Try to parse as JSON for arrays (contexts)
+                              const parsed = JSON.parse(text)
+                              if (Array.isArray(parsed) || typeof parsed === "string" || parsed === null) {
+                                val = parsed
+                              }
+                            } catch {
+                              // Not JSON, use as is
+                            }
+                            commitCell(task, key, val)
                           }}
                         >
                           {isEditingThis ? (

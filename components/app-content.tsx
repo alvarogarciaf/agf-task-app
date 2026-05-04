@@ -140,6 +140,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      // Ignore shortcuts if a modifier key is pressed (e.g. Ctrl+C should not navigate to Contexts)
+      if (e.ctrlKey || e.metaKey || e.altKey) return
       
       const key = e.key.toUpperCase()
       if (key === "I") handleNavigate("home")
