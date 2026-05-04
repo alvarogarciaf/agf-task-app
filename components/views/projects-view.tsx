@@ -230,6 +230,9 @@ function ProjectDetail({
   onArchiveTask,
   onDeleteTask,
   urgencies,
+  onUpdateProject,
+  onDeleteProject,
+  onEdit,
 }: {
   project: Project
   projects: Project[]
