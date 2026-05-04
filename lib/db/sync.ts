@@ -3,16 +3,17 @@ import { firestoreDb } from '../firebase/config';
 import { collection } from 'firebase/firestore';
 import type { RxDatabase } from 'rxdb';
 
-export const setupReplication = (db: RxDatabase) => {
+export const setupReplication = (db: RxDatabase, userUid: string) => {
   if (typeof window === 'undefined') return; // Only replicate on client
 
   const syncCollections = ['tasks', 'projects', 'persons', 'contexts'];
 
   syncCollections.forEach((collectionName) => {
-    const firestoreCollection = collection(firestoreDb, collectionName);
+    // Isolate by user path: users/{uid}/{collection}
+    const firestoreCollection = collection(firestoreDb, 'users', userUid, collectionName);
     
     replicateFirestore({
-      replicationIdentifier: `firestore-sync-${collectionName}`,
+      replicationIdentifier: `firestore-sync-${userUid}-${collectionName}`,
       collection: db[collectionName],
       firestore: {
         projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
@@ -22,8 +23,6 @@ export const setupReplication = (db: RxDatabase) => {
       pull: {},
       push: {},
       live: true,
-      // We don't use auto-retry if we want to handle offline nicely,
-      // but RxDB handles offline by default when live: true.
     });
   });
 };

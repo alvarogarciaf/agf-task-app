@@ -23,7 +23,7 @@ export function DbProvider({ userUid, children }: { userUid: string; children: R
     setDb(null); // Reset when user changes
     getDatabase(userUid).then((database) => {
       if (mounted) {
-        setupReplication(database);
+        setupReplication(database, userUid);
         setDb(database);
       }
     });
