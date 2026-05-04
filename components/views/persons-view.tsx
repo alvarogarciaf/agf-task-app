@@ -10,7 +10,7 @@ interface PersonsViewProps {
 
 export function PersonsView({ persons, tasks, onSelect }: PersonsViewProps) {
   return (
-    <div className="px-6 py-6">
+    <div className="px-3 md:px-6 py-6">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {persons.map((p) => {
           const count = tasks.filter((t) => t.person_id === p.id).length

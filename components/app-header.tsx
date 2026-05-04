@@ -50,7 +50,7 @@ export function AppHeader({ view, onNavigate, user, onSignOut }: AppHeaderProps)
 
   return (
     <header className="border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-14 items-center justify-between gap-3 px-4 md:px-6">
+      <div className="flex h-14 items-center justify-between gap-3 px-3 md:px-6">
         {/* Section title */}
         <h1 className="text-lg font-semibold tracking-tight md:text-xl">{title}</h1>
 

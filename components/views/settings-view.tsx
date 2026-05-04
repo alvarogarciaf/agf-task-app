@@ -39,7 +39,7 @@ export function SettingsView({
   const [tab, setTab] = useState<TabKey>("persons")
 
   return (
-    <div className="px-6 py-6 max-w-4xl mx-auto">
+    <div className="px-3 md:px-6 py-6 max-w-4xl mx-auto">
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-border mb-6">
         <TabButton active={tab === "persons"} onClick={() => setTab("persons")} icon={Users}>
