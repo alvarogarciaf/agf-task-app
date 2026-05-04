@@ -733,10 +733,10 @@ function MobileTaskRow({
       className="flex min-h-[56px] items-center gap-1.5 bg-card pl-3 pr-1 py-2 active:bg-muted/50"
       onClick={() => onClick(task)}
     >
-      {/* Description - Maximize horizontal space */}
+      {/* Description - Maximize horizontal space and prevent overflow */}
       <span
         className={cn(
-          "flex-1 text-base leading-tight",
+          "flex-1 min-w-0 truncate text-base leading-tight",
           task.processed ? "text-muted-foreground line-through" : "text-foreground"
         )}
       >
