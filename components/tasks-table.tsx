@@ -730,10 +730,10 @@ function MobileTaskRow({
 }) {
   return (
     <div 
-      className="flex min-h-[64px] items-center gap-3 bg-card px-4 py-3 active:bg-muted/50"
+      className="flex min-h-[56px] items-center gap-1.5 bg-card pl-3 pr-1 py-2 active:bg-muted/50"
       onClick={() => onClick(task)}
     >
-      {/* Description */}
+      {/* Description - Maximize horizontal space */}
       <span
         className={cn(
           "flex-1 text-base leading-tight",
@@ -743,15 +743,15 @@ function MobileTaskRow({
         {task.description}
       </span>
 
-      {/* Right side: Urgency Chip + Menu */}
-      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+      {/* Right side: Urgency Chip + Menu (Compact) */}
+      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
         {urgency && (
           <div 
-            className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+            className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-tight"
             style={{ 
-              backgroundColor: `${urgency.color}20`, 
+              backgroundColor: `${urgency.color}15`, 
               color: urgency.color,
-              border: `1px solid ${urgency.color}40`
+              border: `1px solid ${urgency.color}30`
             }}
           >
             {urgency.name}
@@ -762,9 +762,9 @@ function MobileTaskRow({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted active:bg-muted"
+              className="flex h-10 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted active:bg-muted"
             >
-              <MoreVertical className="h-5 w-5" />
+              <MoreVertical className="h-4.5 w-4.5" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuPortal>
