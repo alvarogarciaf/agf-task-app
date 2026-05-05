@@ -255,54 +255,53 @@ function NavLink({
   const Icon = item.icon
   return (
     <li>
-      <button
-        type="button"
-        onClick={onClick}
-        className={cn(
-          "group relative flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors",
-          active
-            ? "bg-sidebar-accent text-sidebar-accent-foreground"
-            : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
-        )}
-        aria-current={active ? "page" : undefined}
-      >
-        {active && (
-          <span className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-primary" />
-        )}
-        <span 
-          className={cn(
-            "flex h-4 w-4 shrink-0 items-center justify-center",
-            active ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
-          )}
-          style={color && !active ? { color } : undefined}
+      <div className={cn(
+        "group relative flex w-full items-center rounded-md transition-colors",
+        active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+      )}>
+        <button
+          type="button"
+          onClick={onClick}
+          className="flex flex-1 items-center gap-2.5 px-2 py-1.5 text-sm"
+          aria-current={active ? "page" : undefined}
         >
-          <Icon className="h-4 w-4" />
-        </span>
-        <span className="flex-1 truncate text-left">{item.label}</span>
-        {item.badge !== undefined && item.badge > 0 ? (
-          <span
+          {active && (
+            <span className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-primary" />
+          )}
+          <span 
             className={cn(
-              "rounded px-1.5 py-0.5 font-mono text-[10px]",
-              active
-                ? "bg-primary/20 text-primary"
-                : "bg-muted text-muted-foreground group-hover:bg-background",
+              "flex h-4 w-4 shrink-0 items-center justify-center",
+              active ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
             )}
+            style={color && !active ? { color } : undefined}
           >
-            {item.badge}
+            <Icon className="h-4 w-4" />
           </span>
-        ) : item.shortcut ? (
-          <span className="font-mono text-[10px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
-            {item.shortcut}
-          </span>
-        ) : null}
+          <span className="flex-1 truncate text-left">{item.label}</span>
+          {item.badge !== undefined && item.badge > 0 ? (
+            <span
+              className={cn(
+                "rounded px-1.5 py-0.5 font-mono text-[10px]",
+                active
+                  ? "bg-primary/20 text-primary"
+                  : "bg-muted text-muted-foreground group-hover:bg-background",
+              )}
+            >
+              {item.badge}
+            </span>
+          ) : item.shortcut ? (
+            <span className="font-mono text-[10px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+              {item.shortcut}
+            </span>
+          ) : null}
+        </button>
 
         {(onEdit || onDelete) && (
-          <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="mr-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  onClick={(e) => e.stopPropagation()}
                   className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-sidebar-accent-foreground/10"
                 >
                   <MoreVertical className="h-3.5 w-3.5" />
@@ -310,14 +309,14 @@ function NavLink({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-32">
                 {onEdit && (
-                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit() }}>
+                  <DropdownMenuItem onClick={onEdit}>
                     <Edit2 className="mr-2 h-3.5 w-3.5" />
                     Edit
                   </DropdownMenuItem>
                 )}
                 {onDelete && (
                   <DropdownMenuItem 
-                    onClick={(e) => { e.stopPropagation(); onDelete() }}
+                    onClick={onDelete}
                     className="text-destructive focus:text-destructive"
                   >
                     <Trash2 className="mr-2 h-3.5 w-3.5" />
@@ -328,7 +327,7 @@ function NavLink({
             </DropdownMenu>
           </div>
         )}
-      </button>
+      </div>
     </li>
   )
 }
