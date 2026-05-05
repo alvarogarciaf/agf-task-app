@@ -809,7 +809,16 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
 }
 
 function DateCell({ value }: { value: string }) {
-  const d = new Date(value)
+  // Use a safer way to parse YYYY-MM-DD to avoid timezone shifts
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  let d: Date
+  if (match) {
+    const [_, y, m, d_num] = match
+    d = new Date(Number(y), Number(m) - 1, Number(d_num))
+  } else {
+    d = new Date(value)
+  }
+
   return (
     <span className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
       <Calendar className="h-3 w-3" />
