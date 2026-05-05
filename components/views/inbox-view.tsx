@@ -19,7 +19,7 @@ interface InboxViewProps {
     projectId: string | null
     personId: string | null
     processed: boolean
-  }) => void
+  }) => Promise<string | void>
 }
 
 export function InboxView({

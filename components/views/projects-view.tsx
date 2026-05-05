@@ -48,7 +48,7 @@ interface ProjectsViewProps {
     projectId: string | null
     personId: string | null
     processed: boolean
-  }) => void
+  }) => Promise<string | void>
   onAddProject: (project: Omit<Project, "id">) => void
   onUpdateProject: (project: Project) => void
   onDeleteProject: (id: string) => void
@@ -282,7 +282,7 @@ function ProjectDetail({
     projectId: string | null
     personId: string | null
     processed: boolean
-  }) => void
+  }) => Promise<string | void>
   onUpdateProject: (project: Project) => void
   onDeleteProject: (id: string) => void
   onEdit: () => void

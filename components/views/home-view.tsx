@@ -19,7 +19,7 @@ interface HomeViewProps {
     projectId: string | null
     personId: string | null
     urgencyId?: string
-  }) => void
+  }) => Promise<string | void>
   onUpdate: (task: Task) => void
   onToggleProcessed: (id: string) => void
   onToggleStatus: (id: string) => void
@@ -59,10 +59,10 @@ export function HomeView({
     setContextIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]))
   }
 
-  function submit(e?: React.FormEvent | React.KeyboardEvent) {
+  async function submit(e?: React.FormEvent | React.KeyboardEvent) {
     if (e) e.preventDefault()
     if (!text.trim()) return
-    onCreate({ 
+    await onCreate({ 
       description: text.trim(), 
       contextIds, 
       projectId, 

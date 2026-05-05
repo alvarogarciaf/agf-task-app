@@ -60,7 +60,7 @@ interface FilteredTasksProps {
     projectId: string | null
     personId: string | null
     processed: boolean
-  }) => void
+  }) => Promise<string | void>
   hideFilterBar?: boolean
 }
 
@@ -251,26 +251,21 @@ export function FilteredTasks({
   }, [filtered, isGroupedByProject, contextId, projects])
 
   useEffect(() => {
-    if (isCreating && tasks.length > prevTasksLength) {
-      // The newest task should be at index 0 of filtered because of the date_created sort
-      const newTask = filtered[0]
-      if (newTask) {
-        setAutoFocusTaskId(newTask.id)
-      }
-      setIsCreating(false)
-    }
     setPrevTasksLength(tasks.length)
-  }, [tasks, isCreating, prevTasksLength, filtered])
+  }, [tasks])
 
-  const handleAddNewTask = (overriddenProjectId?: string | null) => {
+  const handleAddNewTask = async (overriddenProjectId?: string | null) => {
     if (!onCreate) return
-    onCreate({
+    const id = await onCreate({
       description: "New task",
       contextIds: contextId ? [contextId] : [],
       projectId: overriddenProjectId !== undefined ? overriddenProjectId : projectId,
       personId: personId,
       processed: !inboxMode,
     })
+    if (id) {
+      setAutoFocusTaskId(id)
+    }
     setIsCreating(true)
   }
 
@@ -283,7 +278,7 @@ export function FilteredTasks({
 
   const handleSaveView = async (data: { name: string; icon: string; color: string }) => {
     if (!db) return
-    const id = uuidv4()
+    const id = crypto.randomUUID()
     const newView: SavedView = {
       id,
       name: data.name,
