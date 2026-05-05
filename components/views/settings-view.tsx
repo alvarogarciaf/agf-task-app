@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Users, Tags, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Info, Database } from "lucide-react"
+import { Users, Tags, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Info, Database, Calendar, Copy } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Context, Person, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "@/components/db-provider"
@@ -25,7 +25,7 @@ interface SettingsViewProps {
   userUid?: string
 }
 
-type TabKey = "persons" | "contexts" | "urgencies" | "data" | "troubleshoot"
+type TabKey = "persons" | "contexts" | "urgencies" | "calendar" | "data" | "troubleshoot"
 
 export function SettingsView({
   persons,
@@ -59,6 +59,9 @@ export function SettingsView({
         </TabButton>
         <TabButton active={tab === "urgencies"} onClick={() => setTab("urgencies")} icon={AlertCircle}>
           Urgencies
+        </TabButton>
+        <TabButton active={tab === "calendar"} onClick={() => setTab("calendar")} icon={Calendar}>
+          Calendar
         </TabButton>
         <TabButton active={tab === "data"} onClick={() => setTab("data")} icon={Trash2}>
           Data
@@ -136,6 +139,59 @@ export function SettingsView({
               />
             )}
           />
+        )}
+
+        {tab === "calendar" && (
+          <div className="p-8">
+            <h3 className="text-lg font-semibold mb-2">Calendar Sync</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Sync your tasks with an <strong>Action Date</strong> to Google Calendar, Apple Calendar, or Outlook. 
+              Only open tasks will be included.
+            </p>
+
+            <div className="space-y-6">
+              <div className="rounded-lg border border-border bg-muted/30 p-4">
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                  Subscription URL
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    readOnly
+                    value={`${typeof window !== "undefined" ? window.location.origin : ""}/api/calendar/${userUid}`}
+                    className="flex-1 bg-background border border-border rounded px-3 py-2 text-sm font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = `${window.location.origin}/api/calendar/${userUid}`
+                      navigator.clipboard.writeText(url)
+                    }}
+                    className="inline-flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm font-medium hover:bg-secondary/80"
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copy
+                  </button>
+                </div>
+                <p className="mt-4 text-xs text-muted-foreground leading-relaxed">
+                  <strong>How to use:</strong> In Google Calendar, click the <strong>"+"</strong> next to "Other calendars", 
+                  select <strong>"From URL"</strong>, and paste the link above.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-lg border border-amber-500/20 bg-amber-500/5">
+                <div className="flex gap-3">
+                  <Info className="h-5 w-5 text-amber-500 shrink-0" />
+                  <div className="text-xs text-amber-900/80 dark:text-amber-200/80 space-y-2">
+                    <p className="font-semibold text-amber-600">Important Note</p>
+                    <p>
+                      This feature requires the <strong>FIREBASE_SERVICE_ACCOUNT</strong> environment variable to be configured on your server.
+                      If you are running this locally, ensure you have set up your service account credentials.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {tab === "data" && (
