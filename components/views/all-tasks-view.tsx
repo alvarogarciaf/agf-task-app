@@ -23,6 +23,7 @@ interface AllTasksViewProps {
   initialShowHiddenByShowOn?: boolean
   initialSortKey?: string
   initialSortDirection?: "asc" | "desc"
+  fullWidthOnMobile?: boolean
   onCreate?: (input: {
     description: string
     contextIds: string[]

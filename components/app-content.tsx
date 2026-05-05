@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useDatabase, useSyncStatus } from "@/components/db-provider"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppHeader } from "@/components/app-header"
 import { MobileNav } from "@/components/mobile-nav"
@@ -313,6 +314,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             initialShowHiddenByShowOn={sv.show_hidden_by_show_on}
             initialSortKey={sv.sort_key}
             initialSortDirection={sv.sort_direction}
+            fullWidthOnMobile={true}
           />
         )
       }
@@ -322,6 +324,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             {...viewProps} 
             initialContextId={initialContextId}
             initialPersonId={initialPersonId}
+            fullWidthOnMobile={true}
           />
         )
       case "projects":
@@ -472,7 +475,12 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           syncStatus={syncStatus}
         />
         
-        <main className="flex-1 overflow-y-auto pb-24 md:pb-6 px-4 md:px-6 py-6">
+        <main className={cn(
+          "flex-1 overflow-y-auto pb-24 md:pb-6",
+          (activeView === "all" || activeView === "saved-view") 
+            ? "px-0 md:px-6 py-0 md:py-6" 
+            : "px-4 md:px-6 py-6"
+        )}>
           <div className="w-full h-full">
             {renderView()}
           </div>

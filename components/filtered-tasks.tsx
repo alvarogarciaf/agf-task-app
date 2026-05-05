@@ -63,6 +63,7 @@ interface FilteredTasksProps {
     processed: boolean
   }) => Promise<string | void>
   hideFilterBar?: boolean
+  fullWidthOnMobile?: boolean
 }
 
 export function FilteredTasks({
@@ -93,6 +94,7 @@ export function FilteredTasks({
   inboxMode = false,
   onCreate,
   hideFilterBar = false,
+  fullWidthOnMobile = false,
 }: FilteredTasksProps) {
   const [contextIds, setContextIds] = useState<string[]>(() => {
     if (initialContextIds) return initialContextIds
@@ -355,7 +357,12 @@ export function FilteredTasks({
   }
 
   return (
-    <div key={`${initialContextId}-${initialContextIds?.join(",")}-${initialProjectId}-${initialPersonId}-${initialShowStatus}-${initialIsGroupedByProject}-${initialShowHiddenByShowOn}-${initialSortKey}-${initialSortDirection}`} className="flex flex-col min-w-0 w-full rounded-lg border border-border bg-card overflow-hidden">
+    <div key={`${initialContextId}-${initialContextIds?.join(",")}-${initialProjectId}-${initialPersonId}-${initialShowStatus}-${initialIsGroupedByProject}-${initialShowHiddenByShowOn}-${initialSortKey}-${initialSortDirection}`} className={cn(
+      "flex flex-col min-w-0 w-full bg-card overflow-hidden",
+      fullWidthOnMobile 
+        ? "border-b border-border md:rounded-lg md:border" 
+        : "rounded-lg border border-border"
+    )}>
       {/* Filter bar */}
       {!hideFilterBar && (
         <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/20 p-3 md:p-2">
