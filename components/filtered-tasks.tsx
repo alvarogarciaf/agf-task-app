@@ -41,6 +41,7 @@ interface FilteredTasksProps {
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
   initialContextId?: string | null
+  initialContextIds?: string[]
   initialPersonId?: string | null
   initialProjectId?: string | null
   initialShowStatus?: "all" | "open" | "done"
@@ -76,6 +77,7 @@ export function FilteredTasks({
   onArchiveTask,
   onDeleteTask,
   initialContextId,
+  initialContextIds,
   initialPersonId,
   initialProjectId,
   initialShowStatus,
@@ -92,7 +94,11 @@ export function FilteredTasks({
   onCreate,
   hideFilterBar = false,
 }: FilteredTasksProps) {
-  const [contextId, setContextId] = useState<string | null>(initialContextId ?? null)
+  const [contextIds, setContextIds] = useState<string[]>(() => {
+    if (initialContextIds) return initialContextIds
+    if (initialContextId) return [initialContextId]
+    return []
+  })
   const [personId, setPersonId] = useState<string | null>(initialPersonId ?? null)
   const [projectId, setProjectId] = useState<string | null>(initialProjectId ?? null)
   const [showStatus, setShowStatus] = useState<"all" | "open" | "done">(initialShowStatus ?? "open")
@@ -124,7 +130,11 @@ export function FilteredTasks({
   
   // Sync state with initial props when they change (drill-down navigation)
   useEffect(() => {
-    setContextId(initialContextId ?? null)
+    if (initialContextIds) {
+      setContextIds(initialContextIds)
+    } else {
+      setContextIds(initialContextId ? [initialContextId] : [])
+    }
     setPersonId(initialPersonId ?? null)
     setProjectId(initialProjectId ?? null)
     setShowStatus(initialShowStatus ?? "open")
@@ -134,13 +144,13 @@ export function FilteredTasks({
       key: initialSortKey ?? "urgency",
       direction: initialSortDirection ?? "asc",
     })
-  }, [initialContextId, initialPersonId, initialProjectId, initialShowStatus, initialIsGroupedByProject, initialShowHiddenByShowOn, initialSortKey, initialSortDirection])
+  }, [initialContextId, initialContextIds, initialPersonId, initialProjectId, initialShowStatus, initialIsGroupedByProject, initialShowHiddenByShowOn, initialSortKey, initialSortDirection])
 
   const filtered = useMemo(() => {
     return tasks
       .filter((t) => {
-        if (!contextId) return true
-        return (t.context_ids || []).includes(contextId)
+        if (contextIds.length === 0) return true
+        return contextIds.some(id => (t.context_ids || []).includes(id))
       })
       .filter((t) => {
         if (!personId) return true
@@ -217,7 +227,7 @@ export function FilteredTasks({
       })
   }, [
     tasks,
-    contextId,
+    contextIds,
     personId,
     projectId,
     showStatus,
@@ -231,7 +241,7 @@ export function FilteredTasks({
   ])
 
   const groupedByProject = useMemo(() => {
-    if (!isGroupedByProject || !contextId) return null
+    if (!isGroupedByProject || contextIds.length === 0) return null
 
     const groups: Record<string, Task[]> = {}
     filtered.forEach((t) => {
@@ -252,7 +262,7 @@ export function FilteredTasks({
         if (b.id === "none") return -1
         return a.name.localeCompare(b.name)
       })
-  }, [filtered, isGroupedByProject, contextId, projects])
+  }, [filtered, isGroupedByProject, contextIds, projects])
 
   useEffect(() => {
     setPrevTasksLength(tasks.length)
@@ -262,7 +272,7 @@ export function FilteredTasks({
     if (!onCreate) return
     const id = await onCreate({
       description: "New task",
-      contextIds: contextId ? [contextId] : [],
+      contextIds: contextIds.length === 1 ? contextIds : [],
       projectId: overriddenProjectId !== undefined ? overriddenProjectId : projectId,
       personId: personId,
       processed: !inboxMode,
@@ -282,13 +292,16 @@ export function FilteredTasks({
 
   const handleSaveView = async (data: { name: string; icon: string; color: string }) => {
     if (!db) return
+    const existing = await db.saved_views.find().exec()
+    const maxOrder = existing.reduce((max, v) => Math.max(max, v.order || 0), -1)
+    
     const id = crypto.randomUUID()
     const newView: SavedView = {
       id,
       name: data.name,
       icon: data.icon,
       color: data.color,
-      context_id: contextId,
+      context_ids: contextIds,
       project_id: projectId,
       person_id: personId,
       show_status: showStatus,
@@ -297,12 +310,13 @@ export function FilteredTasks({
       sort_key: sortConfig.key,
       sort_direction: sortConfig.direction,
       date_created: new Date().toISOString(),
+      order: maxOrder + 1,
     }
     await db.saved_views.insert(newView)
   }
 
   const isViewModified = 
-    contextId || 
+    contextIds.length > 0 || 
     personId || 
     projectId || 
     showStatus !== "open" || 
@@ -326,7 +340,7 @@ export function FilteredTasks({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [handleAddNewTask])
 
-  const hasFilter = contextId || personId || projectId
+  const hasFilter = contextIds.length > 0 || personId || projectId
 
   const tableEmptyTitle = showHiddenByShowOn
     ? "No tasks hidden by Show on"
@@ -341,7 +355,7 @@ export function FilteredTasks({
   }
 
   return (
-    <div key={`${initialContextId}-${initialProjectId}-${initialPersonId}-${initialShowStatus}-${initialIsGroupedByProject}-${initialShowHiddenByShowOn}-${initialSortKey}-${initialSortDirection}`} className="flex flex-col min-w-0 w-full rounded-lg border border-border bg-card overflow-hidden">
+    <div key={`${initialContextId}-${initialContextIds?.join(",")}-${initialProjectId}-${initialPersonId}-${initialShowStatus}-${initialIsGroupedByProject}-${initialShowHiddenByShowOn}-${initialSortKey}-${initialSortDirection}`} className="flex flex-col min-w-0 w-full rounded-lg border border-border bg-card overflow-hidden">
       {/* Filter bar */}
       {!hideFilterBar && (
         <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/20 p-3 md:p-2">
@@ -371,10 +385,18 @@ export function FilteredTasks({
           {!hideFilters.includes("context") && (
             <FilterPill
               label="Context"
-              value={contextId ? contexts.find((c) => c.id === contextId)?.name : undefined}
+              value={
+                contextIds.length > 1 
+                  ? `${contextIds.length} selected` 
+                  : (contextIds.length === 1 ? contexts.find((c) => c.id === contextIds[0])?.name : undefined)
+              }
               options={contexts.map((c) => ({ id: c.id, label: c.name, color: c.color }))}
-              onSelect={(id) => setContextId((p) => (p === id ? null : id))}
-              onClear={() => setContextId(null)}
+              selectedIds={contextIds}
+              onSelect={(id) => setContextIds((prev) => 
+                prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+              )}
+              onClear={() => setContextIds([])}
+              multiSelect={true}
             />
           )}
 
@@ -403,7 +425,7 @@ export function FilteredTasks({
               {filtered.length} {filtered.length === 1 ? itemNoun : `${itemNoun}s`}
             </span>
 
-            {contextId && !projectId && (
+            {contextIds.length > 0 && !projectId && (
               <button
                 type="button"
                 onClick={() => setIsGroupedByProject(!isGroupedByProject)}
@@ -496,7 +518,7 @@ export function FilteredTasks({
               <button
                 type="button"
                 onClick={() => {
-                  setContextId(null)
+                  setContextIds([])
                   setPersonId(null)
                   setProjectId(null)
                   setShowHiddenByShowOn(false)
@@ -685,14 +707,18 @@ function FilterPill({
   label,
   value,
   options,
+  selectedIds = [],
   onSelect,
   onClear,
+  multiSelect = false,
 }: {
   label: string
   value?: string
   options: { id: string; label: string; color?: string }[]
+  selectedIds?: string[]
   onSelect: (id: string) => void
   onClear: () => void
+  multiSelect?: boolean
 }) {
   const [open, setOpen] = useState(false)
   return (
@@ -705,7 +731,7 @@ function FilterPill({
             "inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm transition-colors md:px-2.5 md:py-1 md:text-xs cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-ring",
             value
               ? "border-primary/40 bg-primary/10 text-primary"
-              : "border-border bg-background text-muted-foreground hover:text-foreground",
+              : "border-border bg-background text-muted-foreground hover:bg-muted",
           )}
         >
           <span className="font-mono text-[10px] uppercase tracking-wider">{label}</span>
@@ -730,28 +756,31 @@ function FilterPill({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-56 p-1">
         <div className="max-h-64 overflow-auto">
-          {options.map((opt) => (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => {
-                onSelect(opt.id)
-                setOpen(false)
-              }}
-              className="flex w-full items-center gap-2 rounded px-3 py-2.5 text-left text-base hover:bg-muted md:px-2 md:py-1.5 md:text-sm"
-            >
-              {opt.color ? (
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: opt.color }}
-                />
-              ) : (
-                <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/40" />
-              )}
-              <span className="flex-1 truncate">{opt.label}</span>
-              {value === opt.label ? <Check className="h-3 w-3 text-primary" /> : null}
-            </button>
-          ))}
+          {options.map((opt) => {
+            const isSelected = selectedIds.includes(opt.id) || value === opt.label
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => {
+                  onSelect(opt.id)
+                  if (!multiSelect) setOpen(false)
+                }}
+                className="flex w-full items-center gap-2 rounded px-3 py-2.5 text-left text-base hover:bg-muted md:px-2 md:py-1.5 md:text-sm"
+              >
+                {opt.color ? (
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: opt.color }}
+                  />
+                ) : (
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/40" />
+                )}
+                <span className="flex-1 truncate">{opt.label}</span>
+                {isSelected ? <Check className="h-3 w-3 text-primary" /> : null}
+              </button>
+            )
+          })}
         </div>
       </PopoverContent>
     </Popover>

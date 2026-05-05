@@ -1,12 +1,12 @@
 "use client"
-
+ 
+import { useState } from "react"
 import {
   Home,
   ListChecks,
   Tags,
   Users,
   FolderKanban,
-  ClipboardList,
   Cloud,
   CloudOff,
   AlertCircle,
@@ -37,6 +37,7 @@ interface AppSidebarProps {
   onChange: (key: ViewKey, savedViewId?: string) => void
   onEditSavedView?: (view: SavedView) => void
   onDeleteSavedView?: (id: string) => void
+  onReorderSavedViews?: (views: SavedView[]) => void
   inboxCount: number
   totalCount: number
   syncStatus: SyncStatus
@@ -51,6 +52,7 @@ export function AppSidebar({
   onChange,
   onEditSavedView,
   onDeleteSavedView,
+  onReorderSavedViews,
   inboxCount,
   totalCount,
   syncStatus,
@@ -68,23 +70,40 @@ export function AppSidebar({
     { key: "persons", label: "People", icon: Users, shortcut: "U" },
   ]
 
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedId(id)
+    e.dataTransfer.effectAllowed = "move"
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+  }
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault()
+    if (!draggedId || draggedId === targetId || !onReorderSavedViews) return
+
+    const draggedIndex = savedViews.findIndex((v) => v.id === draggedId)
+    const targetIndex = savedViews.findIndex((v) => v.id === targetId)
+
+    if (draggedIndex === -1 || targetIndex === -1) return
+
+    const newViews = [...savedViews]
+    const [draggedItem] = newViews.splice(draggedIndex, 1)
+    newViews.splice(targetIndex, 0, draggedItem)
+
+    onReorderSavedViews(newViews)
+    setDraggedId(null)
+  }
+
   return (
-    <aside className="hidden md:flex h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-      {/* Brand */}
-      <div className="flex items-center gap-2 px-4 pt-5 pb-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/15 text-primary ring-1 ring-primary/30">
-          <ClipboardList className="h-4 w-4" strokeWidth={2.5} />
-        </div>
-        <div className="flex flex-col leading-tight">
-          <span className="text-sm font-semibold tracking-tight">TASKER AGF</span>
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-            local-first
-          </span>
-        </div>
-      </div>
+    <aside className="hidden md:flex pt-safe pb-safe h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
 
       {/* Workspace switcher (single account for now) */}
-      <div className="mx-3 mb-3 flex items-center justify-between rounded-md border border-sidebar-border bg-background/40 px-3 py-2 text-left text-sm">
+      <div className="mx-3 my-4 flex items-center justify-between rounded-md border border-sidebar-border bg-background/40 px-3 py-2 text-left text-sm">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-primary/20 text-[10px] font-semibold text-primary">
             {workspaceInitial}
@@ -94,7 +113,7 @@ export function AppSidebar({
       </div>
 
       {/* Primary nav */}
-      <nav className="px-2">
+      <nav className="px-2 overflow-y-auto">
         <NavGroup label="Workflow">
           {items.map((item) => (
             <NavLink
@@ -134,6 +153,11 @@ export function AppSidebar({
                   onClick={() => onChange("saved-view", sv.id)}
                   onEdit={() => onEditSavedView?.(sv)}
                   onDelete={() => onDeleteSavedView?.(sv.id)}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, sv.id)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, sv.id)}
+                  isDragged={draggedId === sv.id}
                 />
               )
             })}
@@ -244,6 +268,11 @@ function NavLink({
   onEdit,
   onDelete,
   color,
+  draggable,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  isDragged,
 }: {
   item: NavItem
   active: boolean
@@ -251,10 +280,24 @@ function NavLink({
   onEdit?: () => void
   onDelete?: () => void
   color?: string
+  draggable?: boolean
+  onDragStart?: (e: React.DragEvent) => void
+  onDragOver?: (e: React.DragEvent) => void
+  onDrop?: (e: React.DragEvent) => void
+  isDragged?: boolean
 }) {
   const Icon = item.icon
   return (
-    <li>
+    <li
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      className={cn(
+        "list-none transition-opacity",
+        isDragged ? "opacity-40" : "opacity-100"
+      )}
+    >
       <div className={cn(
         "group relative flex w-full items-center rounded-md transition-colors",
         active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
@@ -271,9 +314,9 @@ function NavLink({
           <span 
             className={cn(
               "flex h-4 w-4 shrink-0 items-center justify-center",
-              active ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
+              active ? "text-foreground" : "text-muted-foreground group-hover:text-foreground",
             )}
-            style={color && !active ? { color } : undefined}
+            style={color ? { color } : undefined}
           >
             <Icon className="h-4 w-4" />
           </span>

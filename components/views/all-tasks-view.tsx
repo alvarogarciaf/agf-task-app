@@ -15,6 +15,7 @@ interface AllTasksViewProps {
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
   initialContextId?: string | null
+  initialContextIds?: string[]
   initialPersonId?: string | null
   initialProjectId?: string | null
   initialShowStatus?: "all" | "open" | "done"

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, Suspense } from "react"
 import { useAuth } from "@/components/auth-provider"
 import { DbProvider } from "@/components/db-provider"
 import { SignIn } from "@/components/sign-in"
@@ -32,7 +32,9 @@ export default function Page() {
   return (
     <DbProvider userUid={user.uid}>
       <GoogleCalendarProvider>
-        <AppContent user={user} onSignOut={signOut} />
+        <Suspense fallback={null}>
+          <AppContent user={user} onSignOut={signOut} />
+        </Suspense>
       </GoogleCalendarProvider>
     </DbProvider>
   )

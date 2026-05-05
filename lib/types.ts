@@ -51,7 +51,7 @@ export interface SavedView {
   icon: string
   color: string
   // The configuration
-  context_id?: string | null
+  context_ids: string[]
   project_id?: string | null
   person_id?: string | null
   show_status: "all" | "open" | "done"
@@ -60,6 +60,7 @@ export interface SavedView {
   sort_key: string
   sort_direction: "asc" | "desc"
   date_created: string
+  order: number
 }
 
 export type ViewKey =

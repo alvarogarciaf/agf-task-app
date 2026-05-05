@@ -781,7 +781,15 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
       )
 
     case "contexts":
-      return contexts.length > 0 ? (
+      if (contexts.length === 0) return <Empty />
+      if (contexts.length > 1) {
+        return (
+          <span className="inline-flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-muted-foreground">
+            {contexts.length} selected
+          </span>
+        )
+      }
+      return (
         <div className="flex flex-wrap items-center gap-1">
           {contexts.map((c) => (
             <span
@@ -793,8 +801,6 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
             </span>
           ))}
         </div>
-      ) : (
-        <Empty />
       )
 
     case "show_on":

@@ -77,6 +77,21 @@ export const getDatabase = async (userUid: string) => {
             oldDoc.icon = oldDoc.icon || "LayoutList";
             oldDoc.color = oldDoc.color || "#78716c";
             return oldDoc;
+          },
+          // 2: Add order field
+          2: (oldDoc: any) => {
+            oldDoc.order = oldDoc.order ?? 0;
+            return oldDoc;
+          },
+          // 3: Convert context_id to context_ids array
+          3: (oldDoc: any) => {
+            if (oldDoc.context_id) {
+              oldDoc.context_ids = [oldDoc.context_id];
+            } else {
+              oldDoc.context_ids = [];
+            }
+            delete oldDoc.context_id;
+            return oldDoc;
           }
         }
       }

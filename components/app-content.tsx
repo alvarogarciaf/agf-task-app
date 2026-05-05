@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { useDatabase, useSyncStatus } from "@/components/db-provider"
 import { toast } from "sonner"
 import { AppSidebar } from "@/components/app-sidebar"
@@ -28,7 +29,19 @@ interface AppContentProps {
 export function AppContent({ user, onSignOut }: AppContentProps) {
   const db = useDatabase()
   const syncStatus = useSyncStatus()
-  const [activeView, setActiveView] = useState<ViewKey>("home")
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  const [activeView, setActiveView] = useState<ViewKey>(() => {
+    if (typeof window === "undefined") return "home"
+    const v = new URLSearchParams(window.location.search).get("view") as ViewKey
+    return v || "home"
+  })
+
+  const [activeSavedViewId, setActiveSavedViewId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null
+    return new URLSearchParams(window.location.search).get("savedViewId")
+  })
 
   const workspaceLabel =
     user.displayName?.trim() ||
@@ -57,7 +70,6 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [contexts, setContexts] = useState<Context[]>([])
   const [urgencies, setUrgencies] = useState<UrgencyLevel[]>([])
   const [savedViews, setSavedViews] = useState<SavedView[]>([])
-  const [activeSavedViewId, setActiveSavedViewId] = useState<string | null>(null)
   const [editingView, setEditingView] = useState<SavedView | null>(null)
 
   // Subscriptions
@@ -68,7 +80,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       db.persons.find().$.subscribe(docs => setPersons(docs.map(d => d.toJSON()))),
       db.contexts.find().$.subscribe(docs => setContexts(docs.map(d => d.toJSON()))),
       db.urgencies.find().$.subscribe(docs => setUrgencies(docs.map(d => d.toJSON()))),
-      db.saved_views.find().$.subscribe(docs => setSavedViews(docs.map(d => d.toJSON()))),
+      db.saved_views.find({ sort: [{ order: 'asc' }] }).$.subscribe(docs => setSavedViews(docs.map(d => d.toJSON()))),
     ]
     return () => subs.forEach((s) => s.unsubscribe())
   }, [db])
@@ -163,6 +175,11 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     setInitialPersonId(undefined)
     setActiveView(view)
     setActiveSavedViewId(savedViewId || null)
+
+    const params = new URLSearchParams()
+    params.set("view", view)
+    if (savedViewId) params.set("savedViewId", savedViewId)
+    router.push(`/?${params.toString()}`, { scroll: false })
   }
 
   const handleDeleteSavedView = async (id: string) => {
@@ -184,6 +201,16 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       await doc.patch(data)
     }
     setEditingView(null)
+  }
+  
+  const handleReorderSavedViews = async (reordered: SavedView[]) => {
+    // Update all views with their new order
+    await Promise.all(reordered.map(async (v, index) => {
+      const doc = await db.saved_views.findOne(v.id).exec()
+      if (doc && doc.order !== index) {
+        await doc.patch({ order: index })
+      }
+    }))
   }
 
   const { accessToken: contextToken } = useGoogleCalendar()
@@ -278,7 +305,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         return (
           <AllTasksView
             {...viewProps}
-            initialContextId={sv.context_id}
+            initialContextIds={sv.context_ids}
             initialPersonId={sv.person_id}
             initialProjectId={sv.project_id}
             initialShowStatus={sv.show_status}
@@ -432,6 +459,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         workspaceLabel={workspaceLabel}
         workspaceInitial={workspaceInitial}
         savedViews={savedViews}
+        onReorderSavedViews={handleReorderSavedViews}
       />
       
       <div className="flex flex-1 flex-col min-w-0 h-full overflow-hidden">
@@ -453,8 +481,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
 
       <MobileNav 
         active={activeView} 
+        activeSavedViewId={activeSavedViewId}
         onChange={handleNavigate} 
         inboxCount={inboxCount} 
+        savedViews={savedViews}
       />
 
       <SaveViewDialog

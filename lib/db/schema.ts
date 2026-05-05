@@ -106,7 +106,7 @@ export type ContextDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof con
 
 export const savedViewSchemaLiteral = {
   title: 'saved view schema',
-  version: 1,
+  version: 3,
   description: 'describes a saved view',
   primaryKey: 'id',
   type: 'object',
@@ -115,7 +115,10 @@ export const savedViewSchemaLiteral = {
     name: { type: 'string' },
     icon: { type: 'string' },
     color: { type: 'string' },
-    context_id: { type: ['string', 'null'] },
+    context_ids: {
+      type: 'array',
+      items: { type: 'string' },
+    },
     project_id: { type: ['string', 'null'] },
     person_id: { type: ['string', 'null'] },
     show_status: { type: 'string', enum: ['all', 'open', 'done'] },
@@ -124,8 +127,9 @@ export const savedViewSchemaLiteral = {
     sort_key: { type: 'string' },
     sort_direction: { type: 'string', enum: ['asc', 'desc'] },
     date_created: { type: 'string' },
+    order: { type: 'number' },
   },
-  required: ['id', 'name', 'icon', 'color', 'show_status', 'is_grouped_by_project', 'show_hidden_by_show_on', 'sort_key', 'sort_direction', 'date_created'],
+  required: ['id', 'name', 'icon', 'color', 'context_ids', 'show_status', 'is_grouped_by_project', 'show_hidden_by_show_on', 'sort_key', 'sort_direction', 'date_created', 'order'],
 } as const;
 export const savedViewSchemaTyped = toTypedRxJsonSchema(savedViewSchemaLiteral);
 export type SavedViewDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof savedViewSchemaTyped>;
