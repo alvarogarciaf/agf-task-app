@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useDatabase, useSyncStatus } from "@/components/db-provider"
+import { toast } from "sonner"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppHeader } from "@/components/app-header"
 import { MobileNav } from "@/components/mobile-nav"
@@ -163,11 +164,15 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             const eventId = await createGoogleEvent(task, contextToken);
             const doc = await db.tasks.findOne(task.id).exec();
             if (doc) await doc.patch({ google_event_id: eventId });
+            toast.success(`Calendar: Created "${task.description}"`);
           } else {
             await updateGoogleEvent(task, contextToken);
+            // Don't toast on every update to avoid spam, maybe just log
+            console.log(`Updated calendar event for: ${task.description}`);
           }
-        } catch (err) {
+        } catch (err: any) {
           console.error(`Auto-sync failed for task ${task.id}:`, err);
+          toast.error(`Calendar Error: ${err.message || "Unknown error"}`);
         }
       }
 
