@@ -1,9 +1,15 @@
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
-import { CalendarClock, Filter, X, Check } from "lucide-react"
+import { CalendarClock, Filter, X, Check, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { TasksTable } from "@/components/tasks-table"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Popover,
   PopoverContent,
@@ -252,19 +258,41 @@ export function FilteredTasks({
           <>
             <div className="flex items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
               <Filter className="h-3 w-3" />
-              Filter
+              <span className="hidden md:inline text-nowrap">Filter</span>
             </div>
 
             {!hideFilters.includes("status") && (
-              <Segmented
-                value={showStatus}
-                onChange={setShowStatus}
-                options={[
-                  { value: "all", label: "All" },
-                  { value: "open", label: "Open" },
-                  { value: "done", label: "Done" },
-                ]}
-              />
+              <>
+                <div className="hidden md:block">
+                  <Segmented
+                    value={showStatus}
+                    onChange={setShowStatus}
+                    options={[
+                      { value: "all", label: "All" },
+                      { value: "open", label: "Open" },
+                      { value: "done", label: "Done" },
+                    ]}
+                  />
+                </div>
+                <div className="md:hidden">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                      >
+                        {showStatus === "all" ? "All" : showStatus === "open" ? "Open" : "Done"}
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-32">
+                      <DropdownMenuItem onClick={() => setShowStatus("all")}>All</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setShowStatus("open")}>Open</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setShowStatus("done")}>Done</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </>
             )}
 
             <ShowOnVisibilityToggle
@@ -386,7 +414,7 @@ function ShowOnVisibilityToggle({
       }
     >
       <CalendarClock className="h-3.5 w-3.5 shrink-0" />
-      {active ? "Due tasks" : "Hidden by date"}
+      <span className="hidden md:inline">{active ? "Due tasks" : "Hidden by date"}</span>
     </button>
   )
 }
