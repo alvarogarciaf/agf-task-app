@@ -167,6 +167,103 @@ export function SettingsView({
             </div>
           </div>
         )}
+
+        {tab === "troubleshoot" && (
+          <div className="p-8">
+            <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+              <Info className="h-5 w-5 text-primary" />
+              Sync & Debug
+            </h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Tools for diagnosing synchronization issues and managing your local state.
+            </p>
+
+            <div className="space-y-6">
+              {/* Sync Status Cards */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="p-4 rounded-lg border border-border bg-muted/30">
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">User ID</div>
+                  <div className="text-sm font-mono truncate select-all" title={userUid}>
+                    {userUid || "Not authenticated"}
+                  </div>
+                </div>
+                <div className="p-4 rounded-lg border border-border bg-muted/30">
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">Online Status</div>
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    {syncStatus?.browserOnline ? (
+                      <>
+                        <div className="h-2 w-2 rounded-full bg-primary" />
+                        Online
+                      </>
+                    ) : (
+                      <>
+                        <div className="h-2 w-2 rounded-full bg-muted-foreground" />
+                        Offline
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Replication Info */}
+              <div className="p-4 rounded-lg border border-border">
+                <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                  <Database className="h-4 w-4 text-muted-foreground" />
+                  Cloud Replication
+                </h4>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Status</span>
+                    <span className={cn(
+                      "font-medium",
+                      syncStatus?.replicationError ? "text-destructive" : "text-primary"
+                    )}>
+                      {syncStatus?.replicationError ? "Error" : syncStatus?.replicationActive ? "Active" : "Idle"}
+                    </span>
+                  </div>
+                  
+                  {syncStatus?.replicationError && (
+                    <div className="p-3 rounded bg-destructive/10 border border-destructive/20 text-xs text-destructive flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <div className="break-all">{syncStatus.replicationError}</div>
+                    </div>
+                  )}
+
+                  <div className="pt-2 border-t border-border flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground italic">
+                      Live sync is enabled for all collections.
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Reset Database Section */}
+              <div className="p-4 border border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-900/30 rounded-lg">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h4 className="font-medium text-orange-800 dark:text-orange-400">Reset Local Database</h4>
+                    <p className="text-xs text-orange-700/70 dark:text-orange-500/70 mt-1 leading-relaxed">
+                      If your data looks inconsistent (e.g. projects differ between devices), resetting will wipe your local 
+                      IndexedDB and re-download everything from Firestore. No cloud data will be lost.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (confirm("This will clear your local database and reload the page. Your cloud data is safe. Continue?")) {
+                        onResetDatabase?.()
+                      }
+                    }}
+                    className="shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white text-xs font-medium rounded-md hover:bg-orange-700 transition-colors"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    Reset & Reload
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

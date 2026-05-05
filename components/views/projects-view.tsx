@@ -435,7 +435,7 @@ function ProjectEditor({
     onSave({
       ...(project ? { id: project.id } : {}),
       name: name.trim(),
-      details: details.trim() || undefined,
+      details: details.trim() || null,
       status,
     } as any)
   }

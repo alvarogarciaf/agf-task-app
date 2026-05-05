@@ -3,14 +3,14 @@ import type { Task, Project, Person, Context } from '../types';
 
 export const taskSchemaLiteral = {
   title: 'task schema',
-  version: 2,
+  version: 3,
   description: 'describes a task',
   primaryKey: 'id',
   type: 'object',
   properties: {
     id: { type: 'string', maxLength: 100 },
     description: { type: 'string' },
-    details: { type: 'string' },
+    details: { type: ['string', 'null'] },
     date_created: { type: 'string' },
     show_on: { type: ['string', 'null'] },
     action_date: { type: ['string', 'null'] },
@@ -51,14 +51,14 @@ export type UrgencyDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof urg
 
 export const projectSchemaLiteral = {
   title: 'project schema',
-  version: 0,
+  version: 1,
   description: 'describes a project',
   primaryKey: 'id',
   type: 'object',
   properties: {
     id: { type: 'string', maxLength: 100 },
     name: { type: 'string' },
-    details: { type: 'string' },
+    details: { type: ['string', 'null'] },
     status: {
       type: 'string',
       enum: ['Ongoing', 'Closed'],

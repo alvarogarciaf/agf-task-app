@@ -57,6 +57,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   // Handlers
   const handleCreateTask = async (input: {
     description: string
+    details?: string | null
     contextIds: string[]
     projectId: string | null
     personId: string | null
@@ -69,6 +70,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     await db.tasks.insert({
       id: crypto.randomUUID(),
       description: input.description,
+      details: input.details ?? null,
       context_ids: input.contextIds,
       project_id: input.projectId,
       person_id: input.personId,

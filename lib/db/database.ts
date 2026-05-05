@@ -46,6 +46,21 @@ export const getDatabase = async (userUid: string) => {
             oldDoc.processed = oldDoc.processed ?? true;
             oldDoc.urgency_id = oldDoc.urgency_id || "u_medium";
             return oldDoc;
+          },
+          // 3: Migrate from version 2 to 3 (ensure details is not undefined for Firestore)
+          3: (oldDoc: any) => {
+            oldDoc.details = oldDoc.details ?? null;
+            return oldDoc;
+          }
+        }
+      },
+      projects: {
+        ...DatabaseCollections.projects,
+        migrationStrategies: {
+          // 1: Ensure details is not undefined for Firestore
+          1: (oldDoc: any) => {
+            oldDoc.details = oldDoc.details ?? null;
+            return oldDoc;
           }
         }
       }
@@ -62,10 +77,23 @@ export const getDatabase = async (userUid: string) => {
     ]);
 
     const seeds = [];
+    
+    // Urgencies are system data, seed if empty
     if (urgencyCount === 0) seeds.push(db.urgencies.bulkInsert(mockData.urgencies));
-    if (projectCount === 0) seeds.push(db.projects.bulkInsert(mockData.projects));
-    if (personCount === 0) seeds.push(db.persons.bulkInsert(mockData.persons));
-    if (contextCount === 0) seeds.push(db.contexts.bulkInsert(mockData.contexts));
+
+    // For projects, persons, and contexts, only seed if it's the FIRST time on this browser
+    // to avoid cluttering existing accounts on new devices.
+    const hasSeeded = typeof window !== 'undefined' ? localStorage.getItem('tasker_has_seeded') : 'true';
+    
+    if (!hasSeeded) {
+      if (projectCount === 0) seeds.push(db.projects.bulkInsert(mockData.projects));
+      if (personCount === 0) seeds.push(db.persons.bulkInsert(mockData.persons));
+      if (contextCount === 0) seeds.push(db.contexts.bulkInsert(mockData.contexts));
+      
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('tasker_has_seeded', 'true');
+      }
+    }
     
     if (seeds.length > 0) {
       await Promise.all(seeds);

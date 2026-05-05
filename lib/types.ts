@@ -10,7 +10,7 @@ export type ProjectStatus = "Ongoing" | "Closed"
 export interface Task {
   id: string
   description: string
-  details?: string
+  details?: string | null
   date_created: string
   show_on?: string | null
   action_date?: string | null
@@ -26,7 +26,7 @@ export interface Task {
 export interface Project {
   id: string
   name: string
-  details?: string
+  details?: string | null
   status: ProjectStatus
 }
 
