@@ -173,11 +173,9 @@ export function ProjectsView({
               onClick={() => setSelected(p.id)}
               className="group relative flex cursor-pointer flex-col gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-primary/40"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/15 text-primary">
-                  <FolderKanban className="h-4 w-4" />
-                </div>
-                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between gap-2 min-w-0">
+                <h3 className="text-sm font-semibold tracking-tight truncate flex-1">{p.name}</h3>
+                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                   <span
                     className={cn(
                       "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider",
@@ -186,7 +184,6 @@ export function ProjectsView({
                         : "border-border bg-muted/40 text-muted-foreground",
                     )}
                   >
-                    <Dot className="h-3 w-3" />
                     {p.status}
                   </span>
                   <DropdownMenu>
@@ -212,7 +209,6 @@ export function ProjectsView({
                 </div>
               </div>
               <div>
-                <h3 className="text-sm font-semibold tracking-tight">{p.name}</h3>
                 {p.details ? (
                   <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{p.details}</p>
                 ) : null}
