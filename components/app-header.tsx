@@ -15,18 +15,20 @@ const TITLES: Record<ViewKey, string> = {
   persons: "People",
   projects: "Projects",
   settings: "Settings",
+  "saved-view": "Saved View",
 }
 
 interface AppHeaderProps {
   view: ViewKey
-  onNavigate?: (view: ViewKey) => void
+  savedViewName?: string | null
+  onNavigate?: (view: ViewKey, savedViewId?: string) => void
   user?: User | null
   onSignOut?: () => void
   syncStatus?: SyncStatus
 }
 
-export function AppHeader({ view, onNavigate, user, onSignOut, syncStatus }: AppHeaderProps) {
-  const title = TITLES[view]
+export function AppHeader({ view, savedViewName, onNavigate, user, onSignOut, syncStatus }: AppHeaderProps) {
+  const title = view === "saved-view" ? savedViewName || "Saved View" : TITLES[view]
   const [avatarOpen, setAvatarOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 

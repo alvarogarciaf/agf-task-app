@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
-import { CalendarClock, Filter, X, Check, ChevronDown, LayoutList, Columns3, Plus, RotateCcw } from "lucide-react"
+import { CalendarClock, Filter, X, Check, ChevronDown, LayoutList, Columns3, Plus, RotateCcw, Star } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { TasksTable, TASK_COLUMNS, COLUMN_MAP } from "@/components/tasks-table"
 import type { TaskColumnKey } from "@/components/tasks-table"
@@ -20,7 +20,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import type { Context, Person, Project, Task, UrgencyLevel } from "@/lib/types"
+import type { Context, Person, Project, Task, UrgencyLevel, SavedView } from "@/lib/types"
+import { useDatabase } from "./db-provider"
+import { SaveViewDialog } from "./save-view-dialog"
+import { v4 as uuidv4 } from "uuid"
 import {
   isTaskHiddenOnlyByShowOn,
   isTaskVisibleByShowOnRule,
@@ -37,9 +40,14 @@ interface FilteredTasksProps {
   onUpdate: (task: Task) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
-  initialContextId?: string
-  initialPersonId?: string
-  initialProjectId?: string
+  initialContextId?: string | null
+  initialPersonId?: string | null
+  initialProjectId?: string | null
+  initialShowStatus?: "all" | "open" | "done"
+  initialIsGroupedByProject?: boolean
+  initialShowHiddenByShowOn?: boolean
+  initialSortKey?: string
+  initialSortDirection?: "asc" | "desc"
   hideFilters?: ("status" | "context" | "project" | "person")[]
   storageKey?: string
   emptyTitle?: string
@@ -70,6 +78,11 @@ export function FilteredTasks({
   initialContextId,
   initialPersonId,
   initialProjectId,
+  initialShowStatus,
+  initialIsGroupedByProject,
+  initialShowHiddenByShowOn,
+  initialSortKey,
+  initialSortDirection,
   hideFilters = [],
   storageKey,
   emptyTitle,
@@ -82,17 +95,19 @@ export function FilteredTasks({
   const [contextId, setContextId] = useState<string | null>(initialContextId ?? null)
   const [personId, setPersonId] = useState<string | null>(initialPersonId ?? null)
   const [projectId, setProjectId] = useState<string | null>(initialProjectId ?? null)
-  const [showStatus, setShowStatus] = useState<"all" | "open" | "done">("open")
+  const [showStatus, setShowStatus] = useState<"all" | "open" | "done">(initialShowStatus ?? "open")
   const [isCreating, setIsCreating] = useState(false)
   const [autoFocusTaskId, setAutoFocusTaskId] = useState<string | null>(null)
   const [prevTasksLength, setPrevTasksLength] = useState(tasks.length)
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" }>({
-    key: "urgency",
-    direction: "asc",
+    key: initialSortKey ?? "urgency",
+    direction: initialSortDirection ?? "asc",
   })
   /** When true, list only tasks hidden from the normal view because Show on is after today. */
-  const [showHiddenByShowOn, setShowHiddenByShowOn] = useState(false)
-  const [isGroupedByProject, setIsGroupedByProject] = useState(false)
+  const [showHiddenByShowOn, setShowHiddenByShowOn] = useState(initialShowHiddenByShowOn ?? false)
+  const [isGroupedByProject, setIsGroupedByProject] = useState(initialIsGroupedByProject ?? false)
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
+  const db = useDatabase()
 
   // Column state lifted from TasksTable
   const defaultOrder = TASK_COLUMNS.map((c) => c.key) as TaskColumnKey[]
@@ -112,7 +127,14 @@ export function FilteredTasks({
     setContextId(initialContextId ?? null)
     setPersonId(initialPersonId ?? null)
     setProjectId(initialProjectId ?? null)
-  }, [initialContextId, initialPersonId, initialProjectId])
+    setShowStatus(initialShowStatus ?? "open")
+    setIsGroupedByProject(initialIsGroupedByProject ?? false)
+    setShowHiddenByShowOn(initialShowHiddenByShowOn ?? false)
+    setSortConfig({
+      key: initialSortKey ?? "urgency",
+      direction: initialSortDirection ?? "asc",
+    })
+  }, [initialContextId, initialPersonId, initialProjectId, initialShowStatus, initialIsGroupedByProject, initialShowHiddenByShowOn, initialSortKey, initialSortDirection])
 
   const filtered = useMemo(() => {
     return tasks
@@ -259,6 +281,35 @@ export function FilteredTasks({
     }))
   }
 
+  const handleSaveView = async (name: string) => {
+    if (!db) return
+    const id = uuidv4()
+    const newView: SavedView = {
+      id,
+      name,
+      context_id: contextId,
+      project_id: projectId,
+      person_id: personId,
+      show_status: showStatus,
+      is_grouped_by_project: isGroupedByProject,
+      show_hidden_by_show_on: showHiddenByShowOn,
+      sort_key: sortConfig.key,
+      sort_direction: sortConfig.direction,
+      date_created: new Date().toISOString(),
+    }
+    await db.saved_views.insert(newView)
+  }
+
+  const isViewModified = 
+    contextId || 
+    personId || 
+    projectId || 
+    showStatus !== "open" || 
+    isGroupedByProject || 
+    showHiddenByShowOn ||
+    sortConfig.key !== "date_created" ||
+    sortConfig.direction !== "desc"
+
   // Keyboard shortcut: Ctrl+N for new task
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -289,7 +340,7 @@ export function FilteredTasks({
   }
 
   return (
-    <div className="flex flex-col min-w-0 w-full rounded-lg border border-border bg-card overflow-hidden">
+    <div key={`${initialContextId}-${initialProjectId}-${initialPersonId}-${initialShowStatus}-${initialIsGroupedByProject}-${initialShowHiddenByShowOn}-${initialSortKey}-${initialSortDirection}`} className="flex flex-col min-w-0 w-full rounded-lg border border-border bg-card overflow-hidden">
       {/* Filter bar */}
       {!hideFilterBar && (
         <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/20 p-3 md:p-2">
@@ -417,6 +468,17 @@ export function FilteredTasks({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {isViewModified && (
+              <button
+                type="button"
+                onClick={() => setIsSaveDialogOpen(true)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:text-primary md:h-7 md:w-7"
+                title="Save current view"
+              >
+                <Star className="h-3.5 w-3.5" />
+              </button>
+            )}
 
             {onCreate && (
               <button
@@ -547,6 +609,12 @@ export function FilteredTasks({
           <Plus className="h-6 w-6" />
         </button>
       )}
+
+      <SaveViewDialog
+        open={isSaveDialogOpen}
+        onOpenChange={setIsSaveDialogOpen}
+        onSave={handleSaveView}
+      />
     </div>
   )
 }

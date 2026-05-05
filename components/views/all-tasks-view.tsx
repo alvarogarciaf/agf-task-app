@@ -14,9 +14,14 @@ interface AllTasksViewProps {
   onUpdate: (task: Task) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
-  initialContextId?: string
-  initialPersonId?: string
-  initialProjectId?: string
+  initialContextId?: string | null
+  initialPersonId?: string | null
+  initialProjectId?: string | null
+  initialShowStatus?: "all" | "open" | "done"
+  initialIsGroupedByProject?: boolean
+  initialShowHiddenByShowOn?: boolean
+  initialSortKey?: string
+  initialSortDirection?: "asc" | "desc"
   onCreate?: (input: {
     description: string
     contextIds: string[]

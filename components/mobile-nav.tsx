@@ -6,7 +6,7 @@ import type { ViewKey } from "@/lib/types"
 
 interface MobileNavProps {
   active: ViewKey
-  onChange: (key: ViewKey) => void
+  onChange: (key: ViewKey, savedViewId?: string) => void
   inboxCount: number
 }
 

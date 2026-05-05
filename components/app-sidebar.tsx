@@ -12,8 +12,9 @@ import {
   AlertCircle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { ViewKey } from "@/lib/types"
+import type { ViewKey, SavedView } from "@/lib/types"
 import type { SyncStatus } from "@/components/db-provider"
+import { Star } from "lucide-react"
 
 interface NavItem {
   key: ViewKey
@@ -25,22 +26,26 @@ interface NavItem {
 
 interface AppSidebarProps {
   active: ViewKey
-  onChange: (key: ViewKey) => void
+  activeSavedViewId?: string | null
+  onChange: (key: ViewKey, savedViewId?: string) => void
   inboxCount: number
   totalCount: number
   syncStatus: SyncStatus
   workspaceLabel: string
   workspaceInitial: string
+  savedViews: SavedView[]
 }
 
 export function AppSidebar({
   active,
+  activeSavedViewId,
   onChange,
   inboxCount,
   totalCount,
   syncStatus,
   workspaceLabel,
   workspaceInitial,
+  savedViews,
 }: AppSidebarProps) {
   const items: NavItem[] = [
     { key: "home", label: "Inbox", icon: Home, shortcut: "I" },
@@ -100,6 +105,23 @@ export function AppSidebar({
             />
           ))}
         </NavGroup>
+
+        {savedViews.length > 0 && (
+          <NavGroup label="Saved Views">
+            {savedViews.map((sv) => (
+              <NavLink
+                key={sv.id}
+                item={{
+                  key: "saved-view",
+                  label: sv.name,
+                  icon: Star,
+                }}
+                active={active === "saved-view" && activeSavedViewId === sv.id}
+                onClick={() => onChange("saved-view", sv.id)}
+              />
+            ))}
+          </NavGroup>
+        )}
       </nav>
 
       <div className="mt-auto border-t border-sidebar-border p-3">

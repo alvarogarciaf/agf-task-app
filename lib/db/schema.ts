@@ -104,10 +104,35 @@ export const contextSchemaLiteral = {
 export const contextSchemaTyped = toTypedRxJsonSchema(contextSchemaLiteral);
 export type ContextDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof contextSchemaTyped>;
 
+export const savedViewSchemaLiteral = {
+  title: 'saved view schema',
+  version: 0,
+  description: 'describes a saved view',
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 100 },
+    name: { type: 'string' },
+    context_id: { type: ['string', 'null'] },
+    project_id: { type: ['string', 'null'] },
+    person_id: { type: ['string', 'null'] },
+    show_status: { type: 'string', enum: ['all', 'open', 'done'] },
+    is_grouped_by_project: { type: 'boolean' },
+    show_hidden_by_show_on: { type: 'boolean' },
+    sort_key: { type: 'string' },
+    sort_direction: { type: 'string', enum: ['asc', 'desc'] },
+    date_created: { type: 'string' },
+  },
+  required: ['id', 'name', 'show_status', 'is_grouped_by_project', 'show_hidden_by_show_on', 'sort_key', 'sort_direction', 'date_created'],
+} as const;
+export const savedViewSchemaTyped = toTypedRxJsonSchema(savedViewSchemaLiteral);
+export type SavedViewDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof savedViewSchemaTyped>;
+
 export const DatabaseCollections = {
   tasks: { schema: taskSchemaLiteral },
   urgencies: { schema: urgencySchemaLiteral },
   projects: { schema: projectSchemaLiteral },
   persons: { schema: personSchemaLiteral },
   contexts: { schema: contextSchemaLiteral },
+  saved_views: { schema: savedViewSchemaLiteral },
 };

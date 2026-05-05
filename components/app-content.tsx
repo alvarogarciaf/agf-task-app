@@ -13,7 +13,7 @@ import { ProjectsView } from "@/components/views/projects-view"
 import { ContextsView } from "@/components/views/contexts-view"
 import { SettingsView } from "@/components/views/settings-view"
 import { PersonsView } from "@/components/views/persons-view"
-import type { Context, Person, Project, Task, UrgencyLevel, ViewKey } from "@/lib/types"
+import type { Context, Person, Project, Task, UrgencyLevel, ViewKey, SavedView } from "@/lib/types"
 import type { User } from "firebase/auth"
 import { syncCalendarToStorage } from "@/lib/calendar-sync-client"
 import { createGoogleEvent, updateGoogleEvent, deleteGoogleEvent } from "@/lib/google-calendar"
@@ -55,6 +55,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [persons, setPersons] = useState<Person[]>([])
   const [contexts, setContexts] = useState<Context[]>([])
   const [urgencies, setUrgencies] = useState<UrgencyLevel[]>([])
+  const [savedViews, setSavedViews] = useState<SavedView[]>([])
+  const [activeSavedViewId, setActiveSavedViewId] = useState<string | null>(null)
 
   // Subscriptions
   useEffect(() => {
@@ -64,6 +66,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       db.persons.find().$.subscribe(docs => setPersons(docs.map(d => d.toJSON()))),
       db.contexts.find().$.subscribe(docs => setContexts(docs.map(d => d.toJSON()))),
       db.urgencies.find().$.subscribe(docs => setUrgencies(docs.map(d => d.toJSON()))),
+      db.saved_views.find().$.subscribe(docs => setSavedViews(docs.map(d => d.toJSON()))),
     ]
     return () => subs.forEach((s) => s.unsubscribe())
   }, [db])
@@ -151,11 +154,12 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     if (doc) await doc.remove()
   }
 
-  const handleNavigate = (view: ViewKey) => {
+  const handleNavigate = (view: ViewKey, savedViewId?: string) => {
     // Clear drill-down filters when navigating via sidebar/header
     setInitialContextId(undefined)
     setInitialPersonId(undefined)
     setActiveView(view)
+    setActiveSavedViewId(savedViewId || null)
   }
 
   const { accessToken: contextToken } = useGoogleCalendar()
@@ -244,6 +248,23 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         return <HomeView {...viewProps} />
       case "inbox":
         return <InboxView {...viewProps} />
+      case "saved-view": {
+        const sv = savedViews.find(v => v.id === activeSavedViewId)
+        if (!sv) return <HomeView {...viewProps} />
+        return (
+          <AllTasksView
+            {...viewProps}
+            initialContextId={sv.context_id}
+            initialPersonId={sv.person_id}
+            initialProjectId={sv.project_id}
+            initialShowStatus={sv.show_status}
+            initialIsGroupedByProject={sv.is_grouped_by_project}
+            initialShowHiddenByShowOn={sv.show_hidden_by_show_on}
+            initialSortKey={sv.sort_key}
+            initialSortDirection={sv.sort_direction}
+          />
+        )
+      }
       case "all":
         return (
           <AllTasksView 
@@ -377,17 +398,20 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     <div className="flex h-screen w-full bg-background overflow-hidden">
       <AppSidebar 
         active={activeView} 
+        activeSavedViewId={activeSavedViewId}
         onChange={handleNavigate} 
         inboxCount={inboxCount}
         totalCount={totalCount}
         syncStatus={syncStatus}
         workspaceLabel={workspaceLabel}
         workspaceInitial={workspaceInitial}
+        savedViews={savedViews}
       />
       
       <div className="flex flex-1 flex-col min-w-0 h-full overflow-hidden">
         <AppHeader 
           view={activeView} 
+          savedViewName={savedViews.find(v => v.id === activeSavedViewId)?.name}
           onNavigate={handleNavigate} 
           user={user} 
           onSignOut={onSignOut} 
