@@ -1,13 +1,18 @@
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
-import { CalendarClock, Filter, X, Check, ChevronDown } from "lucide-react"
+import { CalendarClock, Filter, X, Check, ChevronDown, LayoutList, Columns3, Plus, RotateCcw } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { TasksTable } from "@/components/tasks-table"
+import { TasksTable, TASK_COLUMNS, COLUMN_MAP } from "@/components/tasks-table"
+import type { TaskColumnKey } from "@/components/tasks-table"
+import { useTableColumns } from "@/hooks/use-table-columns"
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -87,6 +92,20 @@ export function FilteredTasks({
   })
   /** When true, list only tasks hidden from the normal view because Show on is after today. */
   const [showHiddenByShowOn, setShowHiddenByShowOn] = useState(false)
+  const [isGroupedByProject, setIsGroupedByProject] = useState(false)
+
+  // Column state lifted from TasksTable
+  const defaultOrder = TASK_COLUMNS.map((c) => c.key) as TaskColumnKey[]
+  const defaultVisibility = TASK_COLUMNS.reduce((acc, c) => {
+    acc[c.key] = c.defaultVisible
+    return acc
+  }, {} as Record<TaskColumnKey, boolean>)
+
+  const columnState = useTableColumns<TaskColumnKey>(
+    storageKey ?? "velocity:tasks-table:columns",
+    defaultOrder,
+    defaultVisibility,
+  )
   
   // Sync state with initial props when they change (drill-down navigation)
   useEffect(() => {
@@ -184,6 +203,30 @@ export function FilteredTasks({
     contexts,
     showHiddenByShowOn,
   ])
+
+  const groupedByProject = useMemo(() => {
+    if (!isGroupedByProject || !contextId) return null
+
+    const groups: Record<string, Task[]> = {}
+    filtered.forEach((t) => {
+      const pid = t.project_id || "none"
+      if (!groups[pid]) groups[pid] = []
+      groups[pid].push(t)
+    })
+
+    // Sort projects alphabetically, with "none" at the end
+    return Object.entries(groups)
+      .map(([pid, tasks]) => ({
+        id: pid,
+        name: pid === "none" ? "No Project" : projects.find((p) => p.id === pid)?.name || "Unknown Project",
+        tasks,
+      }))
+      .sort((a, b) => {
+        if (a.id === "none") return 1
+        if (b.id === "none") return -1
+        return a.name.localeCompare(b.name)
+      })
+  }, [filtered, isGroupedByProject, contextId, projects])
 
   useEffect(() => {
     if (isCreating && tasks.length > prevTasksLength) {
@@ -304,10 +347,87 @@ export function FilteredTasks({
           )}
 
           <div className="ml-auto flex items-center gap-2">
+            <span className="hidden lg:inline font-mono text-[10px] uppercase tracking-wider text-muted-foreground mr-2">
+              {filtered.length} {filtered.length === 1 ? itemNoun : `${itemNoun}s`}
+            </span>
+
+            {contextId && !projectId && (
+              <button
+                type="button"
+                onClick={() => setIsGroupedByProject(!isGroupedByProject)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+                  isGroupedByProject
+                    ? "border-primary bg-primary/15 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:bg-muted"
+                )}
+                title="Group tasks by project"
+              >
+                <LayoutList className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Group by project</span>
+              </button>
+            )}
+
             <ShowOnVisibilityToggle
               active={showHiddenByShowOn}
               onToggle={() => setShowHiddenByShowOn((v) => !v)}
             />
+
+            <div className="h-4 w-px bg-border mx-1 hidden md:block" />
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="hidden md:inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <Columns3 className="h-3.5 w-3.5" />
+                  <span className="hidden lg:inline">Columns</span>
+                  <span className="ml-1 rounded bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
+                    {columnState.order.filter(k => !hiddenCols.includes(k) && columnState.visibility[k]).length}/{columnState.order.filter(k => !hiddenCols.includes(k)).length}
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60">
+                <DropdownMenuLabel className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Toggle columns
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {columnState.order.filter(k => !hiddenCols.includes(k)).map((key) => {
+                  const label = inboxMode && key === "status" ? "Processed" : COLUMN_MAP[key].label
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={key}
+                      checked={columnState.visibility[key]}
+                      onCheckedChange={() => columnState.toggle(key)}
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      {label}
+                    </DropdownMenuCheckboxItem>
+                  )
+                })}
+                <DropdownMenuSeparator />
+                <div className="px-2 py-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                  Drag column headers in the table to reorder.
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => columnState.reset()} className="text-xs">
+                  <RotateCcw className="mr-2 h-3 w-3" />
+                  Reset to defaults
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {onCreate && (
+              <button
+                type="button"
+                onClick={handleAddNewTask}
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Add task</span>
+              </button>
+            )}
 
             {hasFilter && (
               <button
@@ -317,11 +437,12 @@ export function FilteredTasks({
                   setPersonId(null)
                   setProjectId(null)
                   setShowHiddenByShowOn(false)
+                  setIsGroupedByProject(false)
                 }}
                 className="inline-flex items-center gap-1 rounded px-3 py-2 text-sm text-muted-foreground hover:text-foreground md:px-2 md:py-1 md:text-xs"
               >
-                <X className="h-3 w-3" />
-                Clear all
+                <X className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Clear all</span>
               </button>
             )}
           </div>
@@ -337,31 +458,85 @@ export function FilteredTasks({
         </div>
       )}
 
-      <div className="min-h-0 min-w-0 w-full">
-        <TasksTable
-          tasks={filtered}
-          projects={projects}
-          persons={persons}
-          contexts={contexts}
-          urgencies={urgencies}
-          onToggleProcessed={onToggleProcessed}
-          onUpdate={onUpdate}
-          onArchiveTask={onArchiveTask}
-          onDeleteTask={onDeleteTask}
-          hideColumns={hiddenCols}
-          storageKey={storageKey}
-          emptyTitle={tableEmptyTitle}
-          emptyHint={tableEmptyHint}
-          itemNoun={itemNoun}
-          inboxMode={inboxMode}
-          onCreate={onCreate ? handleAddNewTask : undefined}
-          onToggleStatus={onToggleStatus}
-          autoFocusTaskId={autoFocusTaskId}
-          onAutoFocusComplete={() => setAutoFocusTaskId(null)}
-          sortConfig={sortConfig}
-          onSort={handleSort}
-        />
+      <div className="min-h-0 min-w-0 w-full overflow-y-auto max-h-[calc(100vh-180px)]">
+        {groupedByProject ? (
+          <div className="flex flex-col gap-8 p-4">
+            {groupedByProject.map((group) => (
+              <div key={group.id} className="flex flex-col gap-2">
+                <div className="sticky top-0 z-20 flex items-center justify-between bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/75 py-2 px-1">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    {group.name}
+                    <span className="ml-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground font-normal">
+                      {group.tasks.length} {group.tasks.length === 1 ? itemNoun : `${itemNoun}s`}
+                    </span>
+                  </h3>
+                </div>
+                <TasksTable
+                  tasks={group.tasks}
+                  projects={projects}
+                  persons={persons}
+                  contexts={contexts}
+                  urgencies={urgencies}
+                  onToggleProcessed={onToggleProcessed}
+                  onUpdate={onUpdate}
+                  onArchiveTask={onArchiveTask}
+                  onDeleteTask={onDeleteTask}
+                  hideColumns={hiddenCols}
+                  columnState={columnState}
+                  emptyTitle={tableEmptyTitle}
+                  emptyHint={tableEmptyHint}
+                  itemNoun={itemNoun}
+                  inboxMode={inboxMode}
+                  onCreate={onCreate ? handleAddNewTask : undefined}
+                  onToggleStatus={onToggleStatus}
+                  autoFocusTaskId={autoFocusTaskId}
+                  onAutoFocusComplete={() => setAutoFocusTaskId(null)}
+                  sortConfig={sortConfig}
+                  onSort={handleSort}
+                  hideToolbar
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <TasksTable
+            tasks={filtered}
+            projects={projects}
+            persons={persons}
+            contexts={contexts}
+            urgencies={urgencies}
+            onToggleProcessed={onToggleProcessed}
+            onUpdate={onUpdate}
+            onArchiveTask={onArchiveTask}
+            onDeleteTask={onDeleteTask}
+            hideColumns={hiddenCols}
+            columnState={columnState}
+            emptyTitle={tableEmptyTitle}
+            emptyHint={tableEmptyHint}
+            itemNoun={itemNoun}
+            inboxMode={inboxMode}
+            onCreate={onCreate ? handleAddNewTask : undefined}
+            onToggleStatus={onToggleStatus}
+            autoFocusTaskId={autoFocusTaskId}
+            onAutoFocusComplete={() => setAutoFocusTaskId(null)}
+            sortConfig={sortConfig}
+            onSort={handleSort}
+            hideToolbar
+          />
+        )}
       </div>
+
+      {onCreate && (
+        <button
+          type="button"
+          onClick={handleAddNewTask}
+          className="fixed bottom-[88px] right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 transition-transform md:hidden"
+          aria-label="Add task"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+      )}
     </div>
   )
 }

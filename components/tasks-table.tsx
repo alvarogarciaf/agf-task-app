@@ -32,7 +32,7 @@ interface ColumnDef {
   defaultVisible: boolean
 }
 
-const TASK_COLUMNS: ColumnDef[] = [
+export const TASK_COLUMNS: ColumnDef[] = [
   { key: "status", label: "Status", defaultVisible: true },
   { key: "urgency", label: "Urgency", defaultVisible: true },
   { key: "description", label: "Description", defaultVisible: true },
@@ -45,7 +45,7 @@ const TASK_COLUMNS: ColumnDef[] = [
   { key: "date_created", label: "Created", defaultVisible: true },
 ]
 
-const COLUMN_MAP: Record<TaskColumnKey, ColumnDef> = TASK_COLUMNS.reduce(
+export const COLUMN_MAP: Record<TaskColumnKey, ColumnDef> = TASK_COLUMNS.reduce(
   (acc, c) => {
     acc[c.key] = c
     return acc
@@ -99,6 +99,8 @@ interface TasksTableProps {
   hideColumns?: TaskColumnKey[]
   /** Custom storage key when this instance should remember a separate column config. */
   storageKey?: string
+  /** Whether to hide the top toolbar (row count, columns, add task). */
+  hideToolbar?: boolean
   /** Optional custom empty state. */
   emptyTitle?: string
   emptyHint?: string
@@ -110,6 +112,14 @@ interface TasksTableProps {
   onAutoFocusComplete?: () => void
   sortConfig?: { key: string; direction: "asc" | "desc" }
   onSort?: (key: string) => void
+  /** Controlled column state from a parent component. */
+  columnState?: {
+    order: TaskColumnKey[]
+    visibility: Record<TaskColumnKey, boolean>
+    toggle: (key: TaskColumnKey) => void
+    reorder: (source: TaskColumnKey, target: TaskColumnKey) => void
+    reset: () => void
+  }
 }
 
 export function TasksTable({
@@ -134,10 +144,13 @@ export function TasksTable({
   onAutoFocusComplete,
   sortConfig,
   onSort,
+  hideToolbar = false,
+  columnState,
 }: TasksTableProps) {
-  const { order, visibility, toggle, reorder, reset } = useTableColumns<TaskColumnKey>(
+  const internalColumnState = useTableColumns<TaskColumnKey>(
     storageKey, DEFAULT_ORDER, DEFAULT_VISIBILITY,
   )
+  const { order, visibility, toggle, reorder, reset } = columnState || internalColumnState
   const [dragKey, setDragKey] = useState<TaskColumnKey | null>(null)
   const [dropTarget, setDropTarget] = useState<TaskColumnKey | null>(null)
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
@@ -293,7 +306,8 @@ export function TasksTable({
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       {/* Toolbar */}
-      <div className="hidden md:flex items-center justify-between border-b border-border px-3 py-2">
+      {!hideToolbar && (
+        <div className="hidden md:flex items-center justify-between border-b border-border px-3 py-2">
         <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
           {tasks.length} {tasks.length === 1 ? itemNoun : `${itemNoun}s`}
         </span>
@@ -354,6 +368,7 @@ export function TasksTable({
           )}
         </div>
       </div>
+    )}
 
       {/* Table */}
       {tasks.length === 0 ? (
@@ -653,16 +668,6 @@ export function TasksTable({
         </>
       )}
 
-      {onCreate && (
-        <button
-          type="button"
-          onClick={onCreate}
-          className="fixed bottom-[88px] right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 transition-transform md:hidden"
-          aria-label="Add task"
-        >
-          <Plus className="h-6 w-6" />
-        </button>
-      )}
 
       <TaskDetailDialog
         task={activeTask}
