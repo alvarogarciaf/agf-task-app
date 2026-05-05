@@ -291,26 +291,28 @@ export function FilteredTasks({
               </>
             )}
 
-            <ShowOnVisibilityToggle
-              active={showHiddenByShowOn}
-              onToggle={() => setShowHiddenByShowOn((v) => !v)}
-            />
+            <div className="ml-auto flex items-center gap-2">
+              <ShowOnVisibilityToggle
+                active={showHiddenByShowOn}
+                onToggle={() => setShowHiddenByShowOn((v) => !v)}
+              />
 
-            {hasFilter && (
-              <button
-                type="button"
-                onClick={() => {
-                  setContextId(null)
-                  setPersonId(null)
-                  setProjectId(null)
-                  setShowHiddenByShowOn(false)
-                }}
-                className="ml-auto inline-flex items-center gap-1 rounded px-3 py-2 text-sm text-muted-foreground hover:text-foreground md:px-2 md:py-1 md:text-xs"
-              >
-                <X className="h-3 w-3" />
-                Clear all
-              </button>
-            )}
+              {hasFilter && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContextId(null)
+                    setPersonId(null)
+                    setProjectId(null)
+                    setShowHiddenByShowOn(false)
+                  }}
+                  className="inline-flex items-center gap-1 rounded px-3 py-2 text-sm text-muted-foreground hover:text-foreground md:px-2 md:py-1 md:text-xs"
+                >
+                  <X className="h-3 w-3" />
+                  Clear all
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Row 2: Entity filters */}
