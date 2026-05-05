@@ -249,102 +249,80 @@ export function FilteredTasks({
     <div className="flex flex-col min-w-0 w-full rounded-lg border border-border bg-card overflow-hidden">
       {/* Filter bar */}
       {!hideFilterBar && (
-        <div className="flex flex-col border-b border-border bg-muted/20 divide-y divide-border/50">
-          {/* Row 1: Status & System filters */}
-          <div className="flex items-center gap-2 px-3 py-2 md:px-2 md:py-1.5">
-            <div className="flex items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-              <Filter className="h-3 w-3" />
-              <span className="hidden md:inline text-nowrap">Filter</span>
-            </div>
-
-            {!hideFilters.includes("status") && (
-              <>
-                <div className="hidden md:block">
-                  <Segmented
-                    value={showStatus}
-                    onChange={setShowStatus}
-                    options={[
-                      { value: "all", label: "All" },
-                      { value: "open", label: "Open" },
-                      { value: "done", label: "Done" },
-                    ]}
-                  />
-                </div>
-                <div className="md:hidden">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
-                      >
-                        {showStatus === "all" ? "All" : showStatus === "open" ? "Open" : "Done"}
-                        <ChevronDown className="h-3 w-3" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-32">
-                      <DropdownMenuItem onClick={() => setShowStatus("all")}>All</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setShowStatus("open")}>Open</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setShowStatus("done")}>Done</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </>
-            )}
-
-            <div className="ml-auto flex items-center gap-2">
-              <ShowOnVisibilityToggle
-                active={showHiddenByShowOn}
-                onToggle={() => setShowHiddenByShowOn((v) => !v)}
-              />
-
-              {hasFilter && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setContextId(null)
-                    setPersonId(null)
-                    setProjectId(null)
-                    setShowHiddenByShowOn(false)
-                  }}
-                  className="inline-flex items-center gap-1 rounded px-3 py-2 text-sm text-muted-foreground hover:text-foreground md:px-2 md:py-1 md:text-xs"
-                >
-                  <X className="h-3 w-3" />
-                  Clear all
-                </button>
-              )}
-            </div>
+        <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/20 p-3 md:p-2">
+          <div className="flex items-center gap-1.5 px-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            <Filter className="h-3 w-3" />
           </div>
 
-          {/* Row 2: Entity filters */}
-          <div className="flex flex-wrap items-center gap-2 px-3 py-2 md:px-2 md:py-1.5">
-            {!hideFilters.includes("context") && (
-              <FilterPill
-                label="Context"
-                value={contextId ? contexts.find((c) => c.id === contextId)?.name : undefined}
-                options={contexts.map((c) => ({ id: c.id, label: c.name, color: c.color }))}
-                onSelect={(id) => setContextId((p) => (p === id ? null : id))}
-                onClear={() => setContextId(null)}
-              />
-            )}
+          {!hideFilters.includes("status") && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted md:py-1"
+                >
+                  {showStatus === "all" ? "All" : showStatus === "open" ? "Open" : "Done"}
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-32">
+                <DropdownMenuItem onClick={() => setShowStatus("all")}>All</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowStatus("open")}>Open</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowStatus("done")}>Done</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
-            {!hideFilters.includes("project") && (
-              <FilterPill
-                label="Project"
-                value={projectId ? projects.find((p) => p.id === projectId)?.name : undefined}
-                options={projects.map((p) => ({ id: p.id, label: p.name }))}
-                onSelect={(id) => setProjectId((p) => (p === id ? null : id))}
-                onClear={() => setProjectId(null)}
-              />
-            )}
+          {!hideFilters.includes("context") && (
+            <FilterPill
+              label="Context"
+              value={contextId ? contexts.find((c) => c.id === contextId)?.name : undefined}
+              options={contexts.map((c) => ({ id: c.id, label: c.name, color: c.color }))}
+              onSelect={(id) => setContextId((p) => (p === id ? null : id))}
+              onClear={() => setContextId(null)}
+            />
+          )}
 
-            {!hideFilters.includes("person") && (
-              <FilterPill
-                label="Person"
-                value={personId ? persons.find((p) => p.id === personId)?.name : undefined}
-                options={persons.map((p) => ({ id: p.id, label: p.name, color: p.color }))}
-                onSelect={(id) => setPersonId((p) => (p === id ? null : id))}
-                onClear={() => setPersonId(null)}
-              />
+          {!hideFilters.includes("project") && (
+            <FilterPill
+              label="Project"
+              value={projectId ? projects.find((p) => p.id === projectId)?.name : undefined}
+              options={projects.map((p) => ({ id: p.id, label: p.name }))}
+              onSelect={(id) => setProjectId((p) => (p === id ? null : id))}
+              onClear={() => setProjectId(null)}
+            />
+          )}
+
+          {!hideFilters.includes("person") && (
+            <FilterPill
+              label="Person"
+              value={personId ? persons.find((p) => p.id === personId)?.name : undefined}
+              options={persons.map((p) => ({ id: p.id, label: p.name, color: p.color }))}
+              onSelect={(id) => setPersonId((p) => (p === id ? null : id))}
+              onClear={() => setPersonId(null)}
+            />
+          )}
+
+          <div className="ml-auto flex items-center gap-2">
+            <ShowOnVisibilityToggle
+              active={showHiddenByShowOn}
+              onToggle={() => setShowHiddenByShowOn((v) => !v)}
+            />
+
+            {hasFilter && (
+              <button
+                type="button"
+                onClick={() => {
+                  setContextId(null)
+                  setPersonId(null)
+                  setProjectId(null)
+                  setShowHiddenByShowOn(false)
+                }}
+                className="inline-flex items-center gap-1 rounded px-3 py-2 text-sm text-muted-foreground hover:text-foreground md:px-2 md:py-1 md:text-xs"
+              >
+                <X className="h-3 w-3" />
+                Clear all
+              </button>
             )}
           </div>
         </div>
