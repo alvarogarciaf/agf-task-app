@@ -3,7 +3,7 @@ import type { Task, Project, Person, Context } from '../types';
 
 export const taskSchemaLiteral = {
   title: 'task schema',
-  version: 3,
+  version: 4,
   description: 'describes a task',
   primaryKey: 'id',
   type: 'object',
@@ -24,6 +24,7 @@ export const taskSchemaLiteral = {
     status: { type: 'string', enum: ['Open', 'Done'], default: 'Open' },
     urgency_id: { type: 'string' },
     archived: { type: 'boolean', default: false },
+    google_event_id: { type: ['string', 'null'] },
   },
   required: ['id', 'description', 'date_created', 'context_ids', 'processed', 'status', 'urgency_id'],
   indexes: ['date_created', 'processed'],

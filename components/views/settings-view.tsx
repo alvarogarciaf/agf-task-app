@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Users, Tags, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Info, Database, Calendar, Copy } from "lucide-react"
+import { Users, Tags, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Info, Database, Calendar, Copy, LogOut } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { useGoogleCalendar } from "@/components/google-calendar-provider"
 import type { Context, Person, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "@/components/db-provider"
 
@@ -24,7 +25,7 @@ interface SettingsViewProps {
   onResetDatabase?: () => void
   syncStatus?: SyncStatus
   userUid?: string
-  onSyncCalendar?: () => Promise<string>
+  onSyncCalendar?: (accessToken: string) => Promise<void>
 }
 
 type TabKey = "persons" | "contexts" | "urgencies" | "calendar" | "data" | "troubleshoot"
@@ -49,25 +50,29 @@ export function SettingsView({
   onSyncCalendar,
 }: SettingsViewProps) {
   const [tab, setTab] = useState<TabKey>("persons")
-  const [calendarUrl, setCalendarUrl] = useState<string | null>(() => {
-    if (typeof window !== "undefined") return localStorage.getItem(`calendar_url_${userUid}`)
-    return null
-  })
+  const { accessToken, isConnected, connect, disconnect } = useGoogleCalendar()
   const [isSyncing, setIsSyncing] = useState(false)
 
   const handleSync = async () => {
-    if (!onSyncCalendar) return
+    if (!accessToken || !onSyncCalendar) return
     setIsSyncing(true)
     try {
-      const url = await onSyncCalendar()
-      setCalendarUrl(url)
-      localStorage.setItem(`calendar_url_${userUid}`, url)
+      await onSyncCalendar(accessToken)
       toast.success("Calendar synced successfully!")
     } catch (err: any) {
       console.error("Sync failed:", err)
-      toast.error(err.message || "Failed to sync calendar. Check console for details.")
+      toast.error(err.message || "Failed to sync calendar.")
     } finally {
       setIsSyncing(false)
+    }
+  }
+
+  const handleConnect = async () => {
+    try {
+      await connect()
+      toast.success("Google Calendar connected!")
+    } catch (err) {
+      toast.error("Failed to connect Google Calendar.")
     }
   }
 
@@ -167,70 +172,73 @@ export function SettingsView({
 
         {tab === "calendar" && (
           <div className="p-8">
-            <h3 className="text-lg font-semibold mb-2">Calendar Sync</h3>
+            <h3 className="text-lg font-semibold mb-2">Google Calendar Push</h3>
             <p className="text-sm text-muted-foreground mb-6">
-              Sync your tasks with an <strong>Action Date</strong> to Google Calendar, Apple Calendar, or Outlook. 
-              Only open tasks will be included.
+              Automatically push tasks with an <strong>Action Date</strong> directly to your Google Calendar as events.
             </p>
 
             <div className="space-y-6">
-              <div className="rounded-lg border border-border bg-muted/30 p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                    Subscription URL
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleSync}
-                    disabled={isSyncing}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-[10px] font-bold uppercase tracking-tight text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                  >
-                    <RefreshCw className={cn("h-3 w-3", isSyncing && "animate-spin")} />
-                    {calendarUrl ? "Update Sync" : "Enable Sync"}
-                  </button>
+              <div className="rounded-lg border border-border bg-muted/30 p-6 flex flex-col items-center text-center">
+                <div className={cn(
+                  "h-12 w-12 rounded-full flex items-center justify-center mb-4",
+                  isConnected ? "bg-green-500/10 text-green-500" : "bg-primary/10 text-primary"
+                )}>
+                  <Calendar className="h-6 w-6" />
                 </div>
+                
+                <h4 className="font-medium mb-1">
+                  {isConnected ? "Connected to Google Calendar" : "Not Connected"}
+                </h4>
+                <p className="text-xs text-muted-foreground mb-6 max-w-xs">
+                  {isConnected 
+                    ? "Your tasks will now be pushed directly to your primary calendar." 
+                    : "Connect your Google account to start pushing tasks to your calendar."}
+                </p>
 
-                {calendarUrl ? (
-                  <div className="flex gap-2">
-                    <input
-                      readOnly
-                      value={calendarUrl}
-                      className="flex-1 bg-background border border-border rounded px-3 py-2 text-sm font-mono overflow-x-auto"
-                    />
+                <div className="flex gap-3">
+                  {isConnected ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleSync}
+                        disabled={isSyncing}
+                        className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+                        {isSyncing ? "Syncing..." : "Push All Tasks"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={disconnect}
+                        className="inline-flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm font-medium hover:bg-secondary/80 text-destructive"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Disconnect
+                      </button>
+                    </>
+                  ) : (
                     <button
                       type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(calendarUrl)
-                      }}
-                      className="inline-flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm font-medium hover:bg-secondary/80"
+                      onClick={handleConnect}
+                      className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                     >
-                      <Copy className="h-4 w-4" />
-                      Copy
+                      Connect Google Calendar
                     </button>
-                  </div>
-                ) : (
-                  <div className="rounded border border-dashed border-border p-8 text-center">
-                    <p className="text-xs text-muted-foreground">
-                      Click the button above to generate your unique calendar link.
-                    </p>
-                  </div>
-                )}
-                
-                <p className="mt-4 text-xs text-muted-foreground leading-relaxed">
-                  <strong>How to use:</strong> In Google Calendar, click the <strong>"+"</strong> next to "Other calendars", 
-                  select <strong>"From URL"</strong>, and paste the link above.
-                </p>
+                  )}
+                </div>
               </div>
 
               <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
                 <div className="flex gap-3">
                   <Info className="h-5 w-5 text-primary shrink-0" />
                   <div className="text-xs text-muted-foreground space-y-2">
-                    <p className="font-semibold text-foreground">How Syncing Works</p>
+                    <p className="font-semibold text-foreground">How Direct Push Works</p>
                     <p>
-                      Since this app runs locally in your browser, the calendar file is uploaded to your private storage. 
-                      Every time you click <strong>"Update Sync"</strong>, the latest version of your tasks is pushed to the cloud 
-                      so your calendar app can see them.
+                      Unlike the previous sync method, this <strong>directly creates events</strong> in your calendar. 
+                      Changes you make to a task's description or date will be updated instantly in Google Calendar.
+                    </p>
+                    <p>
+                      <strong>Note:</strong> You may need to grant "Calendar" permissions when connecting.
                     </p>
                   </div>
                 </div>

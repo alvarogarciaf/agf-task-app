@@ -51,6 +51,11 @@ export const getDatabase = async (userUid: string) => {
           3: (oldDoc: any) => {
             oldDoc.details = oldDoc.details ?? null;
             return oldDoc;
+          },
+          // 4: Migrate from version 3 to 4 (add google_event_id)
+          4: (oldDoc: any) => {
+            oldDoc.google_event_id = oldDoc.google_event_id ?? null;
+            return oldDoc;
           }
         }
       },

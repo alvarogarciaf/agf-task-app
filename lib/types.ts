@@ -21,6 +21,7 @@ export interface Task {
   status: "Open" | "Done"
   urgency_id: string
   archived?: boolean
+  google_event_id?: string | null
 }
 
 export interface Project {
