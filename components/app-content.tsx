@@ -145,6 +145,25 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     setActiveView(view)
   }
 
+  // Auto-sync calendar to Firebase Storage
+  useEffect(() => {
+    if (!user.uid || tasks.length === 0) return
+
+    const timeoutId = setTimeout(async () => {
+      const hasActionDates = tasks.some(t => t.action_date && t.status !== "Done" && !t.archived)
+      if (hasActionDates) {
+        try {
+          await syncCalendarToStorage(tasks, user.uid)
+        } catch (err) {
+          // Silent fail for auto-sync to avoid interrupting user
+          console.error("Auto-sync calendar failed:", err)
+        }
+      }
+    }, 10000) // 10 second debounce to avoid excessive writes
+
+    return () => clearTimeout(timeoutId)
+  }, [tasks, user.uid])
+
   // Keyboard shortcuts
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
