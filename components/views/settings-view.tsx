@@ -41,6 +41,7 @@ export function SettingsView({
   onAddUrgency,
   onUpdateUrgency,
   onDeleteUrgency,
+  onDeleteAllTasks,
   onResetDatabase,
   syncStatus,
   userUid,
