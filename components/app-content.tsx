@@ -86,7 +86,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     const byOrder = [...urgencies].sort((a, b) => a.order - b.order)
     const defaultUrgency = byOrder[0]?.id ?? "u_low"
     
-    await db.tasks.insert({
+    const doc = await db.tasks.insert({
       id: crypto.randomUUID(),
       description: input.description,
       details: input.details ?? null,
@@ -99,6 +99,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       date_created: new Date().toISOString(),
       archived: false,
     })
+    return doc.id
   }
 
   const handleUpdateTask = async (task: Task) => {
