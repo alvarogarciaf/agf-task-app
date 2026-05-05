@@ -278,6 +278,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
               const doc = await db.contexts.findOne(id).exec()
               if (doc) await doc.remove()
             }}
+            onAddContext={async (c) => {
+              await db.contexts.insert({ id: crypto.randomUUID(), ...c })
+            }}
           />
         )
       case "persons":
@@ -297,6 +300,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             onDeletePerson={async (id) => {
               const doc = await db.persons.findOne(id).exec()
               if (doc) await doc.remove()
+            }}
+            onAddPerson={async (p) => {
+              await db.persons.insert({ id: crypto.randomUUID(), ...p })
             }}
           />
         )

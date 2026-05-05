@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Pencil, Check, X, Trash2 } from "lucide-react"
+import { Pencil, Check, X, Trash2, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   Dialog,
@@ -23,13 +23,26 @@ interface PersonsViewProps {
   onSelect: (personId: string) => void
   onUpdatePerson?: (person: Person) => void
   onDeletePerson?: (id: string) => void
+  onAddPerson?: (person: Omit<Person, "id">) => void
 }
 
-export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDeletePerson }: PersonsViewProps) {
+export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDeletePerson, onAddPerson }: PersonsViewProps) {
   const [editing, setEditing] = useState<Person | null>(null)
+  const [isAdding, setIsAdding] = useState(false)
 
   return (
     <div>
+      {/* Header with Add Button */}
+      <div className="mb-6">
+        <button
+          onClick={() => setIsAdding(true)}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-md active:scale-95"
+        >
+          <Plus className="h-4 w-4" />
+          Add Person
+        </button>
+      </div>
+
       <div className="space-y-1.5">
         {persons.map((p) => {
           const open = tasks.filter((t) => t.person_id === p.id && t.processed && t.status === "Open" && !t.archived).length
@@ -96,7 +109,7 @@ export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDelete
 
       {/* Edit Dialog */}
       {editing && (
-        <EditPersonDialog
+        <PersonDialog
           person={editing}
           open={!!editing}
           onOpenChange={(open) => { if (!open) setEditing(null) }}
@@ -110,36 +123,49 @@ export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDelete
           }}
         />
       )}
+
+      {/* Add Dialog */}
+      {isAdding && (
+        <PersonDialog
+          open={isAdding}
+          onOpenChange={setIsAdding}
+          onSave={(newPerson) => {
+            onAddPerson?.(newPerson)
+            setIsAdding(false)
+          }}
+        />
+      )}
     </div>
   )
 }
 
-function EditPersonDialog({
+function PersonDialog({
   person,
   open,
   onOpenChange,
   onSave,
   onDelete,
 }: {
-  person: Person
+  person?: Person
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (person: Person) => void
-  onDelete: (id: string) => void
+  onSave: (person: any) => void
+  onDelete?: (id: string) => void
 }) {
-  const [name, setName] = useState(person.name)
-  const [initials, setInitials] = useState(person.initials)
-  const [color, setColor] = useState(person.color)
+  const isEditing = !!person
+  const [name, setName] = useState(person?.name ?? "")
+  const [initials, setInitials] = useState(person?.initials ?? "")
+  const [color, setColor] = useState(person?.color ?? COLOR_PALETTE[0])
 
   function handleSave() {
     if (!name.trim() || !initials.trim()) return
-    onSave({ ...person, name: name.trim(), initials: initials.trim().toUpperCase(), color })
+    onSave(isEditing ? { ...person, name: name.trim(), initials: initials.trim().toUpperCase(), color } : { name: name.trim(), initials: initials.trim().toUpperCase(), color })
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="max-w-md gap-0 overflow-hidden p-0 sm:rounded-xl">
-        <DialogTitle className="sr-only">Edit person</DialogTitle>
+        <DialogTitle className="sr-only">{isEditing ? "Edit person" : "Add person"}</DialogTitle>
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border bg-card px-5 py-3">
@@ -153,7 +179,7 @@ function EditPersonDialog({
             >
               {initials || "?"}
             </div>
-            <span className="text-sm font-semibold">Edit Person</span>
+            <span className="text-sm font-semibold">{isEditing ? "Edit Person" : "New Person"}</span>
           </div>
           <button
             type="button"
@@ -232,14 +258,18 @@ function EditPersonDialog({
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-border bg-background/40 px-5 py-3">
-          <button
-            type="button"
-            onClick={() => onDelete(person.id)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-destructive/30 px-4 py-2.5 text-sm text-destructive transition-colors hover:bg-destructive/10 md:px-3 md:py-1.5 md:text-xs"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
-          </button>
+          {isEditing && onDelete ? (
+            <button
+              type="button"
+              onClick={() => onDelete(person.id)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-destructive/30 px-4 py-2.5 text-sm text-destructive transition-colors hover:bg-destructive/10 md:px-3 md:py-1.5 md:text-xs"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </button>
+          ) : (
+            <div />
+          )}
           <div className="flex items-center gap-2">
             <button
               type="button"

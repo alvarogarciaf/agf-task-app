@@ -32,6 +32,7 @@ import {
   Sun,
   Wrench,
   Trash2,
+  Plus,
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -89,13 +90,26 @@ interface ContextsViewProps {
   onSelect: (contextId: string) => void
   onUpdateContext?: (context: Context) => void
   onDeleteContext?: (id: string) => void
+  onAddContext?: (context: Omit<Context, "id">) => void
 }
 
-export function ContextsView({ contexts, tasks, onSelect, onUpdateContext, onDeleteContext }: ContextsViewProps) {
+export function ContextsView({ contexts, tasks, onSelect, onUpdateContext, onDeleteContext, onAddContext }: ContextsViewProps) {
   const [editing, setEditing] = useState<Context | null>(null)
+  const [isAdding, setIsAdding] = useState(false)
 
   return (
     <div>
+      {/* Header with Add Button */}
+      <div className="mb-6">
+        <button
+          onClick={() => setIsAdding(true)}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-md active:scale-95"
+        >
+          <Plus className="h-4 w-4" />
+          Add Context
+        </button>
+      </div>
+
       <div className="space-y-1.5">
         {contexts.map((c) => {
           const Icon = ICONS[c.icon] ?? Brain
@@ -163,7 +177,7 @@ export function ContextsView({ contexts, tasks, onSelect, onUpdateContext, onDel
 
       {/* Edit Dialog */}
       {editing && (
-        <EditContextDialog
+        <ContextDialog
           context={editing}
           open={!!editing}
           onOpenChange={(open) => { if (!open) setEditing(null) }}
@@ -177,38 +191,51 @@ export function ContextsView({ contexts, tasks, onSelect, onUpdateContext, onDel
           }}
         />
       )}
+
+      {/* Add Dialog */}
+      {isAdding && (
+        <ContextDialog
+          open={isAdding}
+          onOpenChange={setIsAdding}
+          onSave={(newContext) => {
+            onAddContext?.(newContext)
+            setIsAdding(false)
+          }}
+        />
+      )}
     </div>
   )
 }
 
-function EditContextDialog({
+function ContextDialog({
   context,
   open,
   onOpenChange,
   onSave,
   onDelete,
 }: {
-  context: Context
+  context?: Context
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (context: Context) => void
-  onDelete: (id: string) => void
+  onSave: (context: any) => void
+  onDelete?: (id: string) => void
 }) {
-  const [name, setName] = useState(context.name)
-  const [icon, setIcon] = useState(context.icon)
-  const [color, setColor] = useState(context.color)
+  const isEditing = !!context
+  const [name, setName] = useState(context?.name ?? "")
+  const [icon, setIcon] = useState(context?.icon ?? "Brain")
+  const [color, setColor] = useState(context?.color ?? COLOR_PALETTE[0])
 
   const SelectedIcon = ICONS[icon] ?? Brain
 
   function handleSave() {
     if (!name.trim()) return
-    onSave({ ...context, name: name.trim(), icon, color })
+    onSave(isEditing ? { ...context, name: name.trim(), icon, color } : { name: name.trim(), icon, color })
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="max-w-md gap-0 overflow-hidden p-0 sm:rounded-xl">
-        <DialogTitle className="sr-only">Edit context</DialogTitle>
+        <DialogTitle className="sr-only">{isEditing ? "Edit context" : "Add context"}</DialogTitle>
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border bg-card px-5 py-3">
@@ -222,7 +249,7 @@ function EditContextDialog({
             >
               <SelectedIcon className="h-4 w-4" />
             </div>
-            <span className="text-sm font-semibold">Edit Context</span>
+            <span className="text-sm font-semibold">{isEditing ? "Edit Context" : "New Context"}</span>
           </div>
           <button
             type="button"
@@ -306,14 +333,18 @@ function EditContextDialog({
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-border bg-background/40 px-5 py-3">
-          <button
-            type="button"
-            onClick={() => onDelete(context.id)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-destructive/30 px-4 py-2.5 text-sm text-destructive transition-colors hover:bg-destructive/10 md:px-3 md:py-1.5 md:text-xs"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
-          </button>
+          {isEditing && onDelete ? (
+            <button
+              type="button"
+              onClick={() => onDelete(context.id)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-destructive/30 px-4 py-2.5 text-sm text-destructive transition-colors hover:bg-destructive/10 md:px-3 md:py-1.5 md:text-xs"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </button>
+          ) : (
+            <div />
+          )}
           <div className="flex items-center gap-2">
             <button
               type="button"
