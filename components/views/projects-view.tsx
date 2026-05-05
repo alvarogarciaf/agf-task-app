@@ -22,6 +22,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { MoreVertical, Edit2 } from "lucide-react"
 import type { Context, Person, Project, Task, UrgencyLevel, ProjectStatus } from "@/lib/types"
 
 interface ProjectsViewProps {
@@ -161,27 +168,48 @@ export function ProjectsView({
           const done = projTasks.filter((t) => t.status === "Done").length
           const pct = projTasks.length === 0 ? 0 : Math.round((done / projTasks.length) * 100)
           return (
-            <button
+            <div
               key={p.id}
-              type="button"
               onClick={() => setSelected(p.id)}
-              className="group flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-primary/40"
+              className="group relative flex cursor-pointer flex-col gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-primary/40"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/15 text-primary">
                   <FolderKanban className="h-4 w-4" />
                 </div>
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider",
-                    p.status === "Ongoing"
-                      ? "border-primary/30 bg-primary/10 text-primary"
-                      : "border-border bg-muted/40 text-muted-foreground",
-                  )}
-                >
-                  <Dot className="h-3 w-3" />
-                  {p.status}
-                </span>
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider",
+                      p.status === "Ongoing"
+                        ? "border-primary/30 bg-primary/10 text-primary"
+                        : "border-border bg-muted/40 text-muted-foreground",
+                    )}
+                  >
+                    <Dot className="h-3 w-3" />
+                    {p.status}
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-muted text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                        <MoreVertical className="h-3.5 w-3.5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-32">
+                      <DropdownMenuItem onClick={() => { setEditingProject(p); setEditorOpen(true); }}>
+                        <Edit2 className="h-3.5 w-3.5 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        className="text-destructive focus:text-destructive" 
+                        onClick={() => { if(confirm(`Are you sure you want to delete "${p.name}"?`)) onDeleteProject(p.id) }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
               <div>
                 <h3 className="text-sm font-semibold tracking-tight">{p.name}</h3>
@@ -211,7 +239,7 @@ export function ProjectsView({
                   {open} open · click to drill in
                 </div>
               </div>
-            </button>
+            </div>
           )
         })}
       </div>
