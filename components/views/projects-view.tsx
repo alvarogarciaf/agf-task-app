@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ArrowLeft, FolderKanban, FileText, ListChecks, Circle, Dot, Plus, Settings2, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { FilteredTasks } from "@/components/filtered-tasks"
@@ -430,6 +430,14 @@ function ProjectEditor({
   const [details, setDetails] = useState("")
   const [status, setStatus] = useState<ProjectStatus>("Ongoing")
 
+  useEffect(() => {
+    if (open) {
+      setName(project?.name ?? "")
+      setDetails(project?.details ?? "")
+      setStatus(project?.status ?? "Ongoing")
+    }
+  }, [open, project])
+
   const handleSave = () => {
     if (!name.trim()) return
     onSave({
@@ -442,14 +450,7 @@ function ProjectEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent 
-        className="max-w-lg" 
-        onOpenAutoFocus={() => {
-          setName(project?.name ?? "")
-          setDetails(project?.details ?? "")
-          setStatus(project?.status ?? "Ongoing")
-        }}
-      >
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{project ? "Edit Project" : "New Project"}</DialogTitle>
         </DialogHeader>
