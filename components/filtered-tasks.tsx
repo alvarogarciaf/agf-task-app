@@ -74,7 +74,7 @@ export function FilteredTasks({
   storageKey,
   emptyTitle,
   emptyHint,
-  itemNoun,
+  itemNoun = "task",
   inboxMode = false,
   onCreate,
   hideFilterBar = false,
