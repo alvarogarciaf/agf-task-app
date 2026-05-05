@@ -81,7 +81,7 @@ export function SettingsView({
             fields={[
               { key: "name", label: "Name", type: "text" },
               { key: "initials", label: "Initials", type: "text", width: "w-20" },
-              { key: "color", label: "Color (oklch, hex, etc)", type: "text", width: "w-48" },
+              { key: "color", label: "Color", type: "color", width: "w-24" },
             ]}
             renderAvatar={(item) => (
               <div
@@ -105,7 +105,7 @@ export function SettingsView({
             fields={[
               { key: "name", label: "Name", type: "text" },
               { key: "icon", label: "Icon Name", type: "text", width: "w-32" },
-              { key: "color", label: "Color", type: "text", width: "w-48" },
+              { key: "color", label: "Color", type: "color", width: "w-24" },
             ]}
             renderAvatar={(item) => (
               <span
@@ -126,7 +126,7 @@ export function SettingsView({
             onDelete={onDeleteUrgency}
             fields={[
               { key: "name", label: "Name", type: "text" },
-              { key: "color", label: "Color", type: "text", width: "w-48" },
+              { key: "color", label: "Color", type: "color", width: "w-24" },
               { key: "order", label: "Order", type: "number", width: "w-24" },
             ]}
             renderAvatar={(item) => (
@@ -305,7 +305,7 @@ interface EntityManagerProps<T> {
   onAdd: (item: Omit<T, "id">) => void
   onUpdate: (item: T) => void
   onDelete: (id: string) => void
-  fields: { key: keyof T; label: string; type: "text" | "number"; width?: string }[]
+  fields: { key: keyof T; label: string; type: "text" | "number" | "color"; width?: string }[]
   renderAvatar: (item: T) => React.ReactNode
 }
 
@@ -379,17 +379,33 @@ function EntityManager<T extends { id: string }>({
                   <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">
                     {f.label}
                   </label>
-                  <input
-                    type={f.type}
-                    value={(draft[f.key] as any) || ""}
-                    onChange={(e) =>
-                      setDraft((prev) => ({
-                        ...prev,
-                        [f.key]: f.type === "number" ? Number(e.target.value) : e.target.value,
-                      }))
-                    }
-                    className="w-full h-8 px-2 text-sm rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
+                  <div className="flex items-center gap-2">
+                    {f.type === "color" && (
+                      <div 
+                        className="h-8 w-8 rounded border border-border shrink-0" 
+                        style={{ backgroundColor: (draft[f.key] as any) || "#000000" }} 
+                      />
+                    )}
+                    <input
+                      type={f.type}
+                      value={(draft[f.key] as any) || (f.type === "color" ? "#000000" : "")}
+                      onChange={(e) =>
+                        setDraft((prev) => ({
+                          ...prev,
+                          [f.key]: f.type === "number" ? Number(e.target.value) : e.target.value,
+                        }))
+                      }
+                      className={cn(
+                        "h-8 px-2 text-sm rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary",
+                        f.type === "color" ? "w-12 p-0 border-none bg-transparent cursor-pointer" : "w-full"
+                      )}
+                    />
+                    {f.type === "color" && (
+                      <span className="text-[10px] font-mono text-muted-foreground truncate max-w-[80px]">
+                        {String(draft[f.key] || "#000000")}
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
               <div className="flex gap-2 pb-0.5">

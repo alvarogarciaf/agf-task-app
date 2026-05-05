@@ -45,11 +45,11 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   // Subscriptions
   useEffect(() => {
     const subs = [
-      db.tasks.find().$.subscribe(setTasks),
-      db.projects.find().$.subscribe(setProjects),
-      db.persons.find().$.subscribe(setPersons),
-      db.contexts.find().$.subscribe(setContexts),
-      db.urgencies.find().$.subscribe(setUrgencies),
+      db.tasks.find().$.subscribe(docs => setTasks(docs.map(d => d.toJSON()))),
+      db.projects.find().$.subscribe(docs => setProjects(docs.map(d => d.toJSON()))),
+      db.persons.find().$.subscribe(docs => setPersons(docs.map(d => d.toJSON()))),
+      db.contexts.find().$.subscribe(docs => setContexts(docs.map(d => d.toJSON()))),
+      db.urgencies.find().$.subscribe(docs => setUrgencies(docs.map(d => d.toJSON()))),
     ]
     return () => subs.forEach((s) => s.unsubscribe())
   }, [db])
