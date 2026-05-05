@@ -232,6 +232,14 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
               setInitialContextId(undefined)
               setActiveView("all")
             }}
+            onUpdatePerson={async (p) => {
+              const doc = await db.persons.findOne(p.id).exec()
+              if (doc) await doc.patch(p)
+            }}
+            onDeletePerson={async (id) => {
+              const doc = await db.persons.findOne(id).exec()
+              if (doc) await doc.remove()
+            }}
           />
         )
       case "settings":
