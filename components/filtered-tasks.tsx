@@ -174,6 +174,10 @@ export function FilteredTasks({
           : isTaskVisibleByShowOnRule(t),
       )
       .sort((a, b) => {
+        if (autoFocusTaskId) {
+          if (a.id === autoFocusTaskId) return -1
+          if (b.id === autoFocusTaskId) return 1
+        }
         const { key, direction } = sortConfig
         let valA: any = ""
         let valB: any = ""
