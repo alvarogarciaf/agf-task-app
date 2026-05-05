@@ -16,6 +16,7 @@ import type { Context, Person, Project, Task, UrgencyLevel, ViewKey } from "@/li
 import type { User } from "firebase/auth"
 import { syncCalendarToStorage } from "@/lib/calendar-sync-client"
 import { createGoogleEvent, updateGoogleEvent, deleteGoogleEvent } from "@/lib/google-calendar"
+import { useGoogleCalendar } from "@/components/google-calendar-provider"
 
 interface AppContentProps {
   user: User
@@ -146,14 +147,12 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     setActiveView(view)
   }
 
+  const { accessToken: contextToken } = useGoogleCalendar()
+
   // Auto-sync calendar to Google Calendar
   useEffect(() => {
-    if (!user.uid || tasks.length === 0) return
+    if (!user.uid || tasks.length === 0 || !contextToken) return
     
-    // We need an access token from sessionStorage for auto-sync
-    const token = typeof window !== "undefined" ? sessionStorage.getItem("google_calendar_token") : null;
-    if (!token) return;
-
     const timeoutId = setTimeout(async () => {
       // Sync only tasks that changed recently (or just sync all tasks with action dates for robustness)
       const actionTasks = tasks.filter(t => t.action_date && t.status !== "Done" && !t.archived);
@@ -161,11 +160,11 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       for (const task of actionTasks) {
         try {
           if (!task.google_event_id) {
-            const eventId = await createGoogleEvent(task, token);
+            const eventId = await createGoogleEvent(task, contextToken);
             const doc = await db.tasks.findOne(task.id).exec();
             if (doc) await doc.patch({ google_event_id: eventId });
           } else {
-            await updateGoogleEvent(task, token);
+            await updateGoogleEvent(task, contextToken);
           }
         } catch (err) {
           console.error(`Auto-sync failed for task ${task.id}:`, err);
@@ -176,7 +175,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       const staleTasks = tasks.filter(t => t.google_event_id && (!t.action_date || t.status === "Done" || t.archived));
       for (const task of staleTasks) {
         try {
-          await deleteGoogleEvent(task.google_event_id!, token);
+          await deleteGoogleEvent(task.google_event_id!, contextToken);
           const doc = await db.tasks.findOne(task.id).exec();
           if (doc) await doc.patch({ google_event_id: null });
         } catch (err) {
@@ -186,7 +185,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }, 15000) // 15 second debounce
 
     return () => clearTimeout(timeoutId)
-  }, [tasks, user.uid, db])
+  }, [tasks, user.uid, db, contextToken])
 
   // Keyboard shortcuts
   useEffect(() => {
