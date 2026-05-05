@@ -874,7 +874,7 @@ function InlineCellEditor({ task, column, projects, persons, contexts, urgencies
 }
 
 function Empty() {
-  return <span className="font-mono text-[11px] text-muted-foreground/40">—</span>
+  return <div className="w-full text-center font-mono text-[11px] text-muted-foreground/40">—</div>
 }
 
 function MobileTaskRow({
