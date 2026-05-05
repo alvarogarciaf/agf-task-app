@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Users, Tags, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Info, Database, Calendar, Copy } from "lucide-react"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import type { Context, Person, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "@/components/db-provider"
@@ -61,8 +62,10 @@ export function SettingsView({
       const url = await onSyncCalendar()
       setCalendarUrl(url)
       localStorage.setItem(`calendar_url_${userUid}`, url)
-    } catch (err) {
+      toast.success("Calendar synced successfully!")
+    } catch (err: any) {
       console.error("Sync failed:", err)
+      toast.error(err.message || "Failed to sync calendar. Check console for details.")
     } finally {
       setIsSyncing(false)
     }
