@@ -68,6 +68,17 @@ export const getDatabase = async (userUid: string) => {
             return oldDoc;
           }
         }
+      },
+      saved_views: {
+        ...DatabaseCollections.saved_views,
+        migrationStrategies: {
+          // 1: Add default icon and color
+          1: (oldDoc: any) => {
+            oldDoc.icon = oldDoc.icon || "LayoutList";
+            oldDoc.color = oldDoc.color || "#78716c";
+            return oldDoc;
+          }
+        }
       }
     });
     

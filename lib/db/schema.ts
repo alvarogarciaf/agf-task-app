@@ -106,7 +106,7 @@ export type ContextDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof con
 
 export const savedViewSchemaLiteral = {
   title: 'saved view schema',
-  version: 0,
+  version: 1,
   description: 'describes a saved view',
   primaryKey: 'id',
   type: 'object',
