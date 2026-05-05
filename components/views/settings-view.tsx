@@ -23,6 +23,7 @@ interface SettingsViewProps {
   onResetDatabase?: () => void
   syncStatus?: SyncStatus
   userUid?: string
+  onSyncCalendar?: () => Promise<string>
 }
 
 type TabKey = "persons" | "contexts" | "urgencies" | "calendar" | "data" | "troubleshoot"
@@ -40,12 +41,31 @@ export function SettingsView({
   onAddUrgency,
   onUpdateUrgency,
   onDeleteUrgency,
-  onDeleteAllTasks,
   onResetDatabase,
   syncStatus,
   userUid,
+  onSyncCalendar,
 }: SettingsViewProps) {
   const [tab, setTab] = useState<TabKey>("persons")
+  const [calendarUrl, setCalendarUrl] = useState<string | null>(() => {
+    if (typeof window !== "undefined") return localStorage.getItem(`calendar_url_${userUid}`)
+    return null
+  })
+  const [isSyncing, setIsSyncing] = useState(false)
+
+  const handleSync = async () => {
+    if (!onSyncCalendar) return
+    setIsSyncing(true)
+    try {
+      const url = await onSyncCalendar()
+      setCalendarUrl(url)
+      localStorage.setItem(`calendar_url_${userUid}`, url)
+    } catch (err) {
+      console.error("Sync failed:", err)
+    } finally {
+      setIsSyncing(false)
+    }
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -151,41 +171,62 @@ export function SettingsView({
 
             <div className="space-y-6">
               <div className="rounded-lg border border-border bg-muted/30 p-4">
-                <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
-                  Subscription URL
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    readOnly
-                    value={`${typeof window !== "undefined" ? window.location.origin : ""}/api/calendar/${userUid}`}
-                    className="flex-1 bg-background border border-border rounded px-3 py-2 text-sm font-mono"
-                  />
+                <div className="flex items-center justify-between mb-4">
+                  <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                    Subscription URL
+                  </label>
                   <button
                     type="button"
-                    onClick={() => {
-                      const url = `${window.location.origin}/api/calendar/${userUid}`
-                      navigator.clipboard.writeText(url)
-                    }}
-                    className="inline-flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm font-medium hover:bg-secondary/80"
+                    onClick={handleSync}
+                    disabled={isSyncing}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-[10px] font-bold uppercase tracking-tight text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                   >
-                    <Copy className="h-4 w-4" />
-                    Copy
+                    <RefreshCw className={cn("h-3 w-3", isSyncing && "animate-spin")} />
+                    {calendarUrl ? "Update Sync" : "Enable Sync"}
                   </button>
                 </div>
+
+                {calendarUrl ? (
+                  <div className="flex gap-2">
+                    <input
+                      readOnly
+                      value={calendarUrl}
+                      className="flex-1 bg-background border border-border rounded px-3 py-2 text-sm font-mono overflow-x-auto"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(calendarUrl)
+                      }}
+                      className="inline-flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm font-medium hover:bg-secondary/80"
+                    >
+                      <Copy className="h-4 w-4" />
+                      Copy
+                    </button>
+                  </div>
+                ) : (
+                  <div className="rounded border border-dashed border-border p-8 text-center">
+                    <p className="text-xs text-muted-foreground">
+                      Click the button above to generate your unique calendar link.
+                    </p>
+                  </div>
+                )}
+                
                 <p className="mt-4 text-xs text-muted-foreground leading-relaxed">
                   <strong>How to use:</strong> In Google Calendar, click the <strong>"+"</strong> next to "Other calendars", 
                   select <strong>"From URL"</strong>, and paste the link above.
                 </p>
               </div>
 
-              <div className="p-4 rounded-lg border border-amber-500/20 bg-amber-500/5">
+              <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
                 <div className="flex gap-3">
-                  <Info className="h-5 w-5 text-amber-500 shrink-0" />
-                  <div className="text-xs text-amber-900/80 dark:text-amber-200/80 space-y-2">
-                    <p className="font-semibold text-amber-600">Important Note</p>
+                  <Info className="h-5 w-5 text-primary shrink-0" />
+                  <div className="text-xs text-muted-foreground space-y-2">
+                    <p className="font-semibold text-foreground">How Syncing Works</p>
                     <p>
-                      This feature requires the <strong>FIREBASE_SERVICE_ACCOUNT</strong> environment variable to be configured on your server.
-                      If you are running this locally, ensure you have set up your service account credentials.
+                      Since this app runs locally in your browser, the calendar file is uploaded to your private storage. 
+                      Every time you click <strong>"Update Sync"</strong>, the latest version of your tasks is pushed to the cloud 
+                      so your calendar app can see them.
                     </p>
                   </div>
                 </div>

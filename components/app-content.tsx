@@ -14,6 +14,7 @@ import { SettingsView } from "@/components/views/settings-view"
 import { PersonsView } from "@/components/views/persons-view"
 import type { Context, Person, Project, Task, UrgencyLevel, ViewKey } from "@/lib/types"
 import type { User } from "firebase/auth"
+import { syncCalendarToStorage } from "@/lib/calendar-sync-client"
 
 interface AppContentProps {
   user: User
@@ -288,6 +289,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             }}
             syncStatus={syncStatus}
             userUid={user.uid}
+            onSyncCalendar={async () => {
+              return await syncCalendarToStorage(tasks, user.uid)
+            }}
           />
         )
       default:
