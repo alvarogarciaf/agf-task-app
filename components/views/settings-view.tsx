@@ -1,7 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { Users, Tags, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Info, Database } from "lucide-react"
+import { 
+  Users, Tags, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Info, Database,
+  Brain, Phone, ShoppingBag, Home, Eye, PenLine, WifiOff, Zap, Briefcase, Car, Coffee, 
+  Dumbbell, Globe, Heart, Laptop, Mail, MapPin, MessageCircle, Music, Package, Plane, 
+  School, Settings, Star, Sun, Wrench, type LucideIcon
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Context, Person, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "@/components/db-provider"
@@ -26,6 +31,12 @@ interface SettingsViewProps {
 }
 
 type TabKey = "persons" | "contexts" | "urgencies" | "data" | "troubleshoot"
+
+const ICONS: Record<string, LucideIcon> = {
+  Brain, Phone, ShoppingBag, Home, Eye, PenLine, WifiOff, Zap, Briefcase, Car, Coffee, 
+  Dumbbell, Globe, Heart, Laptop, Mail, MapPin, MessageCircle, Music, Package, Plane, 
+  School, Settings, Star, Sun, Wrench
+}
 
 export function SettingsView({
   persons,
@@ -85,8 +96,12 @@ export function SettingsView({
             ]}
             renderAvatar={(item) => (
               <div
-                className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold text-foreground mr-3 shrink-0"
-                style={{ backgroundColor: `color-mix(in oklch, ${item.color} 30%, transparent)` }}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold mr-3 shrink-0"
+                style={{ 
+                  backgroundColor: `color-mix(in oklch, ${item.color} 20%, transparent)`,
+                  color: item.color,
+                  boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${item.color} 40%, transparent)`,
+                }}
               >
                 {item.initials}
               </div>
@@ -107,12 +122,21 @@ export function SettingsView({
               { key: "icon", label: "Icon Name", type: "text", width: "w-32" },
               { key: "color", label: "Color", type: "color", width: "w-24" },
             ]}
-            renderAvatar={(item) => (
-              <span
-                className="h-2 w-2 rounded-full mr-3 shrink-0"
-                style={{ backgroundColor: item.color }}
-              />
-            )}
+            renderAvatar={(item) => {
+              const Icon = ICONS[item.icon] ?? Tags
+              return (
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-lg mr-3 shrink-0"
+                  style={{
+                    backgroundColor: `color-mix(in oklch, ${item.color} 15%, transparent)`,
+                    color: item.color,
+                    boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${item.color} 30%, transparent)`,
+                  }}
+                >
+                  <Icon className="h-4 w-4" />
+                </div>
+              )
+            }}
           />
         )}
 
