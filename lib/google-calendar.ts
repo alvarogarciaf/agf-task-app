@@ -9,7 +9,7 @@ function getNextDay(dateStr: string): string {
 }
 
 /** Creates a new event in Google Calendar and returns the event ID. */
-export async function createGoogleEvent(task: Task, accessToken: string): Promise<string> {
+export async function createGoogleEvent(task: Task, accessToken: string, calendarId: string = 'primary'): Promise<string> {
   if (!task.action_date) throw new Error("Task must have an action date");
 
   const event = {
@@ -20,7 +20,7 @@ export async function createGoogleEvent(task: Task, accessToken: string): Promis
     reminders: { useDefault: true },
   };
 
-  const response = await fetch(CALENDAR_API_BASE, {
+  const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
@@ -39,11 +39,11 @@ export async function createGoogleEvent(task: Task, accessToken: string): Promis
 }
 
 /** Updates an existing event in Google Calendar. */
-export async function updateGoogleEvent(task: Task, accessToken: string): Promise<void> {
+export async function updateGoogleEvent(task: Task, accessToken: string, calendarId: string = 'primary'): Promise<void> {
   if (!task.google_event_id) throw new Error("Task does not have a Google Event ID");
   if (!task.action_date) {
     // If action date was removed, maybe we should delete the event instead?
-    return deleteGoogleEvent(task.google_event_id, accessToken);
+    return deleteGoogleEvent(task.google_event_id, accessToken, calendarId);
   }
 
   const event = {
@@ -53,7 +53,7 @@ export async function updateGoogleEvent(task: Task, accessToken: string): Promis
     end: { date: getNextDay(task.action_date) },
   };
 
-  const response = await fetch(`${CALENDAR_API_BASE}/${task.google_event_id}`, {
+  const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${task.google_event_id}`, {
     method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
@@ -69,8 +69,8 @@ export async function updateGoogleEvent(task: Task, accessToken: string): Promis
 }
 
 /** Deletes an event from Google Calendar. */
-export async function deleteGoogleEvent(eventId: string, accessToken: string): Promise<void> {
-  const response = await fetch(`${CALENDAR_API_BASE}/${eventId}`, {
+export async function deleteGoogleEvent(eventId: string, accessToken: string, calendarId: string = 'primary'): Promise<void> {
+  const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${eventId}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
@@ -81,4 +81,31 @@ export async function deleteGoogleEvent(eventId: string, accessToken: string): P
     const error = await response.json();
     throw new Error(error.error?.message || "Failed to delete Google Calendar event");
   }
+}
+
+export interface GoogleCalendar {
+  id: string;
+  summary: string;
+  primary?: boolean;
+}
+
+/** Fetches the list of calendars for the authenticated user. */
+export async function listGoogleCalendars(accessToken: string): Promise<GoogleCalendar[]> {
+  const response = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || "Failed to fetch calendar list");
+  }
+
+  const data = await response.json();
+  return (data.items || []).map((item: any) => ({
+    id: item.id,
+    summary: item.summary,
+    primary: item.primary,
+  }));
 }

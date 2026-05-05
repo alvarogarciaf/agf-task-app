@@ -34,6 +34,16 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     user.email?.split("@")[0]?.trim() ||
     "Your workspace"
   const workspaceInitial = (workspaceLabel[0] ?? "?").toUpperCase()
+  
+  const [selectedCalendarId, setSelectedCalendarId] = useState<string | undefined>(() => {
+    if (typeof window !== "undefined") return localStorage.getItem("google_selected_calendar_id") || "primary"
+    return "primary"
+  })
+
+  const handleSelectCalendar = (id: string) => {
+    setSelectedCalendarId(id)
+    localStorage.setItem("google_selected_calendar_id", id)
+  }
 
   // Initial filter states for drill-down
   const [initialContextId, setInitialContextId] = useState<string | undefined>()
@@ -161,12 +171,12 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       for (const task of actionTasks) {
         try {
           if (!task.google_event_id) {
-            const eventId = await createGoogleEvent(task, contextToken);
+            const eventId = await createGoogleEvent(task, contextToken, selectedCalendarId);
             const doc = await db.tasks.findOne(task.id).exec();
             if (doc) await doc.patch({ google_event_id: eventId });
-            toast.success(`Calendar: Created "${task.description}"`);
+            console.log(`Calendar: Created "${task.description}"`);
           } else {
-            await updateGoogleEvent(task, contextToken);
+            await updateGoogleEvent(task, contextToken, selectedCalendarId);
             // Don't toast on every update to avoid spam, maybe just log
             console.log(`Updated calendar event for: ${task.description}`);
           }
@@ -180,17 +190,17 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       const staleTasks = tasks.filter(t => t.google_event_id && (!t.action_date || t.status === "Done" || t.archived));
       for (const task of staleTasks) {
         try {
-          await deleteGoogleEvent(task.google_event_id!, contextToken);
+          await deleteGoogleEvent(task.google_event_id!, contextToken, selectedCalendarId);
           const doc = await db.tasks.findOne(task.id).exec();
           if (doc) await doc.patch({ google_event_id: null });
         } catch (err) {
           console.error(`Auto-cleanup failed for task ${task.id}:`, err);
         }
       }
-    }, 15000) // 15 second debounce
+    }, 3000) // 3 second debounce
 
     return () => clearTimeout(timeoutId)
-  }, [tasks, user.uid, db, contextToken])
+  }, [tasks, user.uid, db, contextToken, selectedCalendarId])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -336,15 +346,17 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             }}
             syncStatus={syncStatus}
             userUid={user.uid}
+            selectedCalendarId={selectedCalendarId}
+            onSelectCalendar={handleSelectCalendar}
             onSyncCalendar={async (token) => {
               const actionTasks = tasks.filter(t => t.action_date && t.status !== "Done" && !t.archived);
               for (const task of actionTasks) {
                 if (!task.google_event_id) {
-                  const eventId = await createGoogleEvent(task, token);
+                  const eventId = await createGoogleEvent(task, token, selectedCalendarId);
                   const doc = await db.tasks.findOne(task.id).exec();
                   if (doc) await doc.patch({ google_event_id: eventId });
                 } else {
-                  await updateGoogleEvent(task, token);
+                  await updateGoogleEvent(task, token, selectedCalendarId);
                 }
               }
             }}

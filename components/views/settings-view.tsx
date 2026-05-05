@@ -5,6 +5,7 @@ import { Users, Tags, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Inf
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useGoogleCalendar } from "@/components/google-calendar-provider"
+import { listGoogleCalendars, type GoogleCalendar } from "@/lib/google-calendar"
 import type { Context, Person, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "@/components/db-provider"
 
@@ -23,9 +24,11 @@ interface SettingsViewProps {
   onDeleteUrgency: (id: string) => void
   onDeleteAllTasks?: () => void
   onResetDatabase?: () => void
-  syncStatus?: SyncStatus
   userUid?: string
   onSyncCalendar?: (accessToken: string) => Promise<void>
+  syncStatus?: SyncStatus
+  selectedCalendarId?: string
+  onSelectCalendar?: (id: string) => void
 }
 
 type TabKey = "persons" | "contexts" | "urgencies" | "calendar" | "data" | "troubleshoot"
@@ -48,10 +51,39 @@ export function SettingsView({
   syncStatus,
   userUid,
   onSyncCalendar,
+  selectedCalendarId,
+  onSelectCalendar,
 }: SettingsViewProps) {
   const [tab, setTab] = useState<TabKey>("persons")
   const { accessToken, isConnected, connect, disconnect } = useGoogleCalendar()
   const [isSyncing, setIsSyncing] = useState(false)
+  const [calendars, setCalendars] = useState<GoogleCalendar[]>([])
+  const [isLoadingCalendars, setIsLoadingCalendars] = useState(false)
+
+  // Fetch calendars when tab is opened
+  useEffect(() => {
+    if (tab === "calendar" && accessToken) {
+      const fetchCalendars = async () => {
+        setIsLoadingCalendars(true)
+        try {
+          const list = await listGoogleCalendars(accessToken)
+          setCalendars(list)
+          
+          // If no calendar is selected, default to primary
+          if (!selectedCalendarId) {
+            const primary = list.find(c => c.primary)?.id || 'primary'
+            onSelectCalendar?.(primary)
+          }
+        } catch (err) {
+          console.error("Failed to fetch calendars:", err)
+          toast.error("Could not load your calendars.")
+        } finally {
+          setIsLoadingCalendars(false)
+        }
+      }
+      fetchCalendars()
+    }
+  }, [tab, accessToken, selectedCalendarId, onSelectCalendar])
 
   const handleSync = async () => {
     if (!accessToken || !onSyncCalendar) return
@@ -232,14 +264,32 @@ export function SettingsView({
                 <div className="flex gap-3">
                   <Info className="h-5 w-5 text-primary shrink-0" />
                   <div className="text-xs text-muted-foreground space-y-2">
-                    <p className="font-semibold text-foreground">How Direct Push Works</p>
+                    <p className="font-semibold text-foreground">Calendar Selection</p>
                     <p>
-                      Unlike the previous sync method, this <strong>directly creates events</strong> in your calendar. 
-                      Changes you make to a task's description or date will be updated instantly in Google Calendar.
+                      Choose which calendar should receive your tasks. We recommend using your <strong>Primary</strong> calendar or a dedicated "Tasks" calendar.
                     </p>
-                    <p>
-                      <strong>Note:</strong> You may need to grant "Calendar" permissions when connecting.
-                    </p>
+                    
+                    {isConnected && (
+                      <div className="mt-4 pt-4 border-t border-primary/10">
+                        <label className="block text-[10px] font-mono uppercase tracking-wider mb-2">Target Calendar</label>
+                        <select
+                          value={selectedCalendarId || 'primary'}
+                          onChange={(e) => onSelectCalendar?.(e.target.value)}
+                          disabled={isLoadingCalendars}
+                          className="w-full h-9 rounded border border-primary/20 bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                        >
+                          {isLoadingCalendars ? (
+                            <option>Loading calendars...</option>
+                          ) : (
+                            calendars.map(c => (
+                              <option key={c.id} value={c.id}>
+                                {c.summary} {c.primary ? "(Primary)" : ""}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
