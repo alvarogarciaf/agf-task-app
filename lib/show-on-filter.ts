@@ -11,6 +11,11 @@ export function localDateKey(d: Date): string {
 /** Calendar day of the task's Show on value in local time, or null if unset / invalid. */
 export function taskShowOnLocalKey(task: Task): string | null {
   if (task.show_on == null || String(task.show_on).trim() === "") return null
+  
+  // If the string is already YYYY-MM-DD, return it directly to avoid UTC shift
+  const match = task.show_on.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (match) return match[0]
+
   const d = new Date(task.show_on)
   if (Number.isNaN(d.getTime())) return null
   return localDateKey(d)
