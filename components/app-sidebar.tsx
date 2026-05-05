@@ -14,7 +14,14 @@ import {
 import { cn } from "@/lib/utils"
 import type { ViewKey, SavedView } from "@/lib/types"
 import type { SyncStatus } from "@/components/db-provider"
-import { Star } from "lucide-react"
+import { Star, MoreVertical, Edit2, Trash2 } from "lucide-react"
+import { ICONS } from "@/lib/constants"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface NavItem {
   key: ViewKey
@@ -28,6 +35,8 @@ interface AppSidebarProps {
   active: ViewKey
   activeSavedViewId?: string | null
   onChange: (key: ViewKey, savedViewId?: string) => void
+  onEditSavedView?: (view: SavedView) => void
+  onDeleteSavedView?: (id: string) => void
   inboxCount: number
   totalCount: number
   syncStatus: SyncStatus
@@ -40,6 +49,8 @@ export function AppSidebar({
   active,
   activeSavedViewId,
   onChange,
+  onEditSavedView,
+  onDeleteSavedView,
   inboxCount,
   totalCount,
   syncStatus,
@@ -108,18 +119,24 @@ export function AppSidebar({
 
         {savedViews.length > 0 && (
           <NavGroup label="Saved Views">
-            {savedViews.map((sv) => (
-              <NavLink
-                key={sv.id}
-                item={{
-                  key: "saved-view",
-                  label: sv.name,
-                  icon: Star,
-                }}
-                active={active === "saved-view" && activeSavedViewId === sv.id}
-                onClick={() => onChange("saved-view", sv.id)}
-              />
-            ))}
+            {savedViews.map((sv) => {
+              const Icon = ICONS[sv.icon] || Star
+              return (
+                <NavLink
+                  key={sv.id}
+                  item={{
+                    key: "saved-view",
+                    label: sv.name,
+                    icon: Icon,
+                  }}
+                  color={sv.color}
+                  active={active === "saved-view" && activeSavedViewId === sv.id}
+                  onClick={() => onChange("saved-view", sv.id)}
+                  onEdit={() => onEditSavedView?.(sv)}
+                  onDelete={() => onDeleteSavedView?.(sv.id)}
+                />
+              )
+            })}
           </NavGroup>
         )}
       </nav>
@@ -224,10 +241,16 @@ function NavLink({
   item,
   active,
   onClick,
+  onEdit,
+  onDelete,
+  color,
 }: {
   item: NavItem
   active: boolean
   onClick: () => void
+  onEdit?: () => void
+  onDelete?: () => void
+  color?: string
 }) {
   const Icon = item.icon
   return (
@@ -246,12 +269,15 @@ function NavLink({
         {active && (
           <span className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-primary" />
         )}
-        <Icon
+        <span 
           className={cn(
-            "h-4 w-4 shrink-0",
+            "flex h-4 w-4 shrink-0 items-center justify-center",
             active ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
           )}
-        />
+          style={color && !active ? { color } : undefined}
+        >
+          <Icon className="h-4 w-4" />
+        </span>
         <span className="flex-1 truncate text-left">{item.label}</span>
         {item.badge !== undefined && item.badge > 0 ? (
           <span
@@ -269,6 +295,39 @@ function NavLink({
             {item.shortcut}
           </span>
         ) : null}
+
+        {(onEdit || onDelete) && (
+          <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-sidebar-accent-foreground/10"
+                >
+                  <MoreVertical className="h-3.5 w-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-32">
+                {onEdit && (
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit() }}>
+                    <Edit2 className="mr-2 h-3.5 w-3.5" />
+                    Edit
+                  </DropdownMenuItem>
+                )}
+                {onDelete && (
+                  <DropdownMenuItem 
+                    onClick={(e) => { e.stopPropagation(); onDelete() }}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-3.5 w-3.5" />
+                    Delete
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
       </button>
     </li>
   )

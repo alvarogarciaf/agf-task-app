@@ -113,6 +113,8 @@ export const savedViewSchemaLiteral = {
   properties: {
     id: { type: 'string', maxLength: 100 },
     name: { type: 'string' },
+    icon: { type: 'string' },
+    color: { type: 'string' },
     context_id: { type: ['string', 'null'] },
     project_id: { type: ['string', 'null'] },
     person_id: { type: ['string', 'null'] },
@@ -123,7 +125,7 @@ export const savedViewSchemaLiteral = {
     sort_direction: { type: 'string', enum: ['asc', 'desc'] },
     date_created: { type: 'string' },
   },
-  required: ['id', 'name', 'show_status', 'is_grouped_by_project', 'show_hidden_by_show_on', 'sort_key', 'sort_direction', 'date_created'],
+  required: ['id', 'name', 'icon', 'color', 'show_status', 'is_grouped_by_project', 'show_hidden_by_show_on', 'sort_key', 'sort_direction', 'date_created'],
 } as const;
 export const savedViewSchemaTyped = toTypedRxJsonSchema(savedViewSchemaLiteral);
 export type SavedViewDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof savedViewSchemaTyped>;

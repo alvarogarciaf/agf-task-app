@@ -48,6 +48,8 @@ export interface Context {
 export interface SavedView {
   id: string
   name: string
+  icon: string
+  color: string
   // The configuration
   context_id?: string | null
   project_id?: string | null

@@ -281,12 +281,14 @@ export function FilteredTasks({
     }))
   }
 
-  const handleSaveView = async (name: string) => {
+  const handleSaveView = async (data: { name: string; icon: string; color: string }) => {
     if (!db) return
     const id = uuidv4()
     const newView: SavedView = {
       id,
-      name,
+      name: data.name,
+      icon: data.icon,
+      color: data.color,
       context_id: contextId,
       project_id: projectId,
       person_id: personId,

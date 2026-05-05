@@ -18,6 +18,7 @@ import type { User } from "firebase/auth"
 import { syncCalendarToStorage } from "@/lib/calendar-sync-client"
 import { createGoogleEvent, updateGoogleEvent, deleteGoogleEvent } from "@/lib/google-calendar"
 import { useGoogleCalendar } from "@/components/google-calendar-provider"
+import { SaveViewDialog } from "./save-view-dialog"
 
 interface AppContentProps {
   user: User
@@ -57,6 +58,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [urgencies, setUrgencies] = useState<UrgencyLevel[]>([])
   const [savedViews, setSavedViews] = useState<SavedView[]>([])
   const [activeSavedViewId, setActiveSavedViewId] = useState<string | null>(null)
+  const [editingView, setEditingView] = useState<SavedView | null>(null)
 
   // Subscriptions
   useEffect(() => {
@@ -160,6 +162,27 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     setInitialPersonId(undefined)
     setActiveView(view)
     setActiveSavedViewId(savedViewId || null)
+  }
+
+  const handleDeleteSavedView = async (id: string) => {
+    if (confirm("Are you sure you want to delete this saved view?")) {
+      const doc = await db.saved_views.findOne(id).exec()
+      if (doc) {
+        await doc.remove()
+        if (activeSavedViewId === id) {
+          handleNavigate("home")
+        }
+      }
+    }
+  }
+
+  const handleUpdateSavedView = async (data: { name: string; icon: string; color: string }) => {
+    if (!editingView) return
+    const doc = await db.saved_views.findOne(editingView.id).exec()
+    if (doc) {
+      await doc.patch(data)
+    }
+    setEditingView(null)
   }
 
   const { accessToken: contextToken } = useGoogleCalendar()
@@ -400,6 +423,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         active={activeView} 
         activeSavedViewId={activeSavedViewId}
         onChange={handleNavigate} 
+        onEditSavedView={setEditingView}
+        onDeleteSavedView={handleDeleteSavedView}
         inboxCount={inboxCount}
         totalCount={totalCount}
         syncStatus={syncStatus}
@@ -429,6 +454,13 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         active={activeView} 
         onChange={handleNavigate} 
         inboxCount={inboxCount} 
+      />
+
+      <SaveViewDialog
+        open={!!editingView}
+        onOpenChange={(open) => !open && setEditingView(null)}
+        onSave={handleUpdateSavedView}
+        editingView={editingView}
       />
     </div>
   )
