@@ -325,14 +325,9 @@ export function InlineDateEditor({
         type="date"
         value={date}
         onChange={(e) => {
-          const newDate = e.target.value
-          setDate(newDate)
-          // For date inputs, committing on change is often more reliable
-          // as native pickers handle the interaction
-          if (newDate) commit(newDate)
+          setDate(e.target.value)
         }}
         onBlur={() => {
-          // Only commit on blur if we haven't already (or just to be safe)
           commit(date)
         }}
         onKeyDown={(e) => {

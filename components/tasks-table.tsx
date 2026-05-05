@@ -416,7 +416,7 @@ export function TasksTable({
                         onDragStart={(e) => handleDragStart(e, key)}
                         onDragEnd={handleDragEnd}
                         className={cn(
-                          "group/handle inline-flex items-center gap-1",
+                          "group/handle flex w-full items-center justify-start gap-1",
                           isDragging && "cursor-grabbing",
                         )}
                         title="Click to sort, drag to reorder"
@@ -426,9 +426,9 @@ export function TasksTable({
                           aria-hidden
                           onClick={(e) => e.stopPropagation()}
                         />
-                        <span>{label}</span>
+                        <span className="truncate">{label}</span>
                         {sortConfig?.key === key && (
-                          <span className="ml-1 text-[10px] text-primary">
+                          <span className="ml-1 shrink-0 text-[10px] text-primary">
                             {sortConfig.direction === "asc" ? "↑" : "↓"}
                           </span>
                         )}
