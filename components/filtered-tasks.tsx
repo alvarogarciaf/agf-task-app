@@ -247,15 +247,11 @@ export function FilteredTasks({
 
   return (
     <div className="flex flex-col min-w-0 w-full rounded-lg border border-border bg-card overflow-hidden">
-      {/* Filter bar + Show on visibility (toggle always available) */}
-      <div
-        className={cn(
-          "flex flex-wrap items-center gap-2 border-b border-border bg-muted/20 p-3 shrink-0 md:p-2",
-          hideFilterBar && "justify-end py-1.5",
-        )}
-      >
-        {!hideFilterBar && (
-          <>
+      {/* Filter bar */}
+      {!hideFilterBar && (
+        <div className="flex flex-col border-b border-border bg-muted/20 divide-y divide-border/50">
+          {/* Row 1: Status & System filters */}
+          <div className="flex items-center gap-2 px-3 py-2 md:px-2 md:py-1.5">
             <div className="flex items-center gap-1.5 px-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
               <Filter className="h-3 w-3" />
               <span className="hidden md:inline text-nowrap">Filter</span>
@@ -300,6 +296,25 @@ export function FilteredTasks({
               onToggle={() => setShowHiddenByShowOn((v) => !v)}
             />
 
+            {hasFilter && (
+              <button
+                type="button"
+                onClick={() => {
+                  setContextId(null)
+                  setPersonId(null)
+                  setProjectId(null)
+                  setShowHiddenByShowOn(false)
+                }}
+                className="ml-auto inline-flex items-center gap-1 rounded px-3 py-2 text-sm text-muted-foreground hover:text-foreground md:px-2 md:py-1 md:text-xs"
+              >
+                <X className="h-3 w-3" />
+                Clear all
+              </button>
+            )}
+          </div>
+
+          {/* Row 2: Entity filters */}
+          <div className="flex flex-wrap items-center gap-2 px-3 py-2 md:px-2 md:py-1.5">
             {!hideFilters.includes("context") && (
               <FilterPill
                 label="Context"
@@ -329,36 +344,18 @@ export function FilteredTasks({
                 onClear={() => setPersonId(null)}
               />
             )}
+          </div>
+        </div>
+      )}
 
-            {hasFilter ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setContextId(null)
-                  setPersonId(null)
-                  setProjectId(null)
-                  setShowHiddenByShowOn(false)
-                }}
-                className="ml-auto inline-flex items-center gap-1 rounded px-3 py-2 text-sm text-muted-foreground hover:text-foreground md:px-2 md:py-1 md:text-xs"
-              >
-                <X className="h-3 w-3" />
-                Clear all
-              </button>
-            ) : (
-              <span className="ml-auto px-2 font-mono text-[10px] text-muted-foreground">
-                {filtered.length} of {tasks.length}
-              </span>
-            )}
-          </>
-        )}
-
-        {hideFilterBar && (
+      {hideFilterBar && (
+        <div className="flex items-center justify-end p-2 border-b border-border bg-muted/20">
           <ShowOnVisibilityToggle
             active={showHiddenByShowOn}
             onToggle={() => setShowHiddenByShowOn((v) => !v)}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="min-h-0 min-w-0 w-full">
         <TasksTable
