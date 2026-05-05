@@ -4,13 +4,16 @@ import { useState } from "react"
 import {
   Brain,
   Phone,
+  Smartphone,
   ShoppingBag,
+  ShoppingCart,
   Home,
   Eye,
   PenLine,
   WifiOff,
   Zap,
-  Pencil,
+  MoreVertical,
+  Edit2,
   Check,
   X,
   Briefcase,
@@ -33,6 +36,62 @@ import {
   Wrench,
   Trash2,
   Plus,
+  TreePine,
+  Book,
+  Clock,
+  Calendar,
+  CreditCard,
+  DollarSign,
+  Gift,
+  Hammer,
+  Headphones,
+  Monitor,
+  Printer,
+  Rocket,
+  Search,
+  Shield,
+  Smile,
+  Target,
+  Tv,
+  Users,
+  Video,
+  Activity,
+  Anchor,
+  Beaker,
+  Bell,
+  Bike,
+  Camera,
+  Cloud,
+  Code,
+  Compass,
+  Database,
+  Flag,
+  Key,
+  Layers,
+  Lightbulb,
+  Lock,
+  Mic,
+  Moon,
+  MousePointer2,
+  Palette,
+  Paperclip,
+  PieChart,
+  Play,
+  Radio,
+  Scissors,
+  Send,
+  Sparkles,
+  Sticker,
+  Terminal,
+  Ticket,
+  Umbrella,
+  Utensils,
+  Wallet,
+  Wifi,
+  FileText,
+  Mountain,
+  Palmtree,
+  Gamepad2,
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -41,36 +100,82 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import type { Context, Task } from "@/lib/types"
 
 // Full icon set available for context editing
 const ICON_OPTIONS: { name: string; icon: LucideIcon }[] = [
   { name: "Brain", icon: Brain },
   { name: "Phone", icon: Phone },
+  { name: "Smartphone", icon: Smartphone },
   { name: "ShoppingBag", icon: ShoppingBag },
+  { name: "ShoppingCart", icon: ShoppingCart },
   { name: "Home", icon: Home },
-  { name: "Eye", icon: Eye },
-  { name: "PenLine", icon: PenLine },
-  { name: "WifiOff", icon: WifiOff },
-  { name: "Zap", icon: Zap },
   { name: "Briefcase", icon: Briefcase },
-  { name: "Car", icon: Car },
-  { name: "Coffee", icon: Coffee },
-  { name: "Dumbbell", icon: Dumbbell },
-  { name: "Globe", icon: Globe },
+  { name: "Rocket", icon: Rocket },
+  { name: "Zap", icon: Zap },
+  { name: "Lightbulb", icon: Lightbulb },
+  { name: "Target", icon: Target },
+  { name: "Flag", icon: Flag },
+  { name: "Users", icon: Users },
   { name: "Heart", icon: Heart },
-  { name: "Laptop", icon: Laptop },
-  { name: "Mail", icon: Mail },
-  { name: "MapPin", icon: MapPin },
-  { name: "MessageCircle", icon: MessageCircle },
-  { name: "Music", icon: Music },
-  { name: "Package", icon: Package },
-  { name: "Plane", icon: Plane },
-  { name: "School", icon: School },
-  { name: "Settings", icon: Settings },
+  { name: "Smile", icon: Smile },
   { name: "Star", icon: Star },
+  { name: "Gift", icon: Gift },
+  { name: "Bell", icon: Bell },
+  { name: "Eye", icon: Eye },
+  { name: "Search", icon: Search },
+  { name: "Laptop", icon: Laptop },
+  { name: "Monitor", icon: Monitor },
+  { name: "Terminal", icon: Terminal },
+  { name: "Code", icon: Code },
+  { name: "Database", icon: Database },
+  { name: "Wifi", icon: Wifi },
+  { name: "Layers", icon: Layers },
+  { name: "FileText", icon: FileText },
+  { name: "Book", icon: Book },
+  { name: "PenLine", icon: PenLine },
+  { name: "Paperclip", icon: Paperclip },
+  { name: "Palette", icon: Palette },
+  { name: "Camera", icon: Camera },
+  { name: "Video", icon: Video },
+  { name: "Music", icon: Music },
+  { name: "Headphones", icon: Headphones },
+  { name: "Tv", icon: Tv },
+  { name: "Gamepad2", icon: Gamepad2 },
+  { name: "Coffee", icon: Coffee },
+  { name: "Utensils", icon: Utensils },
+  { name: "Wallet", icon: Wallet },
+  { name: "CreditCard", icon: CreditCard },
+  { name: "DollarSign", icon: DollarSign },
+  { name: "Car", icon: Car },
+  { name: "Plane", icon: Plane },
+  { name: "Bike", icon: Bike },
+  { name: "MapPin", icon: MapPin },
+  { name: "Globe", icon: Globe },
+  { name: "TreePine", icon: TreePine },
+  { name: "Mountain", icon: Mountain },
+  { name: "Palmtree", icon: Palmtree },
   { name: "Sun", icon: Sun },
+  { name: "Moon", icon: Moon },
+  { name: "Cloud", icon: Cloud },
+  { name: "Umbrella", icon: Umbrella },
+  { name: "Dumbbell", icon: Dumbbell },
+  { name: "Activity", icon: Activity },
+  { name: "Beaker", icon: Beaker },
+  { name: "Hammer", icon: Hammer },
   { name: "Wrench", icon: Wrench },
+  { name: "Settings", icon: Settings },
+  { name: "Lock", icon: Lock },
+  { name: "Key", icon: Key },
+  { name: "Shield", icon: Shield },
+  { name: "Clock", icon: Clock },
+  { name: "Calendar", icon: Calendar },
 ]
 
 const ICONS: Record<string, LucideIcon> = Object.fromEntries(
@@ -151,25 +256,45 @@ export function ContextsView({ contexts, tasks, onSelect, onUpdateContext, onDel
                 </span>
               )}
 
-              {/* Edit button */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  // Extract plain data from RxDB proxy
-                  const plain: Context = {
-                    id: c.id,
-                    name: c.name,
-                    icon: c.icon,
-                    color: c.color,
-                  }
-                  setEditing(plain)
-                }}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:opacity-0 md:group-hover:opacity-100"
-                aria-label={`Edit ${c.name}`}
-              >
-                <Pencil className="h-4 w-4" />
-              </button>
+              {/* Options Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:opacity-0 md:group-hover:opacity-100"
+                    aria-label={`Options for ${c.name}`}
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-32">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const plain: Context = {
+                        id: c.id,
+                        name: c.name,
+                        icon: c.icon,
+                        color: c.color,
+                      }
+                      setEditing(plain)
+                    }}
+                  >
+                    <Edit2 className="h-3.5 w-3.5 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => {
+                      if (confirm(`Are you sure you want to delete context "${c.name}"?`)) {
+                        onDeleteContext?.(c.id)
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )
         })}

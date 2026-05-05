@@ -1,13 +1,19 @@
 "use client"
 
 import { useState } from "react"
-import { Pencil, Check, X, Trash2, Plus } from "lucide-react"
+import { MoreVertical, Edit2, Check, X, Trash2, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   Dialog,
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import type { Person, Task } from "@/lib/types"
 
 const COLOR_PALETTE = [
@@ -83,25 +89,45 @@ export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDelete
                 </span>
               )}
 
-              {/* Edit button */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  // Extract plain data from RxDB proxy
-                  const plain: Person = {
-                    id: p.id,
-                    name: p.name,
-                    initials: p.initials,
-                    color: p.color,
-                  }
-                  setEditing(plain)
-                }}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:opacity-0 md:group-hover:opacity-100"
-                aria-label={`Edit ${p.name}`}
-              >
-                <Pencil className="h-4 w-4" />
-              </button>
+              {/* Options Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:opacity-0 md:group-hover:opacity-100"
+                    aria-label={`Options for ${p.name}`}
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-32">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const plain: Person = {
+                        id: p.id,
+                        name: p.name,
+                        initials: p.initials,
+                        color: p.color,
+                      }
+                      setEditing(plain)
+                    }}
+                  >
+                    <Edit2 className="h-3.5 w-3.5 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => {
+                      if (confirm(`Are you sure you want to delete person "${p.name}"?`)) {
+                        onDeletePerson?.(p.id)
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )
         })}
