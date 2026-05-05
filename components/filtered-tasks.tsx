@@ -240,12 +240,12 @@ export function FilteredTasks({
     setPrevTasksLength(tasks.length)
   }, [tasks, isCreating, prevTasksLength, filtered])
 
-  const handleAddNewTask = () => {
+  const handleAddNewTask = (overriddenProjectId?: string | null) => {
     if (!onCreate) return
     onCreate({
       description: "New task",
       contextIds: contextId ? [contextId] : [],
-      projectId: projectId,
+      projectId: overriddenProjectId !== undefined ? overriddenProjectId : projectId,
       personId: personId,
       processed: !inboxMode,
     })
@@ -421,7 +421,7 @@ export function FilteredTasks({
             {onCreate && (
               <button
                 type="button"
-                onClick={handleAddNewTask}
+                onClick={() => handleAddNewTask()}
                 className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -471,6 +471,16 @@ export function FilteredTasks({
                       {group.tasks.length} {group.tasks.length === 1 ? itemNoun : `${itemNoun}s`}
                     </span>
                   </h3>
+                  {onCreate && (
+                    <button
+                      type="button"
+                      onClick={() => handleAddNewTask(group.id === "none" ? null : group.id)}
+                      className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary transition-colors hover:bg-primary/20"
+                    >
+                      <Plus className="mr-1 h-3 w-3" />
+                      Add to {group.name}
+                    </button>
+                  )}
                 </div>
                 <TasksTable
                   tasks={group.tasks}
@@ -488,7 +498,7 @@ export function FilteredTasks({
                   emptyHint={tableEmptyHint}
                   itemNoun={itemNoun}
                   inboxMode={inboxMode}
-                  onCreate={onCreate ? handleAddNewTask : undefined}
+                  onCreate={onCreate ? () => handleAddNewTask(group.id === "none" ? null : group.id) : undefined}
                   onToggleStatus={onToggleStatus}
                   autoFocusTaskId={autoFocusTaskId}
                   onAutoFocusComplete={() => setAutoFocusTaskId(null)}
@@ -516,7 +526,7 @@ export function FilteredTasks({
             emptyHint={tableEmptyHint}
             itemNoun={itemNoun}
             inboxMode={inboxMode}
-            onCreate={onCreate ? handleAddNewTask : undefined}
+            onCreate={onCreate ? () => handleAddNewTask() : undefined}
             onToggleStatus={onToggleStatus}
             autoFocusTaskId={autoFocusTaskId}
             onAutoFocusComplete={() => setAutoFocusTaskId(null)}
@@ -530,7 +540,7 @@ export function FilteredTasks({
       {onCreate && (
         <button
           type="button"
-          onClick={handleAddNewTask}
+          onClick={() => handleAddNewTask()}
           className="fixed bottom-[88px] right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 transition-transform md:hidden"
           aria-label="Add task"
         >
