@@ -292,3 +292,51 @@ export function InlineMultiSelectEditor({
     </div>
   )
 }
+
+/** Date picker editor */
+export function InlineDateEditor({
+  value,
+  onCommit,
+  onCancel,
+  onTab,
+  onCtrlEnter,
+}: EditorProps & { value: string | null }) {
+  const [date, setDate] = useState(value || "")
+  const ref = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    ref.current?.focus()
+    // Native date pickers are often better triggered explicitly or by clicking
+    // but some browsers support showPicker()
+    if (ref.current && 'showPicker' in HTMLInputElement.prototype) {
+      try {
+        ref.current.showPicker();
+      } catch (e) {
+        // Fallback or ignore
+      }
+    }
+  }, [])
+
+  function commit() { onCommit(date || null) }
+
+  return (
+    <div className="absolute inset-0 flex items-center px-2 z-40">
+      <input
+        ref={ref}
+        type="date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault()
+            commit()
+          }
+          if (e.key === "Escape") { e.preventDefault(); onCancel() }
+          if (e.key === "Tab") { e.preventDefault(); commit(); onTab(e.shiftKey) }
+        }}
+        className="w-full rounded border border-primary bg-card px-2 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary h-[28px]"
+      />
+    </div>
+  )
+}

@@ -11,7 +11,7 @@ import {
 import { useTableColumns } from "@/hooks/use-table-columns"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { TaskDetailDialog } from "@/components/task-detail-dialog"
-import { InlineTextEditor, InlineSelectEditor, InlineMultiSelectEditor } from "@/components/inline-cell-editors"
+import { InlineTextEditor, InlineSelectEditor, InlineMultiSelectEditor, InlineDateEditor } from "@/components/inline-cell-editors"
 import type { Context, Person, Project, Task, UrgencyLevel } from "@/lib/types"
 
 export type TaskColumnKey =
@@ -81,7 +81,7 @@ const COLUMN_CELL_CLASSES: Partial<Record<TaskColumnKey, string>> = {
 }
 
 const EDITABLE_COLUMNS = new Set<TaskColumnKey>([
-  "description", "details", "project", "person", "contexts", "urgency",
+  "description", "details", "project", "person", "contexts", "urgency", "show_on", "action_date",
 ])
 
 interface TasksTableProps {
@@ -272,6 +272,8 @@ export function TasksTable({
     else if (column === "person") patch = { person_id: value as string | null }
     else if (column === "urgency") patch = { urgency_id: value as string }
     else if (column === "contexts") patch = { context_ids: value as string[] }
+    else if (column === "show_on") patch = { show_on: value as string | null }
+    else if (column === "action_date") patch = { action_date: value as string | null }
     if (Object.keys(patch).length) onUpdate({ id: task.id, ...patch } as Task)
     if (close) {
       setIsEditing(false)
@@ -862,6 +864,10 @@ function InlineCellEditor({ task, column, projects, persons, contexts, urgencies
         currentIds={task.context_ids ?? []}
         {...shared}
       />
+    case "show_on":
+      return <InlineDateEditor value={task.show_on ?? null} {...shared} />
+    case "action_date":
+      return <InlineDateEditor value={task.action_date ?? null} {...shared} />
     default:
       return null
   }
