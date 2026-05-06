@@ -397,7 +397,10 @@ export function TaskDetailDialog({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 border-t border-border bg-background/40 px-5 py-3">
+        <div className={cn(
+          "flex items-center gap-3 border-t border-border bg-background/40 px-5 py-3",
+          isMobile ? "justify-end" : "justify-between"
+        )}>
           {!isMobile && (
             <span className="font-mono text-[10px] text-muted-foreground">
               <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-primary align-middle" />
