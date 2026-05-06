@@ -9,6 +9,12 @@
   "orientation": "any",
   "icons": [
     {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
       "src": "/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
@@ -27,21 +33,21 @@
       "short_name": "Inbox",
       "description": "View your inbox",
       "url": "/?view=home",
-      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/logo.svg", "sizes": "any" }]
     },
     {
       "name": "All Tasks",
       "short_name": "Tasks",
       "description": "View all tasks",
       "url": "/?view=all",
-      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/logo.svg", "sizes": "any" }]
     },
     {
       "name": "Projects",
       "short_name": "Projects",
       "description": "View your projects",
       "url": "/?view=projects",
-      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/logo.svg", "sizes": "any" }]
     }
   ]
 }

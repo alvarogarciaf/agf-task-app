@@ -24,6 +24,10 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "TASKER AGF",
   },
+  icons: {
+    icon: "/logo.svg",
+    apple: "/logo.svg",
+  },
 }
 
 export const viewport: Viewport = {
