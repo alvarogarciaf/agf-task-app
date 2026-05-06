@@ -87,6 +87,27 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     return () => subs.forEach((s) => s.unsubscribe())
   }, [db])
 
+  // Handle slot resolution (View 1, View 2, View 3 from PWA manifest)
+  useEffect(() => {
+    const viewParam = searchParams.get("view")
+    if (viewParam?.startsWith("slot-") && savedViews.length > 0) {
+      const slotIndex = parseInt(viewParam.split("-")[1], 10) - 1
+      if (slotIndex >= 0) {
+        // Resolve by creation order as requested
+        const sorted = [...savedViews].sort((a, b) => 
+          new Date(a.date_created).getTime() - new Date(b.date_created).getTime()
+        )
+        const targetView = sorted[slotIndex]
+        if (targetView) {
+          handleNavigate("saved-view", targetView.id)
+        } else {
+          // If slot empty, go home
+          handleNavigate("home")
+        }
+      }
+    }
+  }, [searchParams, savedViews.length]) // Trigger when search params or savedViews count change
+
   // Handlers
   const handleCreateTask = async (input: {
     description: string

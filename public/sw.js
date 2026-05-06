@@ -1,5 +1,5 @@
-const CACHE_NAME = "tasker-agf-v2";
-const PRECACHE_URLS = ["/", "/index.html"];
+const CACHE_NAME = "tasker-agf-v3";
+const PRECACHE_URLS = ["/", "/index.html", "/manifest.json", "/logo.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -24,36 +24,25 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
-  // Only handle GET requests
   if (request.method !== "GET") return;
 
-  // Navigation requests: network-first (try fresh, fall back to cache)
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return response;
-        })
-        .catch(() => caches.match("/index.html"))
-    );
-    return;
-  }
-
-  // Static assets: cache-first (fast, fall back to network)
+  // Stale-While-Revalidate for all assets and navigation
   event.respondWith(
-    caches.match(request).then(
-      (cached) =>
-        cached ||
-        fetch(request).then((response) => {
-          // Cache successful responses for static assets
-          if (response.ok && (request.url.includes("/_next/") || request.url.includes("/icon-"))) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        })
-    )
+    caches.match(request).then((cachedResponse) => {
+      const fetchPromise = fetch(request).then((networkResponse) => {
+        if (networkResponse.ok) {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        }
+        return networkResponse;
+      }).catch(() => {
+        // If network fails and no cache, fallback for navigation
+        if (request.mode === "navigate") {
+          return caches.match("/index.html");
+        }
+      });
+
+      return cachedResponse || fetchPromise;
+    })
   );
 });

@@ -98,8 +98,6 @@ export const getDatabase = async (userUid: string) => {
     });
     
     // Seed system data if missing
-    const mockData = await import('../mock-data');
-    
     const [urgencyCount, projectCount, personCount, contextCount] = await Promise.all([
       db.urgencies.count().exec(),
       db.projects.count().exec(),
@@ -107,27 +105,28 @@ export const getDatabase = async (userUid: string) => {
       db.contexts.count().exec(),
     ]);
 
-    const seeds = [];
-    
-    // Urgencies are system data, seed if empty
-    if (urgencyCount === 0) seeds.push(db.urgencies.bulkInsert(mockData.urgencies));
-
-    // For projects, persons, and contexts, only seed if it's the FIRST time on this browser
-    // to avoid cluttering existing accounts on new devices.
     const hasSeeded = typeof window !== 'undefined' ? localStorage.getItem('tasker_has_seeded') : 'true';
-    
-    if (!hasSeeded) {
-      if (projectCount === 0) seeds.push(db.projects.bulkInsert(mockData.projects));
-      if (personCount === 0) seeds.push(db.persons.bulkInsert(mockData.persons));
-      if (contextCount === 0) seeds.push(db.contexts.bulkInsert(mockData.contexts));
+    const needsUrgencies = urgencyCount === 0;
+    const needsInitialSeed = !hasSeeded && (projectCount === 0 || personCount === 0 || contextCount === 0);
+
+    if (needsUrgencies || needsInitialSeed) {
+      const mockData = await import('../mock-data');
+      const seeds = [];
       
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('tasker_has_seeded', 'true');
+      if (needsUrgencies) seeds.push(db.urgencies.bulkInsert(mockData.urgencies));
+      if (needsInitialSeed) {
+        if (projectCount === 0) seeds.push(db.projects.bulkInsert(mockData.projects));
+        if (personCount === 0) seeds.push(db.persons.bulkInsert(mockData.persons));
+        if (contextCount === 0) seeds.push(db.contexts.bulkInsert(mockData.contexts));
+        
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('tasker_has_seeded', 'true');
+        }
       }
-    }
-    
-    if (seeds.length > 0) {
-      await Promise.all(seeds);
+      
+      if (seeds.length > 0) {
+        await Promise.all(seeds);
+      }
     }
     
     return db;
