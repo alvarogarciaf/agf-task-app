@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from "react"
-import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2 } from "lucide-react"
+import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import {
   DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent,
@@ -120,6 +121,10 @@ interface TasksTableProps {
     reorder: (source: TaskColumnKey, target: TaskColumnKey) => void
     reset: () => void
   }
+  selectedIds?: Set<string>
+  onToggleSelection?: (id: string, shiftKey?: boolean) => void
+  onToggleAll?: (ids: string[]) => void
+  onBulkDelete?: () => void
 }
 
 export function TasksTable({
@@ -146,6 +151,10 @@ export function TasksTable({
   onSort,
   hideToolbar = false,
   columnState,
+  selectedIds = new Set(),
+  onToggleSelection,
+  onToggleAll,
+  onBulkDelete,
 }: TasksTableProps) {
   const internalColumnState = useTableColumns<TaskColumnKey>(
     storageKey, DEFAULT_ORDER, DEFAULT_VISIBILITY,
@@ -184,6 +193,10 @@ export function TasksTable({
   const visibleColumns = orderableKeys.filter((k) => visibility[k])
   const visibleCount = visibleColumns.length
   const totalCount = orderableKeys.length
+
+  const allVisibleIds = tasks.map(t => t.id)
+  const isAllSelected = allVisibleIds.length > 0 && allVisibleIds.every(id => selectedIds.has(id))
+  const isSomeSelected = allVisibleIds.some(id => selectedIds.has(id)) && !isAllSelected
 
   const activeTask = activeTaskId ? tasks.find((t) => t.id === activeTaskId) ?? null : null
 
@@ -389,7 +402,15 @@ export function TasksTable({
                   onToggleProcessed={onToggleProcessed}
                   onArchiveTask={onArchiveTask}
                   onDeleteTask={onDeleteTask}
-                  onClick={(t) => setActiveTaskId(t.id)}
+                  onClick={(t) => {
+                    if (selectedIds.size > 0) {
+                      onToggleSelection?.(t.id)
+                    } else {
+                      setActiveTaskId(t.id)
+                    }
+                  }}
+                  isSelected={selectedIds.has(task.id)}
+                  onToggleSelection={() => onToggleSelection?.(task.id)}
                 />
               )
             })}
@@ -398,6 +419,13 @@ export function TasksTable({
             <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-card">
               <tr className="border-b border-border">
+                <th className="w-10 px-3 py-2 text-left align-middle select-none">
+                  <Checkbox 
+                    checked={isAllSelected ? true : (isSomeSelected ? "indeterminate" : false)}
+                    onCheckedChange={() => onToggleAll?.(allVisibleIds)}
+                    aria-label="Select all"
+                  />
+                </th>
                 {visibleColumns.map((key) => {
                   const col = COLUMN_MAP[key]
                   const label = inboxMode && key === "status" ? "Processed" : col.label
@@ -457,8 +485,25 @@ export function TasksTable({
                 return (
                   <tr
                     key={task.id}
-                    className="group border-b border-border/60 last:border-b-0 transition-colors hover:bg-muted/30"
+                    className={cn(
+                      "group border-b border-border/60 last:border-b-0 transition-colors hover:bg-muted/30 select-none",
+                      selectedIds.has(task.id) && "bg-primary/5 hover:bg-primary/10"
+                    )}
                   >
+                    <td 
+                      className="w-10 px-3 py-2 text-left align-middle"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onToggleSelection?.(task.id, e.shiftKey)
+                      }}
+                    >
+                      <Checkbox 
+                        checked={selectedIds.has(task.id)}
+                        onCheckedChange={() => {}} // Click handled by td for Shift support
+                        className="pointer-events-none" // Pass clicks to td
+                        aria-label={`Select ${task.description}`}
+                      />
+                    </td>
                     {visibleColumns.map((key) => {
                       const isSelected = selectedCell?.taskId === task.id && selectedCell?.column === key
                       const isEditingThis = isSelected && isEditing
@@ -471,6 +516,7 @@ export function TasksTable({
                           }}
                           tabIndex={isEditable ? 0 : -1}
                           onFocus={() => {
+                            if (selectedIds.size > 0) return // Don't focus cells if in selection mode
                             if (isEditable && !isSelected) {
                               setSelectedCell({ taskId: task.id, column: key })
                               setIsEditing(false)
@@ -490,6 +536,12 @@ export function TasksTable({
                                 e.preventDefault()
                                 onToggleProcessed(task.id)
                                 setSelectedCell(null)
+                                return
+                              }
+
+                              if ((e.key === "Delete" || e.key === "Backspace") && selectedIds.size > 0) {
+                                e.preventDefault()
+                                onBulkDelete?.()
                                 return
                               }
                               
@@ -514,6 +566,11 @@ export function TasksTable({
                             isEditingThis && "ring-primary bg-background shadow-lg",
                           )}
                           onClick={(e) => {
+                            if (selectedIds.size > 0 || e.shiftKey) {
+                              e.stopPropagation()
+                              onToggleSelection?.(task.id, e.shiftKey)
+                              return
+                            }
                             if (!isEditable) return
                             e.stopPropagation()
                             if (!isSelected) {
@@ -522,6 +579,7 @@ export function TasksTable({
                             }
                           }}
                           onDoubleClick={(e) => {
+                            if (selectedIds.size > 0) return
                             if (!isEditable) return
                             e.stopPropagation()
                             setSelectedCell({ taskId: task.id, column: key })
@@ -600,8 +658,7 @@ export function TasksTable({
                           <DropdownMenuTrigger asChild>
                             <button
                               type="button"
-                              onClick={(e) => e.stopPropagation()}
-                              className="hidden rounded p-0.5 text-muted-foreground/40 transition-colors hover:text-foreground group-hover:inline-flex"
+                              className="hidden rounded p-0.5 text-muted-foreground/40 transition-colors hover:text-foreground group-hover:inline-flex data-[state=open]:inline-flex data-[state=open]:bg-muted"
                               title="More actions"
                             >
                               <MoreVertical className="h-3.5 w-3.5" />
@@ -899,6 +956,8 @@ function MobileTaskRow({
   onArchiveTask,
   onDeleteTask,
   onClick,
+  isSelected,
+  onToggleSelection,
 }: {
   task: Task
   urgency?: UrgencyLevel
@@ -906,11 +965,47 @@ function MobileTaskRow({
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
   onClick: (task: Task) => void
+  isSelected: boolean
+  onToggleSelection: () => void
 }) {
+  const [longPressTriggered, setLongPressTriggered] = useState(false)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  const startPress = useCallback(() => {
+    setLongPressTriggered(false)
+    timerRef.current = setTimeout(() => {
+      setLongPressTriggered(true)
+      onToggleSelection()
+      // Provide haptic feedback if available
+      if (window.navigator && window.navigator.vibrate) {
+        window.navigator.vibrate(50)
+      }
+    }, 500)
+  }, [onToggleSelection])
+
+  const endPress = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+  }, [])
+
   return (
     <div 
-      className="flex min-h-[56px] items-center gap-2 bg-card px-4 py-2 active:bg-muted/50"
-      onClick={() => onClick(task)}
+      className={cn(
+        "flex min-h-[56px] items-center gap-2 px-4 py-2 transition-colors active:bg-muted/50 touch-none select-none",
+        isSelected ? "bg-primary/10" : "bg-card"
+      )}
+      onClick={(e) => {
+        if (!longPressTriggered) {
+          onClick(task)
+        }
+      }}
+      onTouchStart={startPress}
+      onTouchEnd={endPress}
+      onMouseDown={startPress}
+      onMouseUp={endPress}
+      onMouseLeave={endPress}
     >
       {/* Description - Maximize horizontal space and prevent overflow */}
       <span
@@ -941,49 +1036,49 @@ function MobileTaskRow({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="flex h-10 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted active:bg-muted"
+              className="flex h-10 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted active:bg-muted data-[state=open]:bg-muted"
             >
               <MoreVertical className="h-4.5 w-4.5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Task Actions</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            
-            <DropdownMenuItem onClick={() => onToggleProcessed(task.id)}>
-              <CircleCheck className="mr-2 h-4 w-4" />
-              <span>Mark as Done</span>
-            </DropdownMenuItem>
-
-            {task.processed ? (
-              <DropdownMenuItem onClick={() => onToggleProcessed(task.id)}>
-                <RotateCcw className="mr-2 h-4 w-4" />
-                <span>Mark as Unprocessed</span>
-              </DropdownMenuItem>
-            ) : (
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Task Actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              
               <DropdownMenuItem onClick={() => onToggleProcessed(task.id)}>
                 <CircleCheck className="mr-2 h-4 w-4" />
-                <span>Mark as Processed</span>
+                <span>Mark as Done</span>
               </DropdownMenuItem>
-            )}
 
-            {onArchiveTask && (
-              <DropdownMenuItem onClick={() => onArchiveTask(task.id)}>
-                <Archive className="mr-2 h-4 w-4" />
-                <span>Archive</span>
+              {task.processed ? (
+                <DropdownMenuItem onClick={() => onToggleProcessed(task.id)}>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  <span>Mark as Unprocessed</span>
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={() => onToggleProcessed(task.id)}>
+                  <CircleCheck className="mr-2 h-4 w-4" />
+                  <span>Mark as Processed</span>
+                </DropdownMenuItem>
+              )}
+
+              {onArchiveTask && (
+                <DropdownMenuItem onClick={() => onArchiveTask(task.id)}>
+                  <Archive className="mr-2 h-4 w-4" />
+                  <span>Archive</span>
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuSeparator />
+              
+              <DropdownMenuItem 
+                className="text-destructive focus:text-destructive"
+                onClick={() => onDeleteTask?.(task.id)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                <span>Delete</span>
               </DropdownMenuItem>
-            )}
-
-            <DropdownMenuSeparator />
-            
-            <DropdownMenuItem 
-              className="text-destructive focus:text-destructive"
-              onClick={() => onDeleteTask?.(task.id)}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              <span>Delete</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
+            </DropdownMenuContent>
         </DropdownMenu>
       </div>
     </div>

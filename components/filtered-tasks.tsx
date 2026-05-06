@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from "react"
 import { CalendarClock, Filter, X, Check, ChevronDown, LayoutList, Columns3, Plus, RotateCcw, Star } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 import { TasksTable, TASK_COLUMNS, COLUMN_MAP } from "@/components/tasks-table"
 import type { TaskColumnKey } from "@/components/tasks-table"
 import { useTableColumns } from "@/hooks/use-table-columns"
@@ -115,6 +116,8 @@ export function FilteredTasks({
   const [showHiddenByShowOn, setShowHiddenByShowOn] = useState(initialShowHiddenByShowOn ?? false)
   const [isGroupedByProject, setIsGroupedByProject] = useState(initialIsGroupedByProject ?? false)
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null)
   const db = useDatabase()
 
   // Column state lifted from TasksTable
@@ -274,7 +277,7 @@ export function FilteredTasks({
     if (!onCreate) return
     const id = await onCreate({
       description: "New task",
-      contextIds: contextIds.length === 1 ? contextIds : [],
+      contextIds: contextIds,
       projectId: overriddenProjectId !== undefined ? overriddenProjectId : projectId,
       personId: personId,
       processed: !inboxMode,
@@ -283,6 +286,59 @@ export function FilteredTasks({
       setAutoFocusTaskId(id)
     }
     setIsCreating(true)
+  }
+
+  const handleToggleSelection = (id: string, shiftKey?: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (shiftKey && lastSelectedId) {
+        const order = filtered.map(t => t.id)
+        const startIdx = order.indexOf(lastSelectedId)
+        const endIdx = order.indexOf(id)
+        if (startIdx !== -1 && endIdx !== -1) {
+          const start = Math.min(startIdx, endIdx)
+          const end = Math.max(startIdx, endIdx)
+          for (let i = start; i <= end; i++) {
+            next.add(order[i])
+          }
+        }
+      } else {
+        if (next.has(id)) next.delete(id)
+        else next.add(id)
+      }
+      return next
+    })
+    setLastSelectedId(id)
+  }
+
+  const handleToggleAllSelection = (ids: string[]) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      const anyIncluded = ids.some(id => next.has(id))
+      if (anyIncluded) {
+        ids.forEach(id => next.delete(id))
+      } else {
+        ids.forEach(id => next.add(id))
+      }
+      return next
+    })
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0 || !onDeleteTask) return
+
+    const confirmMessage = selectedIds.size === 1 
+      ? "Are you sure you want to delete this task?"
+      : `Are you sure you want to delete these ${selectedIds.size} tasks?`
+    
+    if (window.confirm(confirmMessage)) {
+      // Loop through and delete
+      for (const id of selectedIds) {
+        await onDeleteTask(id)
+      }
+      setSelectedIds(new Set())
+      toast.success(`${selectedIds.size} task${selectedIds.size === 1 ? "" : "s"} deleted`)
+    }
   }
 
   const handleSort = (key: string) => {
@@ -337,10 +393,17 @@ export function FilteredTasks({
         e.preventDefault()
         handleAddNewTask()
       }
+
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedIds.size > 0) {
+        // Only trigger if we're not already in an input/textarea
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+        e.preventDefault()
+        handleBulkDelete()
+      }
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [handleAddNewTask])
+  }, [handleAddNewTask, selectedIds, handleBulkDelete])
 
   const hasFilter = contextIds.length > 0 || personId || projectId
 
@@ -596,6 +659,10 @@ export function FilteredTasks({
                   onAutoFocusComplete={() => setAutoFocusTaskId(null)}
                   sortConfig={sortConfig}
                   onSort={handleSort}
+                  selectedIds={selectedIds}
+                  onToggleSelection={handleToggleSelection}
+                  onToggleAll={handleToggleAllSelection}
+                  onBulkDelete={handleBulkDelete}
                   hideToolbar
                 />
               </div>
@@ -624,6 +691,10 @@ export function FilteredTasks({
             onAutoFocusComplete={() => setAutoFocusTaskId(null)}
             sortConfig={sortConfig}
             onSort={handleSort}
+            selectedIds={selectedIds}
+            onToggleSelection={handleToggleSelection}
+            onToggleAll={handleToggleAllSelection}
+            onBulkDelete={handleBulkDelete}
             hideToolbar
           />
         )}
