@@ -226,20 +226,6 @@ export function TaskDetailDialog({
             />
           </div>
 
-          {/* Details */}
-          <div className="mt-5">
-            <Label icon={<FileText className="h-3 w-3" />}>Details</Label>
-            <Textarea
-              value={draft.details ?? ""}
-              onChange={(e) =>
-                update("details", e.target.value === "" ? undefined : e.target.value)
-              }
-              placeholder="Add notes, links, or context. Markdown supported."
-              className="mt-1.5 min-h-[120px] border-border bg-background text-sm leading-relaxed"
-              rows={5}
-            />
-          </div>
-
           {/* Single-column grid */}
           <div className="mt-5 grid gap-5">
             {/* Urgency */}
@@ -393,6 +379,20 @@ export function TaskDetailDialog({
                 className="mt-1.5 h-11 w-full rounded-md border border-border bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-ring/40 md:h-9 md:text-sm"
               />
             </div>
+          </div>
+
+          {/* Details */}
+          <div className="mt-5">
+            <Label icon={<FileText className="h-3 w-3" />}>Details</Label>
+            <Textarea
+              value={draft.details ?? ""}
+              onChange={(e) =>
+                update("details", e.target.value === "" ? undefined : e.target.value)
+              }
+              placeholder="Add notes, links, or context. Markdown supported."
+              className="mt-1.5 min-h-[120px] border-border bg-background text-sm leading-relaxed"
+              rows={5}
+            />
           </div>
         </div>
 
