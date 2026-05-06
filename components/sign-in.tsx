@@ -33,10 +33,8 @@ export function SignIn() {
       <div className="w-full max-w-sm space-y-8">
         {/* Brand */}
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15 text-primary ring-1 ring-primary/30">
-            <ClipboardList className="h-8 w-8" strokeWidth={1.8} />
-          </div>
-          <h1 className="mt-5 text-2xl font-bold tracking-tight">TASKER AGF</h1>
+          <img src="/logo.svg" alt="Logo" className="h-32 w-auto" />
+          <h1 className="mt-2 text-2xl font-bold tracking-tight">TASKER AGF</h1>
           <p className="mt-2 text-base text-muted-foreground md:text-sm">
             Local-first task manager. Sign in to get started.
           </p>

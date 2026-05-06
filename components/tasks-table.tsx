@@ -1014,7 +1014,7 @@ function MobileTaskRow({
   return (
     <div 
       className={cn(
-        "flex min-h-[56px] items-center gap-2 px-4 py-2 transition-colors active:bg-muted/50 touch-none select-none",
+        "flex min-h-[56px] items-center gap-2 px-4 py-2 transition-colors active:bg-muted/50 select-none",
         isSelected ? "bg-primary/10" : "bg-card"
       )}
       onClick={(e) => {
@@ -1023,6 +1023,7 @@ function MobileTaskRow({
         }
       }}
       onTouchStart={startPress}
+      onTouchMove={endPress}
       onTouchEnd={endPress}
       onMouseDown={startPress}
       onMouseUp={endPress}
