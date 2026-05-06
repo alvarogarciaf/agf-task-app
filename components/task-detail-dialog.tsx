@@ -398,10 +398,12 @@ export function TaskDetailDialog({
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-3 border-t border-border bg-background/40 px-5 py-3">
-          <span className="font-mono text-[10px] text-muted-foreground">
-            <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-primary align-middle" />
-            Edits write to IndexedDB instantly
-          </span>
+          {!isMobile && (
+            <span className="font-mono text-[10px] text-muted-foreground">
+              <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-primary align-middle" />
+              Edits write to IndexedDB instantly
+            </span>
+          )}
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -417,7 +419,7 @@ export function TaskDetailDialog({
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 md:px-3 md:py-1.5 md:text-xs"
             >
               <Check className="h-3 w-3" />
-              Save changes
+              {isMobile ? "Save" : "Save changes"}
             </button>
           </div>
         </div>
