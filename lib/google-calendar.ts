@@ -3,7 +3,9 @@ import type { Task } from "./types";
 const CALENDAR_API_BASE = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
 
 function getNextDay(dateStr: string): string {
-  const date = new Date(dateStr + 'T12:00:00');
+  // If dateStr is an ISO string (contains T or Z), extract just the date part
+  const pureDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr.split('Z')[0];
+  const date = new Date(pureDate + 'T12:00:00');
   date.setDate(date.getDate() + 1);
   return date.toISOString().split('T')[0];
 }
@@ -15,7 +17,7 @@ export async function createGoogleEvent(task: Task, accessToken: string, calenda
   const event = {
     summary: task.description,
     description: task.details || '',
-    start: { date: task.action_date },
+    start: { date: task.action_date.split('T')[0] },
     end: { date: getNextDay(task.action_date) },
     reminders: { useDefault: true },
   };
@@ -49,7 +51,7 @@ export async function updateGoogleEvent(task: Task, accessToken: string, calenda
   const event = {
     summary: task.description,
     description: task.details || '',
-    start: { date: task.action_date },
+    start: { date: task.action_date.split('T')[0] },
     end: { date: getNextDay(task.action_date) },
   };
 

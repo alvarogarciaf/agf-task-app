@@ -1,11 +1,20 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Search, Command, Settings, LogOut, ChevronDown } from "lucide-react"
+import { Search, Command, Settings, LogOut, ChevronDown, Menu, Users, Tags, AlertCircle, Calendar, Trash2, Info } from "lucide-react"
 import type { ViewKey } from "@/lib/types"
 import type { User } from "firebase/auth"
 import type { SyncStatus } from "./db-provider"
-import { Cloud, CloudOff, AlertCircle } from "lucide-react"
+import { Cloud, CloudOff } from "lucide-react"
+import { 
+  Drawer, 
+  DrawerContent, 
+  DrawerHeader, 
+  DrawerTitle, 
+  DrawerTrigger, 
+  DrawerClose 
+} from "@/components/ui/drawer"
+import type { TabKey } from "./views/settings-view"
 
 const TITLES: Record<ViewKey, string> = {
   home: "Inbox",
@@ -21,7 +30,7 @@ const TITLES: Record<ViewKey, string> = {
 interface AppHeaderProps {
   view: ViewKey
   savedViewName?: string | null
-  onNavigate?: (view: ViewKey, savedViewId?: string) => void
+  onNavigate?: (view: ViewKey, savedViewId?: string, settingsTab?: TabKey) => void
   user?: User | null
   onSignOut?: () => void
   syncStatus?: SyncStatus
@@ -30,6 +39,7 @@ interface AppHeaderProps {
 export function AppHeader({ view, savedViewName, onNavigate, user, onSignOut, syncStatus }: AppHeaderProps) {
   const title = view === "saved-view" ? savedViewName || "Saved View" : TITLES[view]
   const [avatarOpen, setAvatarOpen] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Close dropdown on outside click
@@ -52,6 +62,15 @@ export function AppHeader({ view, savedViewName, onNavigate, user, onSignOut, sy
         .map((w) => w[0]?.toUpperCase() || "")
         .join("")
     : "?"
+
+  const settingsOptions: { key: TabKey; label: string; icon: any }[] = [
+    { key: "persons", label: "People", icon: Users },
+    { key: "contexts", label: "Contexts", icon: Tags },
+    { key: "urgencies", label: "Urgencies", icon: AlertCircle },
+    { key: "calendar", label: "Calendar", icon: Calendar },
+    { key: "data", label: "Data Management", icon: Trash2 },
+    { key: "troubleshoot", label: "Sync & Debug", icon: Info },
+  ]
 
   return (
     <header className="pt-safe border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -76,15 +95,52 @@ export function AppHeader({ view, savedViewName, onNavigate, user, onSignOut, sy
             </span>
           </button>
 
-          {/* Settings gear */}
+          {/* Desktop: Settings gear */}
           <button
             type="button"
             onClick={() => onNavigate?.("settings")}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:h-8 md:w-8"
+            className="hidden md:flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="Settings"
           >
-            <Settings className="h-4.5 w-4.5 md:h-4 md:w-4" />
+            <Settings className="h-4 w-4" />
           </button>
+
+          {/* Mobile: Hamburger Drawer */}
+          <div className="md:hidden">
+            <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} direction="left">
+              <DrawerTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label="Menu"
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+              </DrawerTrigger>
+              <DrawerContent className="h-full w-[280px]">
+                <DrawerHeader className="border-b border-border">
+                  <DrawerTitle className="text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Settings & Configuration
+                  </DrawerTitle>
+                </DrawerHeader>
+                <div className="flex flex-col py-2">
+                  {settingsOptions.map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => {
+                        onNavigate?.("settings", undefined, opt.key)
+                        setDrawerOpen(false)
+                      }}
+                      className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted active:bg-muted"
+                    >
+                      <opt.icon className="h-4.5 w-4.5 text-muted-foreground" />
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </DrawerContent>
+            </Drawer>
+          </div>
 
           {/* Avatar dropdown */}
           <div className="relative" ref={dropdownRef}>

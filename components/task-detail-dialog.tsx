@@ -445,9 +445,9 @@ function toDateInputValue(iso?: string | null): string {
   if (!iso) return ""
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ""
-  // Format as YYYY-MM-DD in local time
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, "0")
-  const dd = String(d.getDate()).padStart(2, "0")
+  // Format as YYYY-MM-DD in UTC to avoid local timezone shifts
+  const yyyy = d.getUTCFullYear()
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0")
+  const dd = String(d.getUTCDate()).padStart(2, "0")
   return `${yyyy}-${mm}-${dd}`
 }

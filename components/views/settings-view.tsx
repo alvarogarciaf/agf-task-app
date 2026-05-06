@@ -9,7 +9,11 @@ import { listGoogleCalendars, type GoogleCalendar } from "@/lib/google-calendar"
 import type { Context, Person, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "@/components/db-provider"
 
+export type TabKey = "persons" | "contexts" | "urgencies" | "calendar" | "data" | "troubleshoot"
+
 interface SettingsViewProps {
+  activeTab?: TabKey
+  onTabChange?: (tab: TabKey) => void
   persons: Person[]
   contexts: Context[]
   urgencies: UrgencyLevel[]
@@ -31,9 +35,9 @@ interface SettingsViewProps {
   onSelectCalendar?: (id: string) => void
 }
 
-type TabKey = "persons" | "contexts" | "urgencies" | "calendar" | "data" | "troubleshoot"
-
 export function SettingsView({
+  activeTab: controlledTab,
+  onTabChange,
   persons,
   contexts,
   urgencies,
@@ -54,7 +58,9 @@ export function SettingsView({
   selectedCalendarId,
   onSelectCalendar,
 }: SettingsViewProps) {
-  const [tab, setTab] = useState<TabKey>("persons")
+  const [internalTab, setInternalTab] = useState<TabKey>("persons")
+  const tab = controlledTab || internalTab
+  const setTab = onTabChange || setInternalTab
   const { accessToken, isConnected, connect, disconnect } = useGoogleCalendar()
   const [isSyncing, setIsSyncing] = useState(false)
   const [calendars, setCalendars] = useState<GoogleCalendar[]>([])
@@ -111,7 +117,8 @@ export function SettingsView({
   return (
     <div className="max-w-4xl mx-auto">
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-border mb-6">
+      {/* Tabs - Hidden on mobile as they are now in the drawer */}
+      <div className="hidden md:flex items-center gap-1 border-b border-border mb-6">
         <TabButton active={tab === "persons"} onClick={() => setTab("persons")} icon={Users}>
           People
         </TabButton>

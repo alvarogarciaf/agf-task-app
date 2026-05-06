@@ -301,6 +301,7 @@ export function InlineDateEditor({
   onTab,
   onCtrlEnter,
 }: EditorProps & { value: string | null }) {
+  // If value is an ISO string, extract the date part for the input
   const initial = value ? value.split('T')[0] : ""
   const [date, setDate] = useState(initial)
   const ref = useRef<HTMLInputElement>(null)
@@ -315,7 +316,9 @@ export function InlineDateEditor({
   }, [])
 
   const commit = useCallback((val: string) => {
-    onCommit(val || null)
+    // If we have a date string (YYYY-MM-DD), convert to ISO at UTC midnight
+    const iso = val ? new Date(val).toISOString() : null
+    onCommit(iso)
   }, [onCommit])
 
   return (

@@ -13,7 +13,7 @@ import { InboxView } from "@/components/views/inbox-view"
 import { AllTasksView } from "@/components/views/all-tasks-view"
 import { ProjectsView } from "@/components/views/projects-view"
 import { ContextsView } from "@/components/views/contexts-view"
-import { SettingsView } from "@/components/views/settings-view"
+import { SettingsView, type TabKey } from "@/components/views/settings-view"
 import { PersonsView } from "@/components/views/persons-view"
 import type { Context, Person, Project, Task, UrgencyLevel, ViewKey, SavedView } from "@/lib/types"
 import type { User } from "firebase/auth"
@@ -72,6 +72,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [urgencies, setUrgencies] = useState<UrgencyLevel[]>([])
   const [savedViews, setSavedViews] = useState<SavedView[]>([])
   const [editingView, setEditingView] = useState<SavedView | null>(null)
+  const [activeSettingsTab, setActiveSettingsTab] = useState<TabKey>("persons")
 
   // Subscriptions
   useEffect(() => {
@@ -170,16 +171,18 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     if (doc) await doc.remove()
   }
 
-  const handleNavigate = (view: ViewKey, savedViewId?: string) => {
+  const handleNavigate = (view: ViewKey, savedViewId?: string, settingsTab?: TabKey) => {
     // Clear drill-down filters when navigating via sidebar/header
     setInitialContextId(undefined)
     setInitialPersonId(undefined)
     setActiveView(view)
     setActiveSavedViewId(savedViewId || null)
+    if (settingsTab) setActiveSettingsTab(settingsTab)
 
     const params = new URLSearchParams()
     params.set("view", view)
     if (savedViewId) params.set("savedViewId", savedViewId)
+    if (settingsTab) params.set("tab", settingsTab)
     router.push(`/?${params.toString()}`, { scroll: false })
   }
 
@@ -384,6 +387,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       case "settings":
         return (
           <SettingsView 
+            activeTab={activeSettingsTab}
+            onTabChange={setActiveSettingsTab}
             persons={persons}
             contexts={contexts}
             urgencies={urgencies}
