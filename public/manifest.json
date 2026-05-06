@@ -9,10 +9,16 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "/logo.svg",
+      "src": "/logo.svg?v=3",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.svg?v=3",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
@@ -21,42 +27,42 @@
       "short_name": "Inbox",
       "description": "View your inbox",
       "url": "/?view=home",
-      "icons": [{ "src": "/logo.svg", "sizes": "any" }]
+      "icons": [{ "src": "/logo.svg?v=3", "sizes": "any" }]
     },
     {
       "name": "All Tasks",
       "short_name": "Tasks",
       "description": "View all tasks",
       "url": "/?view=all",
-      "icons": [{ "src": "/logo.svg", "sizes": "any" }]
+      "icons": [{ "src": "/logo.svg?v=3", "sizes": "any" }]
     },
     {
       "name": "Projects",
       "short_name": "Projects",
       "description": "View your projects",
       "url": "/?view=projects",
-      "icons": [{ "src": "/logo.svg", "sizes": "any" }]
+      "icons": [{ "src": "/logo.svg?v=3", "sizes": "any" }]
     },
     {
       "name": "View 1",
       "short_name": "View 1",
       "description": "Open your first saved view",
       "url": "/?view=slot-1",
-      "icons": [{ "src": "/logo.svg", "sizes": "any" }]
+      "icons": [{ "src": "/logo.svg?v=3", "sizes": "any" }]
     },
     {
       "name": "View 2",
       "short_name": "View 2",
       "description": "Open your second saved view",
       "url": "/?view=slot-2",
-      "icons": [{ "src": "/logo.svg", "sizes": "any" }]
+      "icons": [{ "src": "/logo.svg?v=3", "sizes": "any" }]
     },
     {
       "name": "View 3",
       "short_name": "View 3",
       "description": "Open your third saved view",
       "url": "/?view=slot-3",
-      "icons": [{ "src": "/logo.svg", "sizes": "any" }]
+      "icons": [{ "src": "/logo.svg?v=3", "sizes": "any" }]
     }
   ]
 }

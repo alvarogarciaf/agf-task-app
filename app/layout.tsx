@@ -25,8 +25,8 @@ export const metadata: Metadata = {
     title: "TASKER AGF",
   },
   icons: {
-    icon: "/logo.svg",
-    apple: "/logo.svg",
+    icon: "/logo.svg?v=3",
+    apple: "/logo.svg?v=3",
   },
 }
 
