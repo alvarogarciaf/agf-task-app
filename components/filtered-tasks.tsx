@@ -312,6 +312,11 @@ export function FilteredTasks({
   }
 
   const handleToggleAllSelection = (ids: string[]) => {
+    if (ids.length === 0) {
+      setSelectedIds(new Set())
+      setLastSelectedId(null)
+      return
+    }
     setSelectedIds((prev) => {
       const next = new Set(prev)
       const anyIncluded = ids.some(id => next.has(id))
@@ -327,18 +332,32 @@ export function FilteredTasks({
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0 || !onDeleteTask) return
 
-    const confirmMessage = selectedIds.size === 1 
-      ? "Are you sure you want to delete this task?"
-      : `Are you sure you want to delete these ${selectedIds.size} tasks?`
-    
-    if (window.confirm(confirmMessage)) {
-      // Loop through and delete
-      for (const id of selectedIds) {
+    if (selectedIds.size === 1) {
+      if (window.confirm("Are you sure you want to delete this task?")) {
+        const id = Array.from(selectedIds)[0]
         await onDeleteTask(id)
+        setSelectedIds(new Set())
+        toast.success("Task deleted")
       }
-      setSelectedIds(new Set())
-      toast.success(`${selectedIds.size} task${selectedIds.size === 1 ? "" : "s"} deleted`)
+      return
     }
+
+    // For multiple tasks, use a toast with an action to confirm
+    toast.warning(`Delete ${selectedIds.size} tasks?`, {
+      action: {
+        label: "Confirm",
+        onClick: async () => {
+          const idsToDelete = Array.from(selectedIds)
+          const count = idsToDelete.length
+          for (const id of idsToDelete) {
+            await onDeleteTask(id)
+          }
+          setSelectedIds(new Set())
+          toast.success(`${count} tasks deleted`)
+        }
+      },
+      duration: 5000,
+    })
   }
 
   const handleSort = (key: string) => {
@@ -832,7 +851,7 @@ function FilterPill({
           ) : null}
         </div>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-56 p-1">
+      <PopoverContent align="start" className="w-56 p-2">
         <div className="max-h-64 overflow-auto">
           {options.map((opt) => {
             const isSelected = selectedIds.includes(opt.id) || value === opt.label
@@ -844,7 +863,7 @@ function FilterPill({
                   onSelect(opt.id)
                   if (!multiSelect) setOpen(false)
                 }}
-                className="flex w-full items-center gap-2 rounded px-3 py-2.5 text-left text-base hover:bg-muted md:px-2 md:py-1.5 md:text-sm"
+                className="flex w-full items-center gap-3 rounded px-4 py-3.5 text-left text-lg hover:bg-muted md:px-2 md:py-1.5 md:text-sm"
               >
                 {opt.color ? (
                   <span

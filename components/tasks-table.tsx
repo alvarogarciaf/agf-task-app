@@ -392,6 +392,27 @@ export function TasksTable({
       ) : (
         <>
           <div className="md:hidden flex w-full min-w-0 flex-col divide-y divide-border">
+            {selectedIds.size > 0 && (
+              <div className="flex items-center justify-between px-4 py-3 bg-primary/5 border-b border-border/50 animate-in slide-in-from-top duration-200">
+                <span className="text-sm font-semibold text-primary">
+                  {selectedIds.size} selected
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => onBulkDelete?.()}
+                    className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-bold text-destructive active:bg-destructive/20 transition-colors"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => onToggleAll?.([])}
+                    className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary active:bg-primary/20 transition-colors"
+                  >
+                    Deselect
+                  </button>
+                </div>
+              </div>
+            )}
             {tasks.map((task) => {
               const urgency = urgencies?.find((u) => u.id === task.urgency_id)
               return (

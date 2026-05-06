@@ -75,9 +75,9 @@ export function MobileNav({
             <span>Views</span>
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" side="top" sideOffset={12} className="w-56">
+        <DropdownMenuContent align="end" side="top" sideOffset={12} className="w-64">
           {savedViews.length === 0 ? (
-            <div className="px-2 py-1.5 text-sm text-muted-foreground italic">
+            <div className="px-4 py-6 text-[15px] text-muted-foreground italic text-center">
               No saved views yet
             </div>
           ) : (
@@ -88,10 +88,13 @@ export function MobileNav({
                 <DropdownMenuItem 
                   key={sv.id}
                   onClick={() => onChange("saved-view", sv.id)}
-                  className={cn(isActive && "bg-accent text-accent-foreground")}
+                  className={cn(
+                    "py-3 px-3",
+                    isActive && "bg-accent text-accent-foreground"
+                  )}
                 >
-                  <Icon className="mr-2 h-4 w-4" style={{ color: sv.color }} />
-                  <span className="flex-1 truncate">{sv.name}</span>
+                  <Icon className="mr-3 h-5 w-5" style={{ color: sv.color }} />
+                  <span className="flex-1 truncate text-[15px] font-medium">{sv.name}</span>
                 </DropdownMenuItem>
               )
             })
