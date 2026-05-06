@@ -75,36 +75,7 @@ export function AppHeader({ view, savedViewName, onNavigate, user, onSignOut, sy
   return (
     <header className="pt-safe border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-14 items-center justify-between gap-3 px-3 md:px-6">
-        {/* Section title */}
-        <h1 className="text-lg font-semibold tracking-tight md:text-xl">{title}</h1>
-
-        {/* Right side controls */}
         <div className="flex items-center gap-2">
-          {/* Search */}
-          <button
-            type="button"
-            disabled
-            title="Search is not available yet"
-            aria-disabled="true"
-            className="flex h-10 cursor-not-allowed items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-muted-foreground opacity-60 md:h-8 md:text-xs"
-          >
-            <Search className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Search…</span>
-            <span className="ml-2 hidden items-center gap-1 font-mono text-[10px] sm:flex">
-              <Command className="h-3 w-3" />K
-            </span>
-          </button>
-
-          {/* Desktop: Settings gear */}
-          <button
-            type="button"
-            onClick={() => onNavigate?.("settings")}
-            className="hidden md:flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="Settings"
-          >
-            <Settings className="h-4 w-4" />
-          </button>
-
           {/* Mobile: Hamburger Drawer */}
           <div className="md:hidden">
             <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} direction="left">
@@ -141,6 +112,37 @@ export function AppHeader({ view, savedViewName, onNavigate, user, onSignOut, sy
               </DrawerContent>
             </Drawer>
           </div>
+
+          {/* Section title */}
+          <h1 className="text-lg font-semibold tracking-tight md:text-xl">{title}</h1>
+        </div>
+
+        {/* Right side controls */}
+        <div className="flex items-center gap-2">
+          {/* Search */}
+          <button
+            type="button"
+            disabled
+            title="Search is not available yet"
+            aria-disabled="true"
+            className="flex h-10 cursor-not-allowed items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-muted-foreground opacity-60 md:h-8 md:text-xs"
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Search…</span>
+            <span className="ml-2 hidden items-center gap-1 font-mono text-[10px] sm:flex">
+              <Command className="h-3 w-3" />K
+            </span>
+          </button>
+
+          {/* Desktop: Settings gear */}
+          <button
+            type="button"
+            onClick={() => onNavigate?.("settings")}
+            className="hidden md:flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Settings"
+          >
+            <Settings className="h-4 w-4" />
+          </button>
 
           {/* Avatar dropdown */}
           <div className="relative" ref={dropdownRef}>
