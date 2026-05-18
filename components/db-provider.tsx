@@ -85,36 +85,40 @@ export function DbProvider({
 
     getDatabase(userUid).then((database) => {
       if (!mounted) {
-        const reps = setupReplication(database, userUid);
-        void Promise.all(reps.map((r) => r.cancel()));
         return;
       }
-      replications = setupReplication(database, userUid);
-      if (replications.length > 0) {
-        rxSubs.add(
-          combineLatest(replications.map((r) => r.active$)).subscribe(
-            (actives) => {
-              if (!mounted) return;
-              setSyncStatus((s) => ({
-                ...s,
-                replicationActive:
-                  actives.length > 0 && actives.every(Boolean),
-              }));
-            },
-          ),
-        );
-        rxSubs.add(
-          merge(...replications.map((r) => r.error$)).subscribe((err) => {
-            if (!mounted) return;
-            const msg =
-              err && typeof err === "object" && "message" in err
-                ? String((err as { message: unknown }).message)
-                : String(err);
-            setSyncStatus((s) => ({ ...s, replicationError: msg }));
-          }),
-        );
-      }
+      // Render the UI with local data immediately
       setDb(database);
+
+      // Start Firestore replication in the background after UI has the DB
+      queueMicrotask(() => {
+        if (!mounted) return;
+        replications = setupReplication(database, userUid);
+        if (replications.length > 0) {
+          rxSubs.add(
+            combineLatest(replications.map((r) => r.active$)).subscribe(
+              (actives) => {
+                if (!mounted) return;
+                setSyncStatus((s) => ({
+                  ...s,
+                  replicationActive:
+                    actives.length > 0 && actives.every(Boolean),
+                }));
+              },
+            ),
+          );
+          rxSubs.add(
+            merge(...replications.map((r) => r.error$)).subscribe((err) => {
+              if (!mounted) return;
+              const msg =
+                err && typeof err === "object" && "message" in err
+                  ? String((err as { message: unknown }).message)
+                  : String(err);
+              setSyncStatus((s) => ({ ...s, replicationError: msg }));
+            }),
+          );
+        }
+      });
     });
 
     return () => {

@@ -33,7 +33,7 @@ export function InboxView({
   onUpdate,
   onCreate,
 }: InboxViewProps) {
-  const inbox = tasks.filter((t) => !t.processed)
+  const inbox = tasks  // Already filtered to !processed && !archived by RxDB query
 
   if (inbox.length === 0) {
     return (

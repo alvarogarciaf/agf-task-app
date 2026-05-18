@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from "react"
 import { Search, Command, Settings, LogOut, ChevronDown, Menu, Users, Tags, AlertCircle, Calendar, Trash2, Info } from "lucide-react"
 import type { ViewKey } from "@/lib/types"
-import type { User } from "firebase/auth"
 import type { SyncStatus } from "./db-provider"
 import { Cloud, CloudOff } from "lucide-react"
 import { 
@@ -31,7 +30,7 @@ interface AppHeaderProps {
   view: ViewKey
   savedViewName?: string | null
   onNavigate?: (view: ViewKey, savedViewId?: string, settingsTab?: TabKey) => void
-  user?: User | null
+  user?: { uid: string; displayName: string | null; email: string | null; photoURL?: string | null } | null
   onSignOut?: () => void
   syncStatus?: SyncStatus
 }

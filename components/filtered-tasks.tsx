@@ -182,7 +182,7 @@ export function FilteredTasks({
 
         return true
       })
-      .filter((t) => !t.archived)
+      .filter((t) => true) // archived already excluded by RxDB query
       .filter((t) =>
         showHiddenByShowOn
           ? isTaskHiddenOnlyByShowOn(t)

@@ -48,7 +48,7 @@ export function HomeView({
   const inputRef = useRef<HTMLInputElement>(null)
   const chipRefs = useRef<(HTMLButtonElement | null)[]>([])
 
-  const inbox = tasks.filter((t) => !t.processed)
+  const inbox = tasks  // Already filtered to !processed && !archived by RxDB query
   const inboxHasShowOnVisible = inbox.some(isTaskVisibleByShowOnRule)
 
   useEffect(() => {

@@ -51,7 +51,7 @@ export function ContextsView({ contexts, tasks, onSelect, onUpdateContext, onDel
       <div className="space-y-1.5">
         {contexts.map((c) => {
           const Icon = ICONS[c.icon] ?? Brain
-          const open = tasks.filter((t) => t.context_ids.includes(c.id) && t.processed && t.status === "Open" && !t.archived).length
+          const open = tasks.filter((t) => t.context_ids.includes(c.id) && t.processed && t.status === "Open").length
           return (
             <div
               key={c.id}

@@ -51,7 +51,7 @@ export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDelete
 
       <div className="space-y-1.5">
         {persons.map((p) => {
-          const open = tasks.filter((t) => t.person_id === p.id && t.processed && t.status === "Open" && !t.archived).length
+          const open = tasks.filter((t) => t.person_id === p.id && t.processed && t.status === "Open").length
           return (
             <div
               key={p.id}

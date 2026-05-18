@@ -16,14 +16,20 @@ import { ContextsView } from "@/components/views/contexts-view"
 import { SettingsView, type TabKey } from "@/components/views/settings-view"
 import { PersonsView } from "@/components/views/persons-view"
 import type { Context, Person, Project, Task, UrgencyLevel, ViewKey, SavedView } from "@/lib/types"
-import type { User } from "firebase/auth"
 import { syncCalendarToStorage } from "@/lib/calendar-sync-client"
 import { createGoogleEvent, updateGoogleEvent, deleteGoogleEvent } from "@/lib/google-calendar"
 import { useGoogleCalendar } from "@/components/google-calendar-provider"
 import { SaveViewDialog } from "./save-view-dialog"
 
+// Minimal user shape that works with both Firebase User and cached user
+interface AppUser {
+  uid: string
+  displayName: string | null
+  email: string | null
+}
+
 interface AppContentProps {
-  user: User
+  user: AppUser
   onSignOut: () => void
 }
 
@@ -64,8 +70,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [initialContextId, setInitialContextId] = useState<string | undefined>()
   const [initialPersonId, setInitialPersonId] = useState<string | undefined>()
 
-  // Data state
-  const [tasks, setTasks] = useState<Task[]>([])
+  // Data state — split tasks into two efficient streams
+  const [inboxTasks, setInboxTasks] = useState<Task[]>([])
+  const [activeTasks, setActiveTasks] = useState<Task[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [persons, setPersons] = useState<Person[]>([])
   const [contexts, setContexts] = useState<Context[]>([])
@@ -74,10 +81,17 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [editingView, setEditingView] = useState<SavedView | null>(null)
   const [activeSettingsTab, setActiveSettingsTab] = useState<TabKey>("persons")
 
-  // Subscriptions
+  // Subscriptions — targeted queries so IndexedDB does the heavy filtering
   useEffect(() => {
     const subs = [
-      db.tasks.find().$.subscribe(docs => setTasks(docs.map(d => d.toJSON()))),
+      // Inbox: only unprocessed, non-archived tasks
+      db.tasks.find({ selector: { archived: false, processed: false } }).$.subscribe(
+        docs => setInboxTasks(docs.map(d => d.toJSON()))
+      ),
+      // Active: all non-archived tasks (for All Tasks, Projects, Contexts, etc.)
+      db.tasks.find({ selector: { archived: false } }).$.subscribe(
+        docs => setActiveTasks(docs.map(d => d.toJSON()))
+      ),
       db.projects.find().$.subscribe(docs => setProjects(docs.map(d => d.toJSON()))),
       db.persons.find().$.subscribe(docs => setPersons(docs.map(d => d.toJSON()))),
       db.contexts.find().$.subscribe(docs => setContexts(docs.map(d => d.toJSON()))),
@@ -240,13 +254,13 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
 
   const { accessToken: contextToken } = useGoogleCalendar()
 
-  // Auto-sync calendar to Google Calendar
+  // Auto-sync calendar to Google Calendar (uses activeTasks — already excludes archived)
   useEffect(() => {
-    if (!user.uid || tasks.length === 0 || !contextToken) return
+    if (!user.uid || activeTasks.length === 0 || !contextToken) return
     
     const timeoutId = setTimeout(async () => {
-      // Sync only tasks that changed recently (or just sync all tasks with action dates for robustness)
-      const actionTasks = tasks.filter(t => t.action_date && t.status !== "Done" && !t.archived);
+      // Sync only tasks with action dates that are open
+      const actionTasks = activeTasks.filter(t => t.action_date && t.status !== "Done");
       
       for (const task of actionTasks) {
         try {
@@ -257,7 +271,6 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             console.log(`Calendar: Created "${task.description}"`);
           } else {
             await updateGoogleEvent(task, contextToken, selectedCalendarId);
-            // Don't toast on every update to avoid spam, maybe just log
             console.log(`Updated calendar event for: ${task.description}`);
           }
         } catch (err: any) {
@@ -267,7 +280,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       }
 
       // Cleanup: tasks with google_event_id but NO action_date or are Done
-      const staleTasks = tasks.filter(t => t.google_event_id && (!t.action_date || t.status === "Done" || t.archived));
+      const staleTasks = activeTasks.filter(t => t.google_event_id && (!t.action_date || t.status === "Done"));
       for (const task of staleTasks) {
         try {
           await deleteGoogleEvent(task.google_event_id!, contextToken, selectedCalendarId);
@@ -280,7 +293,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }, 3000) // 3 second debounce
 
     return () => clearTimeout(timeoutId)
-  }, [tasks, user.uid, db, contextToken, selectedCalendarId])
+  }, [activeTasks, user.uid, db, contextToken, selectedCalendarId])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -301,11 +314,13 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     return () => window.removeEventListener("keydown", handleKey)
   }, [])
 
-  const inboxCount = tasks.filter((t) => !t.processed && !t.archived).length
-  const totalCount = tasks.filter((t) => !t.archived).length
+  // Counts derived directly from pre-filtered streams — no re-filtering needed
+  const inboxCount = inboxTasks.length
+  const totalCount = activeTasks.length
 
-  const viewProps = {
-    tasks,
+  // Shared props for views that use activeTasks (All Tasks, Saved Views, Projects)
+  const activeViewProps = {
+    tasks: activeTasks,
     projects,
     persons,
     contexts,
@@ -321,15 +336,15 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const renderView = () => {
     switch (activeView) {
       case "home":
-        return <HomeView {...viewProps} />
+        return <HomeView {...activeViewProps} tasks={inboxTasks} />
       case "inbox":
-        return <InboxView {...viewProps} />
+        return <InboxView {...activeViewProps} tasks={inboxTasks} />
       case "saved-view": {
         const sv = savedViews.find(v => v.id === activeSavedViewId)
-        if (!sv) return <HomeView {...viewProps} />
+        if (!sv) return <HomeView {...activeViewProps} tasks={inboxTasks} />
         return (
           <AllTasksView
-            {...viewProps}
+            {...activeViewProps}
             initialContextIds={sv.context_ids}
             initialPersonId={sv.person_id}
             initialProjectId={sv.project_id}
@@ -345,7 +360,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       case "all":
         return (
           <AllTasksView 
-            {...viewProps} 
+            {...activeViewProps} 
             initialContextId={initialContextId}
             initialPersonId={initialPersonId}
             fullWidthOnMobile={true}
@@ -354,7 +369,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       case "projects":
         return (
           <ProjectsView 
-            {...viewProps} 
+            {...activeViewProps} 
             onAddProject={handleAddProject}
             onUpdateProject={handleUpdateProject}
             onDeleteProject={handleDeleteProject}
@@ -363,7 +378,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       case "contexts":
         return (
           <ContextsView 
-            {...viewProps} 
+            tasks={activeTasks}
+            contexts={contexts}
             onSelect={(id) => {
               setInitialContextId(id)
               setInitialPersonId(undefined)
@@ -385,8 +401,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       case "persons":
         return (
           <PersonsView 
+            tasks={activeTasks}
             persons={persons}
-            tasks={tasks}
+
             onSelect={(id) => {
               setInitialPersonId(id)
               setInitialContextId(undefined)
@@ -456,7 +473,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             selectedCalendarId={selectedCalendarId}
             onSelectCalendar={handleSelectCalendar}
             onSyncCalendar={async (token) => {
-              const actionTasks = tasks.filter(t => t.action_date && t.status !== "Done" && !t.archived);
+              const actionTasks = activeTasks.filter(t => t.action_date && t.status !== "Done");
               for (const task of actionTasks) {
                 if (!task.google_event_id) {
                   const eventId = await createGoogleEvent(task, token, selectedCalendarId);
@@ -470,7 +487,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           />
         )
       default:
-        return <HomeView {...viewProps} />
+        return <HomeView {...activeViewProps} tasks={inboxTasks} />
     }
   }
 
