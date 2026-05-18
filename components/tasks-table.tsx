@@ -1058,31 +1058,34 @@ function MobileTaskRow({
           </div>
         )}
 
-        <DropdownMenu open={menuOpen} onOpenChange={(open) => {
-          // Only allow opening if there was no drag gesture
-          if (open && isDragging.current) return
-          setMenuOpen(open)
-        }}>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="flex h-10 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted active:bg-muted data-[state=open]:bg-muted"
-              onPointerDown={(e) => {
-                touchStartY.current = e.clientY
-                isDragging.current = false
-              }}
-              onPointerMove={(e) => {
-                if (touchStartY.current !== null && Math.abs(e.clientY - touchStartY.current) > 8) {
-                  isDragging.current = true
-                }
-              }}
-              onPointerUp={() => {
-                touchStartY.current = null
-              }}
-            >
-              <MoreVertical className="h-4.5 w-4.5" />
-            </button>
-          </DropdownMenuTrigger>
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <div
+            onPointerDown={(e) => {
+              touchStartY.current = e.clientY
+              isDragging.current = false
+            }}
+            onPointerMove={(e) => {
+              if (touchStartY.current !== null && Math.abs(e.clientY - touchStartY.current) > 8) {
+                isDragging.current = true
+              }
+            }}
+            onPointerUp={() => {
+              if (!isDragging.current) {
+                setMenuOpen((prev) => !prev)
+              }
+              touchStartY.current = null
+            }}
+          >
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex h-10 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted active:bg-muted data-[state=open]:bg-muted"
+                style={{ pointerEvents: 'none' }}
+              >
+                <MoreVertical className="h-4.5 w-4.5" />
+              </button>
+            </DropdownMenuTrigger>
+          </div>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>Task Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
