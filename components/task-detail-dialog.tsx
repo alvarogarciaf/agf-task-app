@@ -59,10 +59,12 @@ export function TaskDetailDialog({
   }
 
   const [draft, setDraft] = useState<Task | null>(getFullPlainTask(task))
+  const [autoProcess, setAutoProcess] = useState(false)
 
   // Sync draft when a different task is opened
   useEffect(() => {
     setDraft(getFullPlainTask(task))
+    setAutoProcess(task && !task.processed ? true : false)
   }, [task])
 
   const descriptionRef = useRef<HTMLTextAreaElement>(null)
@@ -98,7 +100,8 @@ export function TaskDetailDialog({
     }
   }
 
-  const dirty = !!task && JSON.stringify(toPlain(draft)) !== JSON.stringify(toPlain(task))
+  const isAutoProcessing = task && !task.processed && autoProcess && !draft.processed;
+  const dirty = !!task && (JSON.stringify(toPlain(draft)) !== JSON.stringify(toPlain(task)) || isAutoProcessing)
 
   function update<K extends keyof Task>(key: K, value: Task[K]) {
     setDraft((prev) => (prev ? { ...prev, [key]: value } : prev))
@@ -120,7 +123,11 @@ export function TaskDetailDialog({
 
   function save() {
     if (!draft) return
-    onUpdate(draft)
+    const finalDraft = { ...draft }
+    if (isAutoProcessing) {
+      finalDraft.processed = true
+    }
+    onUpdate(finalDraft)
     onOpenChange(false)
   }
 
@@ -408,6 +415,17 @@ export function TaskDetailDialog({
             </span>
           )}
           <div className="flex items-center gap-2">
+            {task && !task.processed && !draft.processed && (
+              <label className="flex items-center gap-1.5 mr-2 cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <input
+                  type="checkbox"
+                  checked={autoProcess}
+                  onChange={(e) => setAutoProcess(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-border bg-background accent-primary"
+                />
+                Processed
+              </label>
+            )}
             <button
               type="button"
               onClick={cancel}
