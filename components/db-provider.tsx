@@ -8,7 +8,7 @@ import {
   useContext,
 } from "react";
 import { combineLatest, merge, Subscription } from "rxjs";
-import { getDatabase } from "@/lib/db/database";
+import { getDatabase, getDatabaseSync } from "@/lib/db/database";
 import { setupReplication } from "@/lib/db/sync";
 import type { RxDatabase } from "rxdb";
 import type { RxFirestoreReplicationState } from "rxdb/plugins/replication-firestore";
@@ -48,7 +48,7 @@ export function DbProvider({
   userUid: string;
   children: ReactNode;
 }) {
-  const [db, setDb] = useState<RxDatabase | null>(null);
+  const [db, setDb] = useState<RxDatabase | null>(() => getDatabaseSync(userUid));
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(() => ({
     browserOnline:
       typeof navigator !== "undefined" ? navigator.onLine : true,
@@ -81,7 +81,11 @@ export function DbProvider({
       replicationActive: true,
       replicationError: null,
     });
-    setDb(null);
+    
+    const syncDb = getDatabaseSync(userUid);
+    if (!syncDb) {
+      setDb(null);
+    }
 
     getDatabase(userUid).then((database) => {
       if (!mounted) {

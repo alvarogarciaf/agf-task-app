@@ -1,4 +1,4 @@
-const CACHE_NAME = "tasker-agf-v4";
+const CACHE_NAME = "tasker-agf-v5";
 const PRECACHE_URLS = ["/", "/manifest.json", "/logo.svg"];
 
 self.addEventListener("install", (event) => {
@@ -54,7 +54,7 @@ self.addEventListener("fetch", (event) => {
   // For navigation requests: stale-while-revalidate with fallback
   if (request.mode === "navigate") {
     event.respondWith(
-      caches.match(request).then((cachedResponse) => {
+      caches.match(request, { ignoreSearch: true }).then((cachedResponse) => {
         const fetchPromise = fetch(request)
           .then((networkResponse) => {
             if (networkResponse.ok) {
@@ -63,7 +63,7 @@ self.addEventListener("fetch", (event) => {
             }
             return networkResponse;
           })
-          .catch(() => caches.match("/index.html"));
+          .catch(() => caches.match("/", { ignoreSearch: true }));
 
         return cachedResponse || fetchPromise;
       })

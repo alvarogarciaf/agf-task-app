@@ -12,7 +12,12 @@ addRxPlugin(RxDBQueryBuilderPlugin);
 addRxPlugin(RxDBUpdatePlugin);
 addRxPlugin(RxDBMigrationSchemaPlugin);
 
-const dbCache: Record<string, Promise<any>> = {};
+const dbCache: Record<string, Promise<RxDatabase>> = {};
+const resolvedDbCache: Record<string, RxDatabase> = {};
+
+export const getDatabaseSync = (userUid: string) => {
+  return resolvedDbCache[`taskeragf_${userUid}`] || null;
+};
 
 export const getDatabase = async (userUid: string) => {
   const dbName = `taskeragf_${userUid}`;
@@ -129,6 +134,7 @@ export const getDatabase = async (userUid: string) => {
       }
     }
     
+    resolvedDbCache[dbName] = db;
     return db;
   };
 
