@@ -1059,6 +1059,24 @@ function MobileTaskRow({
             <button
               type="button"
               className="flex h-10 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted active:bg-muted data-[state=open]:bg-muted"
+              onPointerDown={(e) => {
+                // Store initial touch position to detect drag vs tap
+                (e.currentTarget as any)._startY = e.clientY;
+                (e.currentTarget as any)._dragged = false;
+              }}
+              onPointerMove={(e) => {
+                const startY = (e.currentTarget as any)._startY;
+                if (startY !== undefined && Math.abs(e.clientY - startY) > 8) {
+                  (e.currentTarget as any)._dragged = true;
+                }
+              }}
+              onClick={(e) => {
+                // If finger moved during touch (scrolling), prevent menu from opening
+                if ((e.currentTarget as any)._dragged) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }
+              }}
             >
               <MoreVertical className="h-4.5 w-4.5" />
             </button>
