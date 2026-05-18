@@ -1,6 +1,6 @@
 "use client";
 
-import { createRxDatabase, addRxPlugin } from 'rxdb';
+import { createRxDatabase, addRxPlugin, type RxDatabase } from 'rxdb';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { DatabaseCollections } from './schema';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
