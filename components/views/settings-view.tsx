@@ -31,8 +31,6 @@ interface SettingsViewProps {
   userUid?: string
   onSyncCalendar?: (accessToken: string) => Promise<void>
   syncStatus?: SyncStatus
-  selectedCalendarId?: string
-  onSelectCalendar?: (id: string) => void
 }
 
 export function SettingsView({
@@ -55,13 +53,11 @@ export function SettingsView({
   syncStatus,
   userUid,
   onSyncCalendar,
-  selectedCalendarId,
-  onSelectCalendar,
 }: SettingsViewProps) {
   const [internalTab, setInternalTab] = useState<TabKey>("persons")
   const tab = controlledTab || internalTab
   const setTab = onTabChange || setInternalTab
-  const { accessToken, isConnected, connect, disconnect } = useGoogleCalendar()
+  const { accessToken, isConnected, connect, disconnect, selectedCalendarId, selectCalendar } = useGoogleCalendar()
   const [isSyncing, setIsSyncing] = useState(false)
   const [calendars, setCalendars] = useState<GoogleCalendar[]>([])
   const [isLoadingCalendars, setIsLoadingCalendars] = useState(false)
@@ -76,9 +72,9 @@ export function SettingsView({
           setCalendars(list)
           
           // If no calendar is selected, default to primary
-          if (!selectedCalendarId) {
+          if (!selectedCalendarId || selectedCalendarId === 'primary') {
             const primary = list.find(c => c.primary)?.id || 'primary'
-            onSelectCalendar?.(primary)
+            if (primary !== 'primary') selectCalendar(primary)
           }
         } catch (err) {
           console.error("Failed to fetch calendars:", err)
@@ -89,7 +85,7 @@ export function SettingsView({
       }
       fetchCalendars()
     }
-  }, [tab, accessToken, selectedCalendarId, onSelectCalendar])
+  }, [tab, accessToken, selectedCalendarId, selectCalendar])
 
   const handleSync = async () => {
     if (!accessToken || !onSyncCalendar) return
@@ -111,6 +107,15 @@ export function SettingsView({
       toast.success("Google Calendar connected!")
     } catch (err) {
       toast.error("Failed to connect Google Calendar.")
+    }
+  }
+
+  const handleDisconnect = async () => {
+    try {
+      await disconnect()
+      toast.success("Google Calendar disconnected.")
+    } catch (err) {
+      toast.error("Failed to disconnect.")
     }
   }
 
@@ -248,7 +253,7 @@ export function SettingsView({
                       </button>
                       <button
                         type="button"
-                        onClick={disconnect}
+                        onClick={handleDisconnect}
                         className="inline-flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm font-medium hover:bg-secondary/80 text-destructive"
                       >
                         <LogOut className="h-4 w-4" />
@@ -281,7 +286,7 @@ export function SettingsView({
                         <label className="block text-[10px] font-mono uppercase tracking-wider mb-2">Target Calendar</label>
                         <select
                           value={selectedCalendarId || 'primary'}
-                          onChange={(e) => onSelectCalendar?.(e.target.value)}
+                          onChange={(e) => selectCalendar(e.target.value)}
                           disabled={isLoadingCalendars}
                           className="w-full h-9 rounded border border-primary/20 bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
                         >

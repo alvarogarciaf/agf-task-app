@@ -55,16 +55,6 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     user.email?.split("@")[0]?.trim() ||
     "Your workspace"
   const workspaceInitial = (workspaceLabel[0] ?? "?").toUpperCase()
-  
-  const [selectedCalendarId, setSelectedCalendarId] = useState<string | undefined>(() => {
-    if (typeof window !== "undefined") return localStorage.getItem("google_selected_calendar_id") || "primary"
-    return "primary"
-  })
-
-  const handleSelectCalendar = (id: string) => {
-    setSelectedCalendarId(id)
-    localStorage.setItem("google_selected_calendar_id", id)
-  }
 
   // Initial filter states for drill-down
   const [initialContextId, setInitialContextId] = useState<string | undefined>()
@@ -252,25 +242,43 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }))
   }
 
-  const { accessToken: contextToken } = useGoogleCalendar()
+  const { accessToken: contextToken, selectedCalendarId, selectCalendar, refreshToken } = useGoogleCalendar()
 
   // Auto-sync calendar to Google Calendar (uses activeTasks — already excludes archived)
   useEffect(() => {
     if (!user.uid || activeTasks.length === 0 || !contextToken) return
     
     const timeoutId = setTimeout(async () => {
+      let token = contextToken;
+
+      /** Helper: call a Google Calendar API fn, retry once with a refreshed token on 401. */
+      const withRetry = async <T,>(fn: (t: string) => Promise<T>): Promise<T> => {
+        try {
+          return await fn(token);
+        } catch (err: any) {
+          if (err.message?.includes("401") || err.message?.includes("Unauthorized")) {
+            const refreshed = await refreshToken();
+            if (refreshed) {
+              token = refreshed;
+              return await fn(token);
+            }
+          }
+          throw err;
+        }
+      };
+
       // Sync only tasks with action dates that are open
       const actionTasks = activeTasks.filter(t => t.action_date && t.status !== "Done");
       
       for (const task of actionTasks) {
         try {
           if (!task.google_event_id) {
-            const eventId = await createGoogleEvent(task, contextToken, selectedCalendarId);
+            const eventId = await withRetry((t) => createGoogleEvent(task, t, selectedCalendarId));
             const doc = await db.tasks.findOne(task.id).exec();
             if (doc) await doc.patch({ google_event_id: eventId });
             console.log(`Calendar: Created "${task.description}"`);
           } else {
-            await updateGoogleEvent(task, contextToken, selectedCalendarId);
+            await withRetry((t) => updateGoogleEvent(task, t, selectedCalendarId));
             console.log(`Updated calendar event for: ${task.description}`);
           }
         } catch (err: any) {
@@ -283,7 +291,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       const staleTasks = activeTasks.filter(t => t.google_event_id && (!t.action_date || t.status === "Done"));
       for (const task of staleTasks) {
         try {
-          await deleteGoogleEvent(task.google_event_id!, contextToken, selectedCalendarId);
+          await withRetry((t) => deleteGoogleEvent(task.google_event_id!, t, selectedCalendarId));
           const doc = await db.tasks.findOne(task.id).exec();
           if (doc) await doc.patch({ google_event_id: null });
         } catch (err) {
@@ -293,7 +301,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }, 3000) // 3 second debounce
 
     return () => clearTimeout(timeoutId)
-  }, [activeTasks, user.uid, db, contextToken, selectedCalendarId])
+  }, [activeTasks, user.uid, db, contextToken, selectedCalendarId, refreshToken])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -470,8 +478,6 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             }}
             syncStatus={syncStatus}
             userUid={user.uid}
-            selectedCalendarId={selectedCalendarId}
-            onSelectCalendar={handleSelectCalendar}
             onSyncCalendar={async (token) => {
               const actionTasks = activeTasks.filter(t => t.action_date && t.status !== "Done");
               for (const task of actionTasks) {
