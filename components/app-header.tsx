@@ -133,15 +133,7 @@ export function AppHeader({ view, savedViewName, onNavigate, user, onSignOut, sy
             </span>
           </button>
 
-          {/* Desktop: Settings gear */}
-          <button
-            type="button"
-            onClick={() => onNavigate?.("settings")}
-            className="hidden md:flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="Settings"
-          >
-            <Settings className="h-4 w-4" />
-          </button>
+
 
           {/* Avatar dropdown */}
           <div className="relative" ref={dropdownRef}>

@@ -10,6 +10,7 @@ import {
   Cloud,
   CloudOff,
   AlertCircle,
+  Settings,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ViewKey, SavedView } from "@/lib/types"
@@ -161,7 +162,20 @@ export function AppSidebar({
         )}
       </nav>
 
-      <div className="mt-auto border-t border-sidebar-border p-3">
+      <div className="mt-auto border-t border-sidebar-border p-3 flex flex-col gap-2">
+        <button
+          type="button"
+          onClick={() => onChange("settings")}
+          className={cn(
+            "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+            active === "settings"
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+          )}
+        >
+          <Settings className="h-4 w-4" />
+          <span className="flex-1 text-left">Settings</span>
+        </button>
         <SyncStatusRow syncStatus={syncStatus} />
       </div>
     </aside>
