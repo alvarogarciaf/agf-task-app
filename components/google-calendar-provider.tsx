@@ -9,14 +9,7 @@ import {
   useRef,
   ReactNode,
 } from "react";
-import {
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
-  GoogleAuthProvider,
-  OAuthCredential,
-} from "firebase/auth";
-import { auth, googleProvider } from "@/lib/firebase/config";
+import { auth } from "@/lib/firebase/config";
 import { useAuth } from "@/components/auth-provider";
 import {
   onCalendarPreferences,
@@ -24,6 +17,7 @@ import {
   clearCalendarPreferences,
   type CalendarPreferences,
 } from "@/lib/calendar-preferences";
+import { toast } from "sonner";
 
 interface GoogleCalendarContextType {
   accessToken: string | null;
@@ -55,7 +49,15 @@ export function GoogleCalendarProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
 
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const cached = localStorage.getItem("gcal_access_token");
+    const expiresAt = localStorage.getItem("gcal_token_expires_at");
+    if (cached && expiresAt && parseInt(expiresAt, 10) > Date.now()) {
+      return cached;
+    }
+    return null;
+  });
   const [prefs, setPrefs] = useState<CalendarPreferences>({
     connected: false,
     selectedCalendarId: "primary",
@@ -63,6 +65,7 @@ export function GoogleCalendarProvider({ children }: { children: ReactNode }) {
   });
   const [isConnecting, setIsConnecting] = useState(false);
   const tokenRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const alertShownRef = useRef(false);
 
   // ─── Subscribe to Firestore calendar preferences ───────────────────
   useEffect(() => {
@@ -79,31 +82,31 @@ export function GoogleCalendarProvider({ children }: { children: ReactNode }) {
     return () => unsub();
   }, [uid]);
 
-  // ─── Handle redirect result (for mobile sign-in flow) ─────────────
+  // ─── Load Google Identity Services script ────────────────────────
   useEffect(() => {
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result) {
-          const credential = GoogleAuthProvider.credentialFromResult(result);
-          if (credential?.accessToken) {
-            setAccessToken(credential.accessToken);
-            scheduleRefresh();
-          }
-        }
-      })
-      .catch((err) => {
-        console.error("[calendar] Redirect result error:", err);
-      });
+    if (document.getElementById("gsi-client-script")) return;
+    const script = document.createElement("script");
+    script.id = "gsi-client-script";
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
   }, []);
 
   // ─── Auto-acquire token when prefs say "connected" ─────────────────
   useEffect(() => {
-    if (!prefs.connected || accessToken || isConnecting || !uid) return;
+    if (!prefs.connected || isConnecting || !uid) return;
 
-    // The user has marked themselves as connected in Firestore, but we
-    // don't have a token on this device yet. Try to silently get one.
-    acquireTokenSilently();
-  }, [prefs.connected, accessToken, uid]);
+    if (!accessToken) {
+      if (!alertShownRef.current) {
+         toast.error("Google Calendar session expired. Please go to Settings to reconnect.", { id: "gcal_expired", duration: 8000 });
+         alertShownRef.current = true;
+      }
+    } else {
+      // If we have a token loaded from localStorage, ensure refresh timer is scheduled
+      scheduleRefresh();
+    }
+  }, [prefs.connected, accessToken, uid, isConnecting]);
 
   // ─── Schedule token refresh ~50 min (before Google's 60 min expiry) ─
   const scheduleRefresh = useCallback(() => {
@@ -124,34 +127,42 @@ export function GoogleCalendarProvider({ children }: { children: ReactNode }) {
 
   // ─── Silent token acquisition ──────────────────────────────────────
   const acquireTokenSilently = async (): Promise<string | null> => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return null;
-
-    try {
-      // Check if the user has a Google credential cached by Firebase Auth.
-      // This works when the user originally signed in with Google.
-      // We re-authenticate silently using the existing session.
-      const provider = new GoogleAuthProvider();
-      provider.addScope("https://www.googleapis.com/auth/calendar.events");
-      provider.addScope("https://www.googleapis.com/auth/calendar.readonly");
-
-      // On desktop, reauthenticateWithPopup can run silently if the session
-      // is still valid (no user interaction needed). On mobile, this may fail.
-      const result = await signInWithPopup(auth, provider);
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-
-      if (credential?.accessToken) {
-        setAccessToken(credential.accessToken);
-        scheduleRefresh();
-        return credential.accessToken;
+    if (!prefs.refreshToken) {
+      setAccessToken(null);
+      localStorage.removeItem("gcal_access_token");
+      localStorage.removeItem("gcal_token_expires_at");
+      if (!alertShownRef.current) {
+        toast.error("Google Calendar session expired. Please go to Settings to reconnect.", { id: "gcal_expired", duration: 8000 });
+        alertShownRef.current = true;
       }
-    } catch (err: any) {
-      // If popup fails (mobile, blocked, etc.), that's okay — the user
-      // will see the "Reconnect" prompt in settings.
-      console.warn("[calendar] Silent token acquisition failed:", err.code || err.message);
+      return null;
     }
 
-    return null;
+    try {
+      const res = await fetch("/api/auth/google/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: prefs.refreshToken }),
+      });
+      if (!res.ok) throw new Error("Refresh failed");
+      const data = await res.json();
+
+      const expiresAt = Date.now() + 50 * 60 * 1000;
+      localStorage.setItem("gcal_access_token", data.access_token);
+      localStorage.setItem("gcal_token_expires_at", expiresAt.toString());
+      setAccessToken(data.access_token);
+      alertShownRef.current = false;
+      scheduleRefresh();
+      return data.access_token;
+    } catch (e) {
+      console.error("[calendar] Silent token refresh failed:", e);
+      setAccessToken(null);
+      if (!alertShownRef.current) {
+        toast.error("Failed to refresh Google Calendar connection. Please reconnect.", { id: "gcal_expired", duration: 8000 });
+        alertShownRef.current = true;
+      }
+      return null;
+    }
   };
 
   // ─── Manual connect (the "Connect Google Calendar" button) ─────────
@@ -160,37 +171,51 @@ export function GoogleCalendarProvider({ children }: { children: ReactNode }) {
 
     setIsConnecting(true);
     try {
-      let credential: OAuthCredential | null = null;
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+      if (!clientId) throw new Error("Google Client ID not configured in .env.local");
 
-      if (isMobileBrowser()) {
-        // On mobile, use redirect flow — the result will be handled by
-        // the getRedirectResult effect above.
-        // Save to Firestore first so when the redirect returns, we know
-        // the user intended to connect.
-        await setCalendarPreferences(uid, {
-          connected: true,
-          connectedAt: new Date().toISOString(),
+      const code = await new Promise<string>((resolve, reject) => {
+        // @ts-ignore
+        const client = google.accounts.oauth2.initCodeClient({
+          client_id: clientId,
+          scope: "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly",
+          ux_mode: "popup",
+          callback: (response: any) => {
+            if (response.error) {
+              reject(new Error(response.error));
+            } else {
+              resolve(response.code);
+            }
+          },
         });
-        await signInWithRedirect(auth, googleProvider);
-        // The page will navigate away at this point.
-        return;
-      }
+        client.requestCode();
+      });
 
-      // Desktop: use popup
-      const result = await signInWithPopup(auth, googleProvider);
-      credential = GoogleAuthProvider.credentialFromResult(result);
+      const res = await fetch("/api/auth/google/exchange", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
 
-      if (credential?.accessToken) {
-        setAccessToken(credential.accessToken);
-        scheduleRefresh();
+      if (!res.ok) throw new Error("Failed to exchange auth code");
+      const data = await res.json();
 
-        await setCalendarPreferences(uid, {
-          connected: true,
-          connectedAt: new Date().toISOString(),
-        });
-      }
+      const expiresAt = Date.now() + 50 * 60 * 1000;
+      localStorage.setItem("gcal_access_token", data.access_token);
+      localStorage.setItem("gcal_token_expires_at", expiresAt.toString());
+      setAccessToken(data.access_token);
+      alertShownRef.current = false;
+      scheduleRefresh();
+
+      await setCalendarPreferences(uid, {
+        connected: true,
+        connectedAt: new Date().toISOString(),
+        refreshToken: data.refresh_token || prefs.refreshToken, // Google might not send refresh token if already granted
+      });
+      toast.success("Calendar connected permanently!");
     } catch (error) {
       console.error("[calendar] Connection failed:", error);
+      toast.error("Connection failed.");
       throw error;
     } finally {
       setIsConnecting(false);
@@ -202,6 +227,10 @@ export function GoogleCalendarProvider({ children }: { children: ReactNode }) {
     if (!uid) return;
 
     setAccessToken(null);
+    localStorage.removeItem("gcal_access_token");
+    localStorage.removeItem("gcal_token_expires_at");
+    alertShownRef.current = false;
+    
     if (tokenRefreshTimer.current) clearTimeout(tokenRefreshTimer.current);
 
     await clearCalendarPreferences(uid);

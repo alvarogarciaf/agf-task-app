@@ -1,11 +1,14 @@
 "use client"
 
 import { useEffect, useRef, useState, forwardRef } from "react"
-import { ArrowRight, Sparkles, Tag, FolderKanban, User, Inbox as InboxIcon, Zap } from "lucide-react"
+import { ArrowRight, Sparkles, Tag, FolderKanban, User, Inbox as InboxIcon, Zap, UserPlus, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { FilteredTasks } from "@/components/filtered-tasks"
 import type { Context, Person, Project, Task, UrgencyLevel } from "@/lib/types"
 import { isTaskVisibleByShowOnRule } from "@/lib/show-on-filter"
+import { useAuth } from "@/components/auth-provider"
+import { firestoreDb } from "@/lib/firebase/config"
+import { collection, query, where, onSnapshot, doc, deleteDoc, setDoc, serverTimestamp } from "firebase/firestore"
 
 interface HomeViewProps {
   projects: Project[]
@@ -25,6 +28,7 @@ interface HomeViewProps {
   onToggleStatus: (id: string) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
+  onAddPerson?: (person: Omit<Person, "id">) => Promise<void>
 }
 
 export function HomeView({
@@ -39,7 +43,65 @@ export function HomeView({
   onToggleStatus,
   onArchiveTask,
   onDeleteTask,
+  onAddPerson,
 }: HomeViewProps) {
+  const { user } = useAuth()
+  const [invites, setInvites] = useState<any[]>([])
+
+  useEffect(() => {
+    if (!user?.uid) return
+    const q = query(
+      collection(firestoreDb, `users/${user.uid}/messages`),
+      where("type", "==", "invite")
+    )
+    const unsub = onSnapshot(q, (snap) => {
+      const uniqueInvites = new Map();
+      snap.docs.forEach((d) => {
+        const data = d.data();
+        if (!uniqueInvites.has(data.fromUid)) {
+          uniqueInvites.set(data.fromUid, { id: d.id, ...data });
+        }
+      });
+      setInvites(Array.from(uniqueInvites.values()));
+    })
+    return () => unsub()
+  }, [user?.uid])
+
+  const acceptInvite = async (invite: any) => {
+    if (!user?.uid || !onAddPerson) return
+    try {
+      const senderName = invite.fromEmail.split('@')[0]
+      await onAddPerson({
+        name: senderName,
+        initials: senderName.substring(0, 2).toUpperCase(),
+        color: "#3b82f6",
+        linked_uid: invite.fromUid,
+        linked_email: invite.fromEmail,
+        pending_invite_email: null,
+      })
+      
+      await setDoc(doc(collection(firestoreDb, `users/${invite.fromUid}/messages`)), {
+        type: "invite_accepted",
+        fromUid: user.uid,
+        fromEmail: user.email,
+        timestamp: serverTimestamp()
+      })
+      
+      await deleteDoc(doc(firestoreDb, `users/${user.uid}/messages/${invite.id}`))
+    } catch (e) {
+      console.error("Failed to accept invite", e)
+    }
+  }
+
+  const declineInvite = async (inviteId: string) => {
+    if (!user?.uid) return
+    try {
+      await deleteDoc(doc(firestoreDb, `users/${user.uid}/messages/${inviteId}`))
+    } catch (e) {
+      console.error("Failed to decline invite", e)
+    }
+  }
+
   const [text, setText] = useState("")
   const [contextIds, setContextIds] = useState<string[]>([])
   const [projectId, setProjectId] = useState<string | null>(null)
@@ -80,6 +142,44 @@ export function HomeView({
 
   return (
     <div className="space-y-6">
+      {/* Pending Invites */}
+      {invites.length > 0 && (
+        <div className="space-y-2">
+          {invites.map((inv) => (
+            <div key={inv.id} className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/20 text-primary">
+                  <UserPlus className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-sm font-medium">Link Request</div>
+                  <div className="text-xs text-muted-foreground">
+                    <strong className="text-foreground">{inv.fromEmail}</strong> wants to link accounts.
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => declineInvite(inv.id)}
+                  className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted"
+                >
+                  Decline
+                </button>
+                <button
+                  type="button"
+                  onClick={() => acceptInvite(inv)}
+                  className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  Accept
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Capture form */}
       <form 
         onSubmit={submit} 

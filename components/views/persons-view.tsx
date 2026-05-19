@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { MoreVertical, Edit2, Check, X, Trash2, Plus } from "lucide-react"
+import { MoreVertical, Edit2, Check, X, Trash2, Plus, Link as LinkIcon, Send } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   Dialog,
@@ -15,6 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import type { Person, Task } from "@/lib/types"
+import { auth, firestoreDb } from "@/lib/firebase/config"
+import { doc, getDoc, setDoc, deleteDoc, collection, serverTimestamp } from "firebase/firestore"
 
 const COLOR_PALETTE = [
   "#ef4444", "#f97316", "#f59e0b", "#eab308",
@@ -73,9 +75,14 @@ export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDelete
               <button
                 type="button"
                 onClick={() => onSelect(p.id)}
-                className="flex-1 text-left"
+                className="flex-1 text-left flex items-center gap-2"
               >
                 <span className="text-base font-medium tracking-tight md:text-sm">{p.name}</span>
+                {p.linked_uid ? (
+                  <span title="Linked to remote user"><LinkIcon className="h-3.5 w-3.5 text-primary" /></span>
+                ) : p.pending_invite_email ? (
+                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground uppercase">Pending</span>
+                ) : null}
               </button>
 
               {/* Open count */}
@@ -103,12 +110,15 @@ export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDelete
                 <DropdownMenuContent align="end" className="w-32">
                   <DropdownMenuItem
                     onClick={() => {
-                      const plain: Person = {
-                        id: p.id,
-                        name: p.name,
-                        initials: p.initials,
-                        color: p.color,
-                      }
+                        const plain: Person = {
+                          id: p.id,
+                          name: p.name,
+                          initials: p.initials,
+                          color: p.color,
+                          linked_uid: p.linked_uid ?? null,
+                          linked_email: p.linked_email ?? null,
+                          pending_invite_email: p.pending_invite_email ?? null,
+                        }
                       setEditing(plain)
                     }}
                   >
@@ -185,7 +195,15 @@ function PersonDialog({
 
   function handleSave() {
     if (!name.trim() || !initials.trim()) return
-    onSave(isEditing ? { ...person, name: name.trim(), initials: initials.trim().toUpperCase(), color } : { name: name.trim(), initials: initials.trim().toUpperCase(), color })
+    const base = {
+      name: name.trim(),
+      initials: initials.trim().toUpperCase(),
+      color,
+      linked_uid: person?.linked_uid ?? null,
+      linked_email: person?.linked_email ?? null,
+      pending_invite_email: person?.pending_invite_email ?? null
+    }
+    onSave(isEditing ? { ...person, ...base } : base)
   }
 
   return (
@@ -281,6 +299,121 @@ function PersonDialog({
             </div>
           </div>
         </div>
+
+        {/* Linked Status / Invite UI */}
+        {isEditing && (
+          <div className="border-t border-border bg-background/40 px-5 py-4">
+            <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+              Linked Account
+            </label>
+            {person.linked_uid ? (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2 text-sm text-primary bg-primary/10 rounded-md px-3 py-2 border border-primary/20">
+                  <LinkIcon className="h-4 w-4" />
+                  Successfully linked to remote user
+                </div>
+                {person.linked_email && (
+                  <input
+                    type="email"
+                    value={person.linked_email}
+                    disabled
+                    className="h-9 flex-1 rounded-md border border-border bg-muted px-3 text-sm text-muted-foreground cursor-not-allowed"
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm("Are you sure you want to unlink this user? Tasks will stop syncing but will remain in both your databases.")) {
+                      onSave({ ...person, linked_uid: null, linked_email: null })
+                    }
+                  }}
+                  className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 self-start"
+                >
+                  Unlink User
+                </button>
+              </div>
+            ) : person.pending_invite_email ? (
+              <div className="flex items-center justify-between text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2 border border-border">
+                <span>Pending invite sent to: {person.pending_invite_email}</span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!confirm("Cancel this invitation?")) return;
+                    try {
+                      const email = person.pending_invite_email!;
+                      const base64Email = btoa(email.toLowerCase());
+                      const dirDoc = await getDoc(doc(firestoreDb, `directory_by_email/${base64Email}`));
+                      if (dirDoc.exists()) {
+                        const targetUid = dirDoc.data().uid;
+                        const currentUser = auth.currentUser;
+                        if (currentUser) {
+                          const msgRef = doc(firestoreDb, `users/${targetUid}/messages/invite_${currentUser.uid}`);
+                          await deleteDoc(msgRef).catch(console.error);
+                        }
+                      }
+                      onSave({ ...person, pending_invite_email: null });
+                    } catch (e) {
+                      console.error(e);
+                      alert("Failed to cancel invitation.");
+                      onSave({ ...person, pending_invite_email: null });
+                    }
+                  }}
+                  className="rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  placeholder="User email to link..."
+                  className="h-9 flex-1 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
+                  id="inviteEmailInput"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const emailInput = document.getElementById("inviteEmailInput") as HTMLInputElement;
+                    const email = emailInput.value.trim().toLowerCase();
+                    if (!email) return;
+                    try {
+                      const base64Email = btoa(email);
+                      const dirDoc = await getDoc(doc(firestoreDb, `directory_by_email/${base64Email}`));
+                      if (!dirDoc.exists()) {
+                        alert("User not found. They must sign in to the app first.");
+                        return;
+                      }
+                      const targetUid = dirDoc.data().uid;
+                      const currentUser = auth.currentUser;
+                      if (!currentUser) return;
+                      
+                      // Send invite message with deterministic ID
+                      const msgRef = doc(firestoreDb, `users/${targetUid}/messages/invite_${currentUser.uid}`);
+                      await setDoc(msgRef, {
+                        type: "invite",
+                        fromUid: currentUser.uid,
+                        fromEmail: currentUser.email,
+                        timestamp: serverTimestamp()
+                      });
+                      
+                      // Update local person with pending_invite_email
+                      onSave({ ...person, pending_invite_email: email });
+                      alert("Invitation sent!");
+                    } catch (e) {
+                      console.error(e);
+                      alert("Failed to send invitation.");
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-md bg-secondary px-3 text-sm font-medium hover:bg-secondary/80 text-secondary-foreground"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  Invite
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-border bg-background/40 px-5 py-3">

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, Suspense } from "react"
+import { useEffect, useState, Suspense, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useDatabase, useSyncStatus } from "@/components/db-provider"
 import { toast } from "sonner"
@@ -244,6 +244,15 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
 
   const { accessToken: contextToken, selectedCalendarId, selectCalendar, refreshToken } = useGoogleCalendar()
 
+  const [syncTrigger, setSyncTrigger] = useState(0)
+  const syncedHashesRef = useRef(new Map<string, string>())
+
+  useEffect(() => {
+    const handleOnline = () => setSyncTrigger(t => t + 1)
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
+  }, [])
+
   // Auto-sync calendar to Google Calendar (uses activeTasks — already excludes archived)
   useEffect(() => {
     if (!user.uid || activeTasks.length === 0 || !contextToken) return
@@ -256,7 +265,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         try {
           return await fn(token);
         } catch (err: any) {
-          if (err.message?.includes("401") || err.message?.includes("Unauthorized")) {
+          if (err.message?.includes("401") || err.message?.includes("Unauthorized") || err.message?.includes("Invalid Credentials")) {
             const refreshed = await refreshToken();
             if (refreshed) {
               token = refreshed;
@@ -272,18 +281,26 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       
       for (const task of actionTasks) {
         try {
+          const hash = `${task.description}|${task.action_date}`;
           if (!task.google_event_id) {
             const eventId = await withRetry((t) => createGoogleEvent(task, t, selectedCalendarId));
             const doc = await db.tasks.findOne(task.id).exec();
             if (doc) await doc.patch({ google_event_id: eventId });
+            syncedHashesRef.current.set(task.id, hash);
             console.log(`Calendar: Created "${task.description}"`);
           } else {
-            await withRetry((t) => updateGoogleEvent(task, t, selectedCalendarId));
-            console.log(`Updated calendar event for: ${task.description}`);
+            // Smart sync: only update if the fields actually changed
+            if (syncedHashesRef.current.get(task.id) !== hash) {
+              await withRetry((t) => updateGoogleEvent(task, t, selectedCalendarId));
+              syncedHashesRef.current.set(task.id, hash);
+              console.log(`Updated calendar event for: ${task.description}`);
+            }
           }
         } catch (err: any) {
           console.error(`Auto-sync failed for task ${task.id}:`, err);
-          toast.error(`Calendar Error: ${err.message || "Unknown error"}`);
+          if (!err.message?.includes("Failed to fetch")) { // Ignore offline errors for toasts
+            toast.error(`Calendar Error: ${err.message || "Unknown error"}`);
+          }
         }
       }
 
@@ -294,6 +311,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           await withRetry((t) => deleteGoogleEvent(task.google_event_id!, t, selectedCalendarId));
           const doc = await db.tasks.findOne(task.id).exec();
           if (doc) await doc.patch({ google_event_id: null });
+          syncedHashesRef.current.delete(task.id);
         } catch (err) {
           console.error(`Auto-cleanup failed for task ${task.id}:`, err);
         }
@@ -301,7 +319,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }, 3000) // 3 second debounce
 
     return () => clearTimeout(timeoutId)
-  }, [activeTasks, user.uid, db, contextToken, selectedCalendarId, refreshToken])
+  }, [activeTasks, user.uid, db, contextToken, selectedCalendarId, refreshToken, syncTrigger])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -339,6 +357,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     onArchiveTask: handleArchiveTask,
     onDeleteTask: handleDeleteTask,
     onCreate: handleCreateTask,
+    onAddPerson: async (p: Omit<Person, "id">) => {
+      await db.persons.insert({ id: crypto.randomUUID(), ...p })
+    }
   }
 
   const renderView = () => {
@@ -346,7 +367,15 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       case "home":
         return <HomeView {...activeViewProps} tasks={inboxTasks} />
       case "inbox":
-        return <InboxView {...activeViewProps} tasks={inboxTasks} />
+        return (
+          <InboxView 
+            {...activeViewProps} 
+            tasks={inboxTasks} 
+            onAddPerson={async (p) => {
+              await db.persons.insert({ id: crypto.randomUUID(), ...p })
+            }}
+          />
+        )
       case "saved-view": {
         const sv = savedViews.find(v => v.id === activeSavedViewId)
         if (!sv) return <HomeView {...activeViewProps} tasks={inboxTasks} />

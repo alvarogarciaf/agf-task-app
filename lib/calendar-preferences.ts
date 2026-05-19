@@ -5,12 +5,14 @@ export interface CalendarPreferences {
   connected: boolean;
   selectedCalendarId: string;
   connectedAt: string;
+  refreshToken?: string | null;
 }
 
 const DEFAULT_PREFS: CalendarPreferences = {
   connected: false,
   selectedCalendarId: "primary",
   connectedAt: "",
+  refreshToken: null,
 };
 
 function prefsDocRef(uid: string) {

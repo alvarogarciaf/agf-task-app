@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react"
 import { onAuthStateChanged, signOut as firebaseSignOut, User } from "firebase/auth"
-import { auth } from "@/lib/firebase/config"
+import { auth, firestoreDb } from "@/lib/firebase/config"
+import { getFirestore } from "firebase/firestore"
 
 const CACHED_USER_KEY = "tasker_cached_user"
 
@@ -75,6 +76,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         setUser(firebaseUser)
         setCachedUser(firebaseUser)
+        // Publish email to directory for linking
+        if (firebaseUser.email) {
+          const emailBase64 = btoa(firebaseUser.email.toLowerCase())
+          import("firebase/firestore").then(({ doc, setDoc }) => {
+            const ref = doc(auth.app.options ? getFirestore(auth.app) : firestoreDb, `directory_by_email/${emailBase64}`)
+            setDoc(ref, { uid: firebaseUser.uid }).catch(err => console.error("Failed to publish to directory", err))
+          })
+        }
       } else {
         // Session expired or user signed out
         setUser(null)

@@ -72,7 +72,7 @@ export type ProjectDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof pro
 
 export const personSchemaLiteral = {
   title: 'person schema',
-  version: 0,
+  version: 2,
   description: 'describes a person',
   primaryKey: 'id',
   type: 'object',
@@ -81,6 +81,9 @@ export const personSchemaLiteral = {
     name: { type: 'string' },
     initials: { type: 'string' },
     color: { type: 'string' },
+    linked_uid: { type: ['string', 'null'] },
+    linked_email: { type: ['string', 'null'] },
+    pending_invite_email: { type: ['string', 'null'] },
   },
   required: ['id', 'name', 'initials', 'color'],
 } as const;

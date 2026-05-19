@@ -99,6 +99,20 @@ export const getDatabase = async (userUid: string) => {
             return oldDoc;
           }
         }
+      },
+      persons: {
+        ...DatabaseCollections.persons,
+        migrationStrategies: {
+          1: (oldDoc: any) => {
+            oldDoc.linked_uid = oldDoc.linked_uid ?? null;
+            oldDoc.pending_invite_email = oldDoc.pending_invite_email ?? null;
+            return oldDoc;
+          },
+          2: (oldDoc: any) => {
+            oldDoc.linked_email = oldDoc.linked_email ?? null;
+            return oldDoc;
+          }
+        }
       }
     });
     

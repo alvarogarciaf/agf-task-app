@@ -36,6 +36,9 @@ export interface Person {
   name: string
   initials: string
   color: string
+  linked_uid?: string | null
+  linked_email?: string | null
+  pending_invite_email?: string | null
 }
 
 export interface Context {
