@@ -171,8 +171,8 @@ export function GoogleCalendarProvider({ children }: { children: ReactNode }) {
 
     setIsConnecting(true);
     try {
-      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-      if (!clientId) throw new Error("Google Client ID not configured in .env.local");
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "788861047654-mi56q16sgkb0o5mo4o2a6dhjslgj8d32.apps.googleusercontent.com";
+      if (!clientId) throw new Error("Google Client ID not configured");
 
       const code = await new Promise<string>((resolve, reject) => {
         // @ts-ignore
