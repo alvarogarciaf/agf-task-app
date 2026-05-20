@@ -246,7 +246,7 @@ export function FilteredTasks({
   ])
 
   const groupedByProject = useMemo(() => {
-    if (!isGroupedByProject || contextIds.length === 0) return null
+    if (!isGroupedByProject) return null
 
     const groups: Record<string, Task[]> = {}
     filtered.forEach((t) => {
@@ -514,7 +514,7 @@ export function FilteredTasks({
               {filtered.length} {filtered.length === 1 ? itemNoun : `${itemNoun}s`}
             </span>
 
-            {contextIds.length > 0 && !projectId && (
+            {!projectId && !hideFilters.includes("project") && (
               <button
                 type="button"
                 onClick={() => setIsGroupedByProject(!isGroupedByProject)}
