@@ -1,4 +1,4 @@
-const CACHE_NAME = "tasker-agf-v7";
+const CACHE_NAME = "tasker-agf-v8";
 const PRECACHE_URLS = ["/", "/manifest.json", "/logo.svg"];
 
 // Detect localhost to bypass caching for development HMR
@@ -6,7 +6,7 @@ const isLocalhost = self.location.hostname === "localhost" || self.location.host
 
 self.addEventListener("install", (event) => {
   if (isLocalhost) {
-    // Skip caching in development
+    // Skip caching AND skip waiting in development so HMR works
     self.skipWaiting();
     return;
   }
@@ -15,7 +15,10 @@ self.addEventListener("install", (event) => {
       console.warn("SW precache failed (non-fatal):", err);
     })
   );
-  self.skipWaiting();
+  // NOTE: Do NOT call self.skipWaiting() here in production.
+  // This allows the new SW to enter the "waiting" state so the app
+  // can show the "Update available" toast before activating.
+  // The SKIP_WAITING message handler below handles the controlled activation.
 });
 
 self.addEventListener("activate", (event) => {

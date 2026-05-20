@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { Users, Tags, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Info, Database, Calendar, Copy, LogOut, Bell, BellOff, BellRing, CheckCircle2, XCircle, ShieldAlert } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -60,10 +60,16 @@ export function SettingsView({
   const [internalTab, setInternalTab] = useState<TabKey>("persons")
   const tab = controlledTab || internalTab
   const setTab = onTabChange || setInternalTab
+  const activeTabRef = useRef<HTMLButtonElement | null>(null)
   const { accessToken, isConnected, connect, disconnect, selectedCalendarId, selectCalendar } = useGoogleCalendar()
   const [isSyncing, setIsSyncing] = useState(false)
   const [calendars, setCalendars] = useState<GoogleCalendar[]>([])
   const [isLoadingCalendars, setIsLoadingCalendars] = useState(false)
+
+  // Scroll active tab button into view on mobile when tab changes
+  useEffect(() => {
+    activeTabRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" })
+  }, [tab])
 
   // Fetch calendars when tab is opened
   useEffect(() => {
@@ -124,28 +130,27 @@ export function SettingsView({
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Tabs */}
-      {/* Tabs - Hidden on mobile as they are now in the drawer */}
-      <div className="hidden md:flex items-center gap-1 border-b border-border mb-6">
-        <TabButton active={tab === "persons"} onClick={() => setTab("persons")} icon={Users}>
+      {/* Tabs - Scrollable on mobile, full tabs on desktop */}
+      <div className="flex items-center gap-1 border-b border-border mb-6 overflow-x-auto no-scrollbar">
+        <TabButton ref={tab === "persons" ? activeTabRef : null} active={tab === "persons"} onClick={() => setTab("persons")} icon={Users}>
           People
         </TabButton>
-        <TabButton active={tab === "contexts"} onClick={() => setTab("contexts")} icon={Tags}>
+        <TabButton ref={tab === "contexts" ? activeTabRef : null} active={tab === "contexts"} onClick={() => setTab("contexts")} icon={Tags}>
           Contexts
         </TabButton>
-        <TabButton active={tab === "urgencies"} onClick={() => setTab("urgencies")} icon={AlertCircle}>
+        <TabButton ref={tab === "urgencies" ? activeTabRef : null} active={tab === "urgencies"} onClick={() => setTab("urgencies")} icon={AlertCircle}>
           Urgencies
         </TabButton>
-        <TabButton active={tab === "calendar"} onClick={() => setTab("calendar")} icon={Calendar}>
+        <TabButton ref={tab === "calendar" ? activeTabRef : null} active={tab === "calendar"} onClick={() => setTab("calendar")} icon={Calendar}>
           Calendar
         </TabButton>
-        <TabButton active={tab === "data"} onClick={() => setTab("data")} icon={Trash2}>
+        <TabButton ref={tab === "data" ? activeTabRef : null} active={tab === "data"} onClick={() => setTab("data")} icon={Trash2}>
           Data
         </TabButton>
-        <TabButton active={tab === "notifications"} onClick={() => setTab("notifications")} icon={Bell}>
+        <TabButton ref={tab === "notifications" ? activeTabRef : null} active={tab === "notifications"} onClick={() => setTab("notifications")} icon={Bell}>
           Notifications
         </TabButton>
-        <TabButton active={tab === "troubleshoot"} onClick={() => setTab("troubleshoot")} icon={Info}>
+        <TabButton ref={tab === "troubleshoot" ? activeTabRef : null} active={tab === "troubleshoot"} onClick={() => setTab("troubleshoot")} icon={Info}>
           Sync & Debug
         </TabButton>
       </div>
@@ -450,34 +455,33 @@ export function SettingsView({
   )
 }
 
-function TabButton({
-  active,
-  onClick,
-  icon: Icon,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  icon: React.ComponentType<{ className?: string }>
-  children: React.ReactNode
-}) {
+const TabButton = React.forwardRef<
+  HTMLButtonElement,
+  {
+    active: boolean
+    onClick: () => void
+    icon: React.ComponentType<{ className?: string }>
+    children: React.ReactNode
+  }
+>(function TabButton({ active, onClick, icon: Icon, children }, ref) {
   return (
     <button
+      ref={ref}
       type="button"
       onClick={onClick}
       className={cn(
-        "relative inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors",
+        "relative inline-flex shrink-0 items-center gap-1 md:gap-1.5 px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-medium transition-colors whitespace-nowrap",
         active ? "text-primary" : "text-muted-foreground hover:text-foreground"
       )}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-3.5 w-3.5 md:h-4 md:w-4" />
       {children}
       {active && (
         <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary rounded-t-full" />
       )}
     </button>
   )
-}
+})
 
 interface EntityManagerProps<T> {
   title: string
