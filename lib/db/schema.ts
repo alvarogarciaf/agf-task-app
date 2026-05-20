@@ -52,7 +52,7 @@ export type UrgencyDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof urg
 
 export const projectSchemaLiteral = {
   title: 'project schema',
-  version: 1,
+  version: 2,
   description: 'describes a project',
   primaryKey: 'id',
   type: 'object',
@@ -64,6 +64,7 @@ export const projectSchemaLiteral = {
       type: 'string',
       enum: ['Ongoing', 'Closed'],
     },
+    linked_person_id: { type: ['string', 'null'] },
   },
   required: ['id', 'name', 'status'],
 } as const;

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from "react"
-import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus } from "lucide-react"
+import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import {
@@ -528,7 +528,8 @@ export function TasksTable({
                     {visibleColumns.map((key) => {
                       const isSelected = selectedCell?.taskId === task.id && selectedCell?.column === key
                       const isEditingThis = isSelected && isEditing
-                      const isEditable = EDITABLE_COLUMNS.has(key)
+                      const isProjectShared = !!(project && project.linked_person_id)
+                      const isEditable = EDITABLE_COLUMNS.has(key) && !(key === "person" && isProjectShared)
                       return (
                         <td
                           key={key}
@@ -843,7 +844,8 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
         <Empty />
       )
 
-    case "person":
+    case "person": {
+      const isProjectShared = !!(project && project.linked_person_id)
       return person ? (
         <div className="flex items-center gap-2">
           <div
@@ -852,11 +854,19 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
           >
             {person.initials}
           </div>
-          <span className="truncate text-xs text-foreground">{person.name}</span>
+          <span className="truncate text-xs text-foreground inline-flex items-center gap-1">
+            {person.name}
+            {isProjectShared && (
+              <span title="Locked to shared project" className="inline-flex shrink-0">
+                <Lock className="h-2.5 w-2.5 text-blue-500" />
+              </span>
+            )}
+          </span>
         </div>
       ) : (
         <Empty />
       )
+    }
 
     case "contexts":
       if (contexts.length === 0) return <Empty />

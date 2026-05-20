@@ -5,16 +5,17 @@ import { collection, query, onSnapshot, doc, deleteDoc, setDoc, serverTimestamp 
 import { firestoreDb } from "@/lib/firebase/config";
 import { useDatabase } from "@/components/db-provider";
 import { useAuth } from "@/components/auth-provider";
-import type { Task } from "@/lib/types";
+import type { Task, Project } from "@/lib/types";
 import { Subscription } from "rxjs";
 import objectHash from "object-hash";
 
 export interface SyncMessage {
   id: string;
-  type: "task_upsert" | "task_delete" | "invite" | "invite_accepted";
+  type: "task_upsert" | "task_delete" | "invite" | "invite_accepted" | "project_upsert" | "project_delete";
   fromUid: string;
   fromEmail?: string;
   task?: Partial<Task>;
+  project?: Partial<Project>;
   timestamp?: any;
 }
 
@@ -23,6 +24,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const uid = user?.uid;
   const lastProcessedTaskHash = useRef<Record<string, string>>({});
+  const lastProcessedProjectHash = useRef<Record<string, string>>({});
 
   // Function to hash the shared portion of a task
   const getSharedTaskHash = (task: Partial<Task>) => {
@@ -34,6 +36,17 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
       status: task.status,
       processed: task.processed,
       archived: task.archived,
+      project_id: task.project_id,
+    });
+  };
+
+  // Function to hash the shared portion of a project
+  const getSharedProjectHash = (project: Partial<Project>) => {
+    return objectHash({
+      name: project.name,
+      details: project.details,
+      status: project.status,
+      linked_person_id: project.linked_person_id,
     });
   };
 
@@ -79,6 +92,29 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                 const hash = getSharedTaskHash(msg.task);
                 lastProcessedTaskHash.current[msg.task.id] = hash;
 
+                // Non-shared task-project sync logic
+                const incomingProjId = msg.task.project_id ?? null;
+                let finalProjId = existingTask ? existingTask.project_id : null;
+
+                // Helper to check if a project is shared locally
+                const isProjectSharedLocally = async (projId: string | null | undefined) => {
+                  if (!projId) return false;
+                  const projDoc = await db.projects.findOne(projId).exec();
+                  return projDoc && projDoc.linked_person_id !== null && projDoc.linked_person_id !== undefined;
+                };
+
+                const incomingIsShared = await isProjectSharedLocally(incomingProjId);
+                const currentIsShared = await isProjectSharedLocally(finalProjId);
+
+                if (incomingIsShared) {
+                  // Rule 1: incoming project is shared -> assign it
+                  finalProjId = incomingProjId;
+                } else if (currentIsShared) {
+                  // Rule 2: incoming project is NOT shared, but current local is shared -> clear it
+                  finalProjId = null;
+                }
+                // Rule 3: incoming is NOT shared, current is NOT shared -> keep finalProjId as is
+
                 if (existingTask) {
                   await existingTask.patch({
                     description: msg.task.description,
@@ -89,6 +125,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                     processed: msg.task.processed,
                     archived: msg.task.archived,
                     person_id: mappedPerson.id, // Ensure it's assigned to the linked person
+                    project_id: finalProjId,
                   });
                 } else {
                   // Create new task with defaults for local-only fields
@@ -105,6 +142,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                     urgency_id: defaultUrgency?.id || "u_medium",
                     context_ids: [],
                     person_id: mappedPerson.id,
+                    project_id: finalProjId,
                   });
                 }
               }
@@ -114,6 +152,48 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
               if (existingTask) {
                 lastProcessedTaskHash.current[msg.task.id] = "deleted";
                 await existingTask.remove();
+              }
+            }
+            else if (msg.type === "project_upsert" && msg.project && msg.project.id) {
+              const allPersons = await db.persons.find().exec();
+              const mappedPerson = allPersons.find(p => p.linked_uid === msg.fromUid);
+
+              if (!mappedPerson) {
+                console.warn(`[Sync] Received project from unlinked user ${msg.fromUid}`);
+              } else {
+                const existingProj = await db.projects.findOne(msg.project.id).exec();
+                
+                // If it is unlinked, linked_person_id is null. Otherwise map it to mappedPerson.id
+                const incomingLinkedPersonId = msg.project.linked_person_id === null ? null : mappedPerson.id;
+
+                const localProjRepresent = {
+                  name: msg.project.name!,
+                  details: msg.project.details,
+                  status: msg.project.status as any,
+                  linked_person_id: incomingLinkedPersonId,
+                };
+
+                const hash = getSharedProjectHash(localProjRepresent);
+                lastProcessedProjectHash.current[msg.project.id] = hash;
+
+                if (existingProj) {
+                  await existingProj.patch(localProjRepresent);
+                  console.log(`[Sync] Patched project ${msg.project.id}`);
+                } else {
+                  await db.projects.insert({
+                    id: msg.project.id,
+                    ...localProjRepresent,
+                  });
+                  console.log(`[Sync] Inserted project ${msg.project.id}`);
+                }
+              }
+            }
+            else if (msg.type === "project_delete" && msg.project?.id) {
+              const existingProj = await db.projects.findOne(msg.project.id).exec();
+              if (existingProj) {
+                lastProcessedProjectHash.current[msg.project.id] = "deleted";
+                await existingProj.remove();
+                console.log(`[Sync] Deleted project ${msg.project.id}`);
               }
             }
 
@@ -132,12 +212,13 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [uid, db]);
 
-  // 2. Process outgoing task changes
+  // 2. Process outgoing changes (tasks and projects)
   useEffect(() => {
     if (!uid || !db) return;
 
     const sub = new Subscription();
 
+    // Outgoing task changes
     sub.add(
       db.tasks.$.subscribe(async (changeEvent) => {
         const taskData = changeEvent.documentData as Task;
@@ -195,12 +276,83 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
               status: taskData.status ?? "Open",
               processed: taskData.processed ?? false,
               archived: taskData.archived ?? false,
+              project_id: taskData.project_id ?? null,
             },
             timestamp: serverTimestamp()
           });
 
         } catch (err) {
           console.error("[Sync] Outgoing sync error", err);
+        }
+      })
+    );
+
+    // Outgoing project changes
+    sub.add(
+      db.projects.$.subscribe(async (changeEvent) => {
+        const projectData = changeEvent.documentData as Project;
+        const previousData = changeEvent.previousDocumentData as Project | undefined;
+
+        // We care if it is shared (has linked_person_id) OR if it was previously shared and is now unlinked
+        const isShared = !!projectData.linked_person_id;
+        const wasShared = !!previousData?.linked_person_id;
+
+        if (!isShared && !wasShared) return;
+
+        const targetPersonId = projectData.linked_person_id || previousData?.linked_person_id;
+        if (!targetPersonId) return;
+
+        try {
+          const person = await db.persons.findOne(targetPersonId).exec();
+          if (!person || !person.linked_uid) return;
+
+          const isDeleted = changeEvent.operation === "DELETE";
+
+          if (isDeleted) {
+            if (lastProcessedProjectHash.current[projectData.id] === "deleted") {
+              delete lastProcessedProjectHash.current[projectData.id];
+              return;
+            }
+
+            const msgRef = doc(collection(firestoreDb, `users/${person.linked_uid}/messages`));
+            await setDoc(msgRef, {
+              type: "project_delete",
+              fromUid: uid,
+              project: { id: projectData.id },
+              timestamp: serverTimestamp()
+            });
+            return;
+          }
+
+          const newHash = getSharedProjectHash(projectData);
+
+          if (lastProcessedProjectHash.current[projectData.id] === newHash) {
+            return;
+          }
+
+          if (changeEvent.operation === "UPDATE" && previousData) {
+            const oldHash = getSharedProjectHash(previousData);
+            if (oldHash === newHash) return;
+          }
+
+          lastProcessedProjectHash.current[projectData.id] = newHash;
+
+          const msgRef = doc(collection(firestoreDb, `users/${person.linked_uid}/messages`));
+          await setDoc(msgRef, {
+            type: "project_upsert",
+            fromUid: uid,
+            project: {
+              id: projectData.id,
+              name: projectData.name,
+              details: projectData.details ?? null,
+              status: projectData.status,
+              linked_person_id: projectData.linked_person_id ? person.id : null,
+            },
+            timestamp: serverTimestamp()
+          });
+
+        } catch (err) {
+          console.error("[Sync] Outgoing project sync error", err);
         }
       })
     );

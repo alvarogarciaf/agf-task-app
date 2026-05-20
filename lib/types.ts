@@ -29,6 +29,7 @@ export interface Project {
   name: string
   details?: string | null
   status: ProjectStatus
+  linked_person_id?: string | null
 }
 
 export interface Person {

@@ -125,13 +125,22 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     const byOrder = [...urgencies].sort((a, b) => a.order - b.order)
     const defaultUrgency = byOrder[0]?.id ?? "u_low"
     
+    // Resolve project shared status
+    let finalPersonId = input.personId
+    if (input.projectId) {
+      const proj = projects.find(p => p.id === input.projectId)
+      if (proj && proj.linked_person_id) {
+        finalPersonId = proj.linked_person_id
+      }
+    }
+
     const doc = await db.tasks.insert({
       id: crypto.randomUUID(),
       description: input.description,
       details: input.details ?? null,
       context_ids: input.contextIds,
       project_id: input.projectId,
-      person_id: input.personId,
+      person_id: finalPersonId,
       urgency_id: input.urgencyId || defaultUrgency,
       processed: input.processed ?? false,
       status: "Open",
@@ -144,7 +153,32 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const handleUpdateTask = async (task: Task) => {
     const doc = await db.tasks.findOne(task.id).exec()
     if (doc) {
-      await doc.patch(task)
+      // Resolve project_id using incoming or current database value
+      const projectId = task.project_id !== undefined ? task.project_id : doc.get("project_id")
+      
+      // Resolve person_id using incoming or current database value
+      let personId = task.person_id !== undefined ? task.person_id : doc.get("person_id")
+      
+      // Enforce shared project partner override
+      if (projectId) {
+        const proj = projects.find(p => p.id === projectId)
+        if (proj && proj.linked_person_id) {
+          personId = proj.linked_person_id
+        }
+      }
+
+      // Construct clean patch object filtering out undefined fields
+      const patchObj: Partial<Task> = {}
+      for (const key of Object.keys(task) as Array<keyof Task>) {
+        if (task[key] !== undefined) {
+          (patchObj as any)[key] = task[key]
+        }
+      }
+      
+      // Set the resolved person_id
+      patchObj.person_id = personId
+
+      await doc.patch(patchObj)
     }
   }
 
@@ -188,7 +222,17 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
 
   const handleUpdateProject = async (p: Project) => {
     const doc = await db.projects.findOne(p.id).exec()
-    if (doc) await doc.patch(p)
+    if (doc) {
+      const prevLinkedPersonId = doc.get("linked_person_id")
+      await doc.patch(p)
+      
+      // Enforce: if project linked to a person, batch update all tasks in this project
+      if (p.linked_person_id && p.linked_person_id !== prevLinkedPersonId) {
+        const tasksToUpdate = await db.tasks.find({ selector: { project_id: p.id } }).exec()
+        await Promise.all(tasksToUpdate.map(tDoc => tDoc.patch({ person_id: p.linked_person_id })))
+        toast.success(`Synced all tasks in "${p.name}" with shared partner.`)
+      }
+    }
   }
 
   const handleDeleteProject = async (id: string) => {

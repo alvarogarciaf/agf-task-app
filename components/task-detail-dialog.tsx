@@ -9,6 +9,7 @@ import {
   Circle,
   FileText,
   FolderKanban,
+  Lock,
   Tag,
   User,
   X,
@@ -63,9 +64,16 @@ export function TaskDetailDialog({
 
   // Sync draft when a different task is opened
   useEffect(() => {
-    setDraft(getFullPlainTask(task))
+    const fullPlain = getFullPlainTask(task);
+    if (fullPlain && fullPlain.project_id) {
+      const proj = projects.find(p => p.id === fullPlain.project_id);
+      if (proj && proj.linked_person_id) {
+        fullPlain.person_id = proj.linked_person_id;
+      }
+    }
+    setDraft(fullPlain)
     setAutoProcess(task && !task.processed ? true : false)
-  }, [task])
+  }, [task, projects])
 
   const descriptionRef = useRef<HTMLTextAreaElement>(null)
 
@@ -139,6 +147,9 @@ export function TaskDetailDialog({
   const urgency = urgencies.find(u => u.id === draft.urgency_id) || urgencies[0]
   const sortedUrgencies = [...urgencies].sort((a, b) => a.order - b.order)
   const created = new Date(draft.date_created)
+
+  const selectedProject = draft.project_id ? projects.find(p => p.id === draft.project_id) : null;
+  const isProjectShared = !!(selectedProject && selectedProject.linked_person_id);
 
   return (
     <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(o) : cancel())}>
@@ -300,9 +311,15 @@ export function TaskDetailDialog({
               <Label icon={<FolderKanban className="h-3 w-3" />}>Project</Label>
               <Select
                 value={draft.project_id ?? "__none__"}
-                onValueChange={(v) =>
-                  update("project_id", v === "__none__" ? null : v)
-                }
+                onValueChange={(v) => {
+                  const projId = v === "__none__" ? null : v;
+                  const proj = projId ? projects.find(p => p.id === projId) : null;
+                  if (proj && proj.linked_person_id) {
+                    setDraft(prev => prev ? { ...prev, project_id: projId, person_id: proj.linked_person_id } : null);
+                  } else {
+                    setDraft(prev => prev ? { ...prev, project_id: projId } : null);
+                  }
+                }}
               >
                 <SelectTrigger className="mt-1.5 w-full border-border bg-background h-11 md:h-9">
                   <SelectValue placeholder="No project" />
@@ -322,14 +339,22 @@ export function TaskDetailDialog({
 
             {/* Person */}
             <div>
-              <Label icon={<User className="h-3 w-3" />}>Person</Label>
+              <div className="flex items-center justify-between">
+                <Label icon={<User className="h-3 w-3" />}>Person</Label>
+                {isProjectShared && (
+                  <span className="flex items-center gap-1 text-[10px] font-medium text-blue-500 font-mono animate-fade-in">
+                    <Lock className="h-2.5 w-2.5" /> Locked to project partner
+                  </span>
+                )}
+              </div>
               <Select
+                disabled={isProjectShared}
                 value={draft.person_id ?? "__none__"}
                 onValueChange={(v) =>
                   update("person_id", v === "__none__" ? null : v)
                 }
               >
-                <SelectTrigger className="mt-1.5 w-full border-border bg-background h-11 md:h-9">
+                <SelectTrigger className={cn("mt-1.5 w-full border-border bg-background h-11 md:h-9", isProjectShared && "opacity-80 cursor-not-allowed bg-muted/20")}>
                   <SelectValue placeholder="No one" />
                 </SelectTrigger>
                 <SelectContent>

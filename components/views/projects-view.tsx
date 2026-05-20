@@ -94,6 +94,7 @@ export function ProjectsView({
         onOpenChange={setEditorOpen}
         project={editingProject}
         onSave={handleSaveProject}
+        persons={persons}
       />
 
       {selected ? (
@@ -198,16 +199,26 @@ export function ProjectsView({
 
               <div className="flex items-center justify-between gap-2 min-w-0 pr-6">
                 <h3 className="text-sm font-semibold tracking-tight truncate flex-1">{p.name}</h3>
-                <span
-                  className={cn(
-                    "shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider",
-                    p.status === "Ongoing"
-                      ? "border-primary/30 bg-primary/10 text-primary"
-                      : "border-border bg-muted/40 text-muted-foreground",
-                  )}
-                >
-                  {p.status}
-                </span>
+                <div className="flex items-center gap-1 shrink-0">
+                  {p.linked_person_id && (() => {
+                    const lp = persons.find(per => per.id === p.linked_person_id)
+                    return lp ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-[10px] text-blue-500 font-mono">
+                        👤 {lp.name}
+                      </span>
+                    ) : null
+                  })()}
+                  <span
+                    className={cn(
+                      "shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider",
+                      p.status === "Ongoing"
+                        ? "border-primary/30 bg-primary/10 text-primary"
+                        : "border-border bg-muted/40 text-muted-foreground",
+                    )}
+                  >
+                    {p.status}
+                  </span>
+                </div>
               </div>
               <div>
                 {p.details ? (
@@ -310,7 +321,15 @@ function ProjectDetail({
           </div>
           <div>
             <h2 className="text-xl font-semibold tracking-tight">{project.name}</h2>
-            <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+              {project.linked_person_id && (() => {
+                const lp = persons.find(per => per.id === project.linked_person_id)
+                return lp ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 text-[10px] font-medium text-blue-500 font-mono">
+                    Shared with {lp.name}
+                  </span>
+                ) : null
+              })()}
               <span
                 className={cn(
                   "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider",
@@ -394,6 +413,7 @@ function ProjectDetail({
             emptyTitle={`No tasks for ${project.name}`}
             emptyHint="Tasks linked to this project will appear here."
             onCreate={onCreate}
+            initialProjectId={project.id}
           />
         </div>
       ) : (
@@ -445,21 +465,25 @@ function ProjectEditor({
   onOpenChange,
   project,
   onSave,
+  persons,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   project: Project | null
   onSave: (p: Project | Omit<Project, "id">) => void
+  persons: Person[]
 }) {
   const [name, setName] = useState("")
   const [details, setDetails] = useState("")
   const [status, setStatus] = useState<ProjectStatus>("Ongoing")
+  const [linkedPersonId, setLinkedPersonId] = useState<string>("not_shared")
 
   useEffect(() => {
     if (open) {
       setName(project?.name ?? "")
       setDetails(project?.details ?? "")
       setStatus(project?.status ?? "Ongoing")
+      setLinkedPersonId(project?.linked_person_id ?? "not_shared")
     }
   }, [open, project])
 
@@ -470,8 +494,11 @@ function ProjectEditor({
       name: name.trim(),
       details: details.trim() || null,
       status,
+      linked_person_id: linkedPersonId === "not_shared" ? null : linkedPersonId,
     } as any)
   }
+
+  const linkablePersons = persons.filter(p => !!p.linked_uid)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -512,6 +539,25 @@ function ProjectEditor({
                 <SelectItem value="Closed">Closed</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="sharing">Share Project</Label>
+            <Select value={linkedPersonId} onValueChange={setLinkedPersonId}>
+              <SelectTrigger id="sharing">
+                <SelectValue placeholder="Not shared" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="not_shared">Not shared (Local only)</SelectItem>
+                {linkablePersons.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    Shared with {p.name} ({p.linked_email || "Linked user"})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground leading-tight">
+              Sharing a project will automatically sync the project's metadata and assign all its tasks to the selected person. Unlinking it keeps tasks linked, but makes the projects separate.
+            </p>
           </div>
         </div>
 

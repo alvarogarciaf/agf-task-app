@@ -71,6 +71,11 @@ export const getDatabase = async (userUid: string) => {
           1: (oldDoc: any) => {
             oldDoc.details = oldDoc.details ?? null;
             return oldDoc;
+          },
+          // 2: Add linked_person_id field
+          2: (oldDoc: any) => {
+            oldDoc.linked_person_id = oldDoc.linked_person_id ?? null;
+            return oldDoc;
           }
         }
       },
