@@ -12,6 +12,24 @@ export function ServiceWorkerRegister() {
     navigator.serviceWorker.register("/sw.js").then((registration) => {
       console.log("[SW] Registered:", registration.scope);
 
+      // Force an update check immediately upon registration
+      registration.update().catch((e) => console.warn("[SW] Initial update check failed:", e));
+
+      // ── iOS & Mobile Update Optimization ──
+      // Force check for update when the page is visible or focused again (e.g. app reopened)
+      const checkForUpdate = () => {
+        if (navigator.onLine) {
+          registration.update().catch((e) => console.warn("[SW] Focus update check failed:", e));
+        }
+      };
+
+      window.addEventListener("focus", checkForUpdate);
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          checkForUpdate();
+        }
+      });
+
       // ── PWA Update Detection ──
       // If there is already a waiting worker (e.g. from a previous page load), prompt immediately.
       if (registration.waiting) {
