@@ -1,7 +1,15 @@
-const CACHE_NAME = "tasker-agf-v6";
+const CACHE_NAME = "tasker-agf-v7";
 const PRECACHE_URLS = ["/", "/manifest.json", "/logo.svg"];
 
+// Detect localhost to bypass caching for development HMR
+const isLocalhost = self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1";
+
 self.addEventListener("install", (event) => {
+  if (isLocalhost) {
+    // Skip caching in development
+    self.skipWaiting();
+    return;
+  }
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)).catch((err) => {
       console.warn("SW precache failed (non-fatal):", err);
@@ -22,6 +30,63 @@ self.addEventListener("activate", (event) => {
   );
   self.clients.claim();
 });
+
+// Listen for SKIP_WAITING message from client for PWA update flow
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
+// ──────────────────────────────────────────────
+// Web Push Notification Handlers
+// ──────────────────────────────────────────────
+
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch (e) {
+    payload = { title: "New Notification", body: event.data.text() };
+  }
+
+  const title = payload.title || "Task App";
+  const options = {
+    body: payload.body || "",
+    icon: "/logo-pwa.svg",
+    badge: "/logo-pwa.svg",
+    data: {
+      url: payload.url || "/",
+    },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const urlToOpen = event.notification.data?.url || "/";
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      // If a window is already open, focus it
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && "focus" in client) {
+          return client.focus();
+        }
+      }
+      // Otherwise open a new window
+      return self.clients.openWindow(urlToOpen);
+    })
+  );
+});
+
+// ──────────────────────────────────────────────
+// Fetch handler (disabled on localhost)
+// ──────────────────────────────────────────────
 
 // URLs that should NEVER be cached (Firebase/Firestore API, auth, analytics)
 const NETWORK_ONLY_PATTERNS = [
@@ -45,6 +110,9 @@ function isCacheableAsset(url) {
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
+
+  // In development, let everything pass through to the network
+  if (isLocalhost) return;
 
   if (request.method !== "GET") return;
 

@@ -1,15 +1,18 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Users, Tags, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Info, Database, Calendar, Copy, LogOut } from "lucide-react"
+import { Users, Tags, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Info, Database, Calendar, Copy, LogOut, Bell, BellOff, BellRing, CheckCircle2, XCircle, ShieldAlert } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useGoogleCalendar } from "@/components/google-calendar-provider"
 import { listGoogleCalendars, type GoogleCalendar } from "@/lib/google-calendar"
+import { useAuth } from "@/components/auth-provider"
+import { collection, doc, setDoc, deleteDoc, getDocs } from "firebase/firestore"
+import { firestoreDb } from "@/lib/firebase/config"
 import type { Context, Person, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "@/components/db-provider"
 
-export type TabKey = "persons" | "contexts" | "urgencies" | "calendar" | "data" | "troubleshoot"
+export type TabKey = "persons" | "contexts" | "urgencies" | "calendar" | "data" | "notifications" | "troubleshoot"
 
 interface SettingsViewProps {
   activeTab?: TabKey
@@ -138,6 +141,9 @@ export function SettingsView({
         </TabButton>
         <TabButton active={tab === "data"} onClick={() => setTab("data")} icon={Trash2}>
           Data
+        </TabButton>
+        <TabButton active={tab === "notifications"} onClick={() => setTab("notifications")} icon={Bell}>
+          Notifications
         </TabButton>
         <TabButton active={tab === "troubleshoot"} onClick={() => setTab("troubleshoot")} icon={Info}>
           Sync & Debug
@@ -337,6 +343,10 @@ export function SettingsView({
               </div>
             </div>
           </div>
+        )}
+
+        {tab === "notifications" && (
+          <NotificationsPanel userUid={userUid} />
         )}
 
         {tab === "troubleshoot" && (
@@ -686,6 +696,289 @@ function EntityManager<T extends { id: string }>({
             )
           })
         )}
+      </div>
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────────
+// Notifications Panel Component
+// ──────────────────────────────────────────────
+
+function NotificationsPanel({ userUid }: { userUid?: string }) {
+  const [permissionStatus, setPermissionStatus] = useState<NotificationPermission | "unsupported">("default")
+  const [isEnabled, setIsEnabled] = useState(false)
+  const [isSubscribing, setIsSubscribing] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
+
+  // Check initial state
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      setPermissionStatus("unsupported")
+      return
+    }
+    setPermissionStatus(Notification.permission)
+    setIsEnabled(localStorage.getItem("notifications_enabled") === "true")
+  }, [])
+
+  const handleEnableNotifications = async () => {
+    if (!userUid) {
+      toast.error("You must be signed in to enable notifications.")
+      return
+    }
+
+    setIsSubscribing(true)
+    try {
+      const permission = await Notification.requestPermission()
+      setPermissionStatus(permission)
+
+      if (permission !== "granted") {
+        toast.error("Notification permission was denied.")
+        setIsSubscribing(false)
+        return
+      }
+
+      // Get the service worker registration and subscribe
+      const registration = await navigator.serviceWorker.ready
+      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+
+      if (!vapidPublicKey) {
+        toast.error("VAPID key not configured.")
+        setIsSubscribing(false)
+        return
+      }
+
+      // Convert VAPID key to Uint8Array
+      const urlBase64ToUint8Array = (base64String: string) => {
+        const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
+        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
+        const rawData = window.atob(base64)
+        const outputArray = new Uint8Array(rawData.length)
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i)
+        }
+        return outputArray
+      }
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      })
+
+      // Save subscription to Firestore
+      const subJson = subscription.toJSON()
+      const subId = btoa(subJson.endpoint || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 40)
+      await setDoc(doc(firestoreDb, `users/${userUid}/push_subscriptions/${subId}`), {
+        ...subJson,
+        createdAt: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+      })
+
+      localStorage.setItem("notifications_enabled", "true")
+      setIsEnabled(true)
+      toast.success("Notifications enabled successfully!")
+    } catch (err: any) {
+      console.error("[Notifications] Subscribe error:", err)
+      toast.error(err.message || "Failed to enable notifications.")
+    } finally {
+      setIsSubscribing(false)
+    }
+  }
+
+  const handleDisableNotifications = async () => {
+    if (!userUid) return
+
+    setIsSubscribing(true)
+    try {
+      // Unsubscribe from push manager
+      const registration = await navigator.serviceWorker.ready
+      const subscription = await registration.pushManager.getSubscription()
+      if (subscription) {
+        await subscription.unsubscribe()
+      }
+
+      // Remove all subscriptions from Firestore for this user
+      const subsRef = collection(firestoreDb, `users/${userUid}/push_subscriptions`)
+      const snapshot = await getDocs(subsRef)
+      for (const docSnap of snapshot.docs) {
+        await deleteDoc(docSnap.ref)
+      }
+
+      localStorage.setItem("notifications_enabled", "false")
+      setIsEnabled(false)
+      toast.success("Notifications disabled.")
+    } catch (err: any) {
+      console.error("[Notifications] Unsubscribe error:", err)
+      toast.error(err.message || "Failed to disable notifications.")
+    } finally {
+      setIsSubscribing(false)
+    }
+  }
+
+  const handleTestNotification = async () => {
+    if (!userUid) return
+
+    setIsTesting(true)
+    try {
+      // Get subscriptions from Firestore
+      const subsRef = collection(firestoreDb, `users/${userUid}/push_subscriptions`)
+      const snapshot = await getDocs(subsRef)
+      const subscriptions = snapshot.docs.map((d) => d.data())
+
+      if (subscriptions.length === 0) {
+        toast.error("No active subscriptions found.")
+        setIsTesting(false)
+        return
+      }
+
+      const res = await fetch("/api/notifications/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subscriptions,
+          title: "Test Notification 🔔",
+          body: "If you see this, push notifications are working perfectly!",
+        }),
+      })
+
+      if (res.ok) {
+        toast.success("Test notification sent!")
+      } else {
+        const err = await res.json()
+        toast.error(err.error || "Failed to send test notification.")
+      }
+    } catch (err: any) {
+      console.error("[Notifications] Test error:", err)
+      toast.error(err.message || "Failed to send test notification.")
+    } finally {
+      setIsTesting(false)
+    }
+  }
+
+  const isSupported = permissionStatus !== "unsupported"
+  const isGranted = permissionStatus === "granted"
+  const isDenied = permissionStatus === "denied"
+
+  return (
+    <div className="p-8">
+      <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+        <Bell className="h-5 w-5 text-primary" />
+        Notifications
+      </h3>
+      <p className="text-sm text-muted-foreground mb-6">
+        Receive instant push notifications when a linked user adds a task for you.
+      </p>
+
+      <div className="space-y-6">
+        {/* Status Card */}
+        <div className="rounded-lg border border-border bg-muted/30 p-6 flex flex-col items-center text-center">
+          <div className={cn(
+            "h-12 w-12 rounded-full flex items-center justify-center mb-4",
+            !isSupported ? "bg-muted text-muted-foreground" :
+            isDenied ? "bg-destructive/10 text-destructive" :
+            isEnabled && isGranted ? "bg-green-500/10 text-green-500" :
+            "bg-primary/10 text-primary"
+          )}>
+            {!isSupported ? <BellOff className="h-6 w-6" /> :
+             isDenied ? <XCircle className="h-6 w-6" /> :
+             isEnabled && isGranted ? <BellRing className="h-6 w-6" /> :
+             <Bell className="h-6 w-6" />}
+          </div>
+
+          <h4 className="font-medium mb-1">
+            {!isSupported ? "Not Supported" :
+             isDenied ? "Notifications Blocked" :
+             isEnabled && isGranted ? "Notifications Active" :
+             "Notifications Disabled"}
+          </h4>
+
+          <p className="text-xs text-muted-foreground mb-6 max-w-xs">
+            {!isSupported
+              ? "Your browser does not support push notifications."
+              : isDenied
+              ? "You have blocked notifications for this site. To re-enable, click the lock/settings icon in your browser's address bar and allow notifications."
+              : isEnabled && isGranted
+              ? "You will receive push notifications when a linked user adds a task for you."
+              : "Enable push notifications to stay informed about new tasks from linked users."}
+          </p>
+
+          <div className="flex gap-3">
+            {isSupported && !isDenied && !isEnabled && (
+              <button
+                type="button"
+                onClick={handleEnableNotifications}
+                disabled={isSubscribing}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {isSubscribing ? (
+                  <><RefreshCw className="h-4 w-4 animate-spin" /> Enabling...</>
+                ) : (
+                  <><Bell className="h-4 w-4" /> Enable Notifications</>
+                )}
+              </button>
+            )}
+
+            {isEnabled && isGranted && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleTestNotification}
+                  disabled={isTesting}
+                  className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {isTesting ? (
+                    <><RefreshCw className="h-4 w-4 animate-spin" /> Sending...</>
+                  ) : (
+                    <><BellRing className="h-4 w-4" /> Send Test Notification</>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDisableNotifications}
+                  disabled={isSubscribing}
+                  className="inline-flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm font-medium hover:bg-secondary/80 text-destructive"
+                >
+                  <BellOff className="h-4 w-4" />
+                  Disable
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Denied warning */}
+        {isDenied && (
+          <div className="p-4 rounded-lg border border-destructive/20 bg-destructive/5">
+            <div className="flex gap-3">
+              <ShieldAlert className="h-5 w-5 text-destructive shrink-0" />
+              <div className="text-xs text-muted-foreground space-y-2">
+                <p className="font-semibold text-destructive">Permission Blocked</p>
+                <p>
+                  Your browser has blocked notifications for this site. To fix this:
+                </p>
+                <ol className="list-decimal list-inside space-y-1">
+                  <li>Click the <strong>lock icon</strong> (or settings icon) in the address bar</li>
+                  <li>Find <strong>Notifications</strong> in the permissions list</li>
+                  <li>Change it from <strong>Block</strong> to <strong>Allow</strong></li>
+                  <li>Reload the page and try again</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Info card */}
+        <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
+          <div className="flex gap-3">
+            <Info className="h-5 w-5 text-primary shrink-0" />
+            <div className="text-xs text-muted-foreground space-y-2">
+              <p className="font-semibold text-foreground">How it works</p>
+              <p>
+                When a linked user adds a task that is shared with you, you will receive an instant push notification — even if you don&apos;t have the app open. Notifications work on desktop, Android, and iOS (when added to Home Screen).
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

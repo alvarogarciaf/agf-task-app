@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, ReactNode } from "react";
-import { collection, query, onSnapshot, doc, deleteDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, onSnapshot, doc, deleteDoc, setDoc, serverTimestamp, getDocs } from "firebase/firestore";
 import { firestoreDb } from "@/lib/firebase/config";
 import { useDatabase } from "@/components/db-provider";
 import { useAuth } from "@/components/auth-provider";
@@ -280,6 +280,29 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
             },
             timestamp: serverTimestamp()
           });
+
+          // ── Push notification for NEW tasks only ──
+          if (changeEvent.operation === "INSERT") {
+            try {
+              const subsRef = collection(firestoreDb, `users/${person.linked_uid}/push_subscriptions`);
+              const subsSnap = await getDocs(subsRef);
+              if (!subsSnap.empty) {
+                const subscriptions = subsSnap.docs.map((d) => d.data());
+                const senderName = user?.displayName || user?.email || "Someone";
+                fetch("/api/notifications/push", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    subscriptions,
+                    title: `New task added by ${senderName}`,
+                    body: taskData.description || "",
+                  }),
+                }).catch((e) => console.warn("[Sync] Push notification failed:", e));
+              }
+            } catch (pushErr) {
+              console.warn("[Sync] Push notification error:", pushErr);
+            }
+          }
 
         } catch (err) {
           console.error("[Sync] Outgoing sync error", err);

@@ -14,6 +14,12 @@ service cloud.firestore {
       allow create, update: if request.auth != null && request.resource.data.fromUid == request.auth.uid;
     }
     
+    // Push Subscriptions (any authenticated user can read, only owner can write)
+    match /users/{userId}/push_subscriptions/{subId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
     // User Directory (Public read, owner write)
     match /directory_by_email/{emailHash} {
       allow read: if request.auth != null;

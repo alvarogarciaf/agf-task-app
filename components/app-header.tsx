@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Search, Command, Settings, LogOut, ChevronDown, Menu, Users, Tags, AlertCircle, Calendar, Trash2, Info } from "lucide-react"
+import { Search, Command, Settings, LogOut, ChevronDown, Menu, Users, Tags, AlertCircle, Calendar, Trash2, Info, Bell } from "lucide-react"
 import type { ViewKey } from "@/lib/types"
 import type { SyncStatus } from "./db-provider"
 import { Cloud, CloudOff } from "lucide-react"
@@ -68,6 +68,7 @@ export function AppHeader({ view, savedViewName, onNavigate, user, onSignOut, sy
     { key: "urgencies", label: "Urgencies", icon: AlertCircle },
     { key: "calendar", label: "Calendar", icon: Calendar },
     { key: "data", label: "Data Management", icon: Trash2 },
+    { key: "notifications", label: "Notifications", icon: Bell },
     { key: "troubleshoot", label: "Sync & Debug", icon: Info },
   ]
 
