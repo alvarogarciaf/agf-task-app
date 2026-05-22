@@ -907,7 +907,7 @@ function NotificationsPanel({ userUid }: { userUid?: string }) {
           </p>
 
           <div className="flex gap-3">
-            {isSupported && !isDenied && !isEnabled && (
+            {isSupported && !isDenied && (!isEnabled || !isGranted) && (
               <button
                 type="button"
                 onClick={handleEnableNotifications}

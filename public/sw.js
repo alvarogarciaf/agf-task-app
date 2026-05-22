@@ -58,8 +58,6 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "Task App";
   const options = {
     body: payload.body || "",
-    icon: "/logo-pwa.svg",
-    badge: "/logo-pwa.svg",
     data: {
       url: payload.url || "/",
     },
