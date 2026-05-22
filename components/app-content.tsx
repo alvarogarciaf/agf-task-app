@@ -545,6 +545,14 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
               setInitialContextId(id)
               setInitialPersonId(undefined)
               setActiveView("all")
+              if (typeof window !== "undefined") {
+                const params = new URLSearchParams(window.location.search)
+                params.set("view", "all")
+                params.delete("savedViewId")
+                params.delete("tab")
+                const newUrl = `${window.location.pathname}?${params.toString()}`
+                window.history.pushState(null, "", newUrl)
+              }
             }}
             onUpdateContext={async (c) => {
               const doc = await db.contexts.findOne(c.id).exec()
@@ -569,6 +577,14 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
               setInitialPersonId(id)
               setInitialContextId(undefined)
               setActiveView("all")
+              if (typeof window !== "undefined") {
+                const params = new URLSearchParams(window.location.search)
+                params.set("view", "all")
+                params.delete("savedViewId")
+                params.delete("tab")
+                const newUrl = `${window.location.pathname}?${params.toString()}`
+                window.history.pushState(null, "", newUrl)
+              }
             }}
             onUpdatePerson={async (p) => {
               const doc = await db.persons.findOne(p.id).exec()
