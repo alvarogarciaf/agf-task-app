@@ -57,7 +57,8 @@ export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDelete
           return (
             <div
               key={p.id}
-              className="group flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:border-primary/30 hover:bg-card/80"
+              onClick={() => onSelect(p.id)}
+              className="group flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:border-primary/30 hover:bg-card/80"
             >
               {/* Avatar */}
               <div
@@ -71,19 +72,15 @@ export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDelete
                 {p.initials}
               </div>
 
-              {/* Name — tappable to navigate */}
-              <button
-                type="button"
-                onClick={() => onSelect(p.id)}
-                className="flex-1 text-left flex items-center gap-2"
-              >
+              {/* Name */}
+              <div className="flex-1 text-left flex items-center gap-2">
                 <span className="text-base font-medium tracking-tight md:text-sm">{p.name}</span>
                 {p.linked_uid ? (
                   <span title="Linked to remote user"><LinkIcon className="h-3.5 w-3.5 text-primary" /></span>
                 ) : p.pending_invite_email ? (
                   <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground uppercase">Pending</span>
                 ) : null}
-              </button>
+              </div>
 
               {/* Open count */}
               {open > 0 ? (
@@ -101,6 +98,7 @@ export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDelete
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
+                    onClick={(e) => e.stopPropagation()}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:opacity-0 md:group-hover:opacity-100"
                     aria-label={`Options for ${p.name}`}
                   >
