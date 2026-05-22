@@ -910,8 +910,19 @@ function NotificationsPanel({ userUid }: { userUid?: string }) {
       if (res.ok) {
         toast.success("Test notification sent!")
       } else {
-        const err = await res.json()
-        toast.error(err.error || "Failed to send test notification.")
+        let errMsg = "Failed to send test notification."
+        const contentType = res.headers.get("content-type")
+        if (contentType && contentType.includes("application/json")) {
+          try {
+            const err = await res.json()
+            errMsg = err.error || errMsg
+          } catch {
+            errMsg = `Server error ${res.status}: ${res.statusText}`
+          }
+        } else {
+          errMsg = `Server returned Status ${res.status}: ${res.statusText || "Unknown Error"}`
+        }
+        toast.error(errMsg)
       }
     } catch (err: any) {
       console.error("[Notifications] Test error:", err)
