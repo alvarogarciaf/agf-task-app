@@ -25,6 +25,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
   const uid = user?.uid;
   const lastProcessedTaskHash = useRef<Record<string, string>>({});
   const lastProcessedProjectHash = useRef<Record<string, string>>({});
+  const notifiedTasksRef = useRef<Set<string>>(new Set());
 
   // Function to hash the shared portion of a task
   const getSharedTaskHash = (task: Partial<Task>) => {
@@ -234,6 +235,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
           const isDeleted = changeEvent.operation === "DELETE";
 
           if (isDeleted) {
+            notifiedTasksRef.current.delete(taskData.id);
             if (lastProcessedTaskHash.current[taskData.id] === "deleted") {
               delete lastProcessedTaskHash.current[taskData.id];
               return;
@@ -281,26 +283,44 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
             timestamp: serverTimestamp()
           });
 
-          // ── Push notification for NEW tasks only ──
-          if (changeEvent.operation === "INSERT") {
-            try {
-              const subsRef = collection(firestoreDb, `users/${person.linked_uid}/push_subscriptions`);
-              const subsSnap = await getDocs(subsRef);
-              if (!subsSnap.empty) {
-                const subscriptions = subsSnap.docs.map((d) => d.data());
-                const senderName = user?.displayName || user?.email || "Someone";
-                fetch("/api/notifications/push", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    subscriptions,
-                    title: `New task added by ${senderName}`,
-                    body: taskData.description || "",
-                  }),
-                }).catch((e) => console.warn("[Sync] Push notification failed:", e));
+          // ── Push notification logic ──
+          const hasBeenNotified = notifiedTasksRef.current.has(taskData.id);
+          const isPlaceholder = taskData.description === "New task" || !taskData.description.trim();
+
+          if (!hasBeenNotified && !isPlaceholder) {
+            let shouldNotify = false;
+
+            if (changeEvent.operation === "INSERT") {
+              shouldNotify = true;
+            } else if (changeEvent.operation === "UPDATE" && previousData) {
+              const wasPlaceholder = previousData.description === "New task" || !previousData.description.trim();
+              const wasUnassigned = !previousData.person_id;
+              if (wasPlaceholder || wasUnassigned) {
+                shouldNotify = true;
               }
-            } catch (pushErr) {
-              console.warn("[Sync] Push notification error:", pushErr);
+            }
+
+            if (shouldNotify) {
+              notifiedTasksRef.current.add(taskData.id);
+              try {
+                const subsRef = collection(firestoreDb, `users/${person.linked_uid}/push_subscriptions`);
+                const subsSnap = await getDocs(subsRef);
+                if (!subsSnap.empty) {
+                  const subscriptions = subsSnap.docs.map((d) => d.data());
+                  const senderName = user?.displayName || user?.email || "Someone";
+                  fetch("/api/notifications/push", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      subscriptions,
+                      title: `New task added by ${senderName}`,
+                      body: taskData.description || "",
+                    }),
+                  }).catch((e) => console.warn("[Sync] Push notification failed:", e));
+                }
+              } catch (pushErr) {
+                console.warn("[Sync] Push notification error:", pushErr);
+              }
             }
           }
 

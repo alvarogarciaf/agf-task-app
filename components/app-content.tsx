@@ -93,6 +93,24 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }
   }, [searchParams, activeView, activeSavedViewId, activeSettingsTab])
 
+  // Listen to popstate for browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search)
+      const view = params.get("view") as ViewKey
+      if (view) {
+        setActiveView(view)
+      }
+      setActiveSavedViewId(params.get("savedViewId") || null)
+      const tab = params.get("tab") as TabKey
+      if (tab) {
+        setActiveSettingsTab(tab)
+      }
+    }
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [])
+
   // Subscriptions — targeted queries so IndexedDB does the heavy filtering
   useEffect(() => {
     const subs = [
@@ -270,11 +288,17 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     setActiveSavedViewId(savedViewId || null)
     if (settingsTab) setActiveSettingsTab(settingsTab)
 
-    const params = new URLSearchParams()
-    params.set("view", view)
-    if (savedViewId) params.set("savedViewId", savedViewId)
-    if (settingsTab) params.set("tab", settingsTab)
-    router.push(`/?${params.toString()}`, { scroll: false })
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      params.set("view", view)
+      if (savedViewId) params.set("savedViewId", savedViewId)
+      else params.delete("savedViewId")
+      if (settingsTab) params.set("tab", settingsTab)
+      else params.delete("tab")
+      
+      const newUrl = `${window.location.pathname}?${params.toString()}`
+      window.history.pushState(null, "", newUrl)
+    }
   }
 
   const handleDeleteSavedView = async (id: string) => {
