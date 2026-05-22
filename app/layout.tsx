@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ServiceWorkerRegister } from "@/components/service-worker-register"
 import { AuthProvider } from "@/components/auth-provider"
+import { Toaster } from "@/components/ui/sonner"
 import "./globals.css"
 
 const geist = Geist({
@@ -47,6 +48,7 @@ export default function RootLayout({
         <AuthProvider>
           {children}
         </AuthProvider>
+        <Toaster />
         <ServiceWorkerRegister />
         {process.env.NODE_ENV === "production" && <Analytics />}
       </body>

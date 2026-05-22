@@ -98,10 +98,7 @@ export function GoogleCalendarProvider({ children }: { children: ReactNode }) {
     if (!prefs.connected || isConnecting || !uid) return;
 
     if (!accessToken) {
-      if (!alertShownRef.current) {
-         toast.error("Google Calendar session expired. Please go to Settings to reconnect.", { id: "gcal_expired", duration: 8000 });
-         alertShownRef.current = true;
-      }
+      acquireTokenSilently();
     } else {
       // If we have a token loaded from localStorage, ensure refresh timer is scheduled
       scheduleRefresh();
@@ -180,6 +177,7 @@ export function GoogleCalendarProvider({ children }: { children: ReactNode }) {
           client_id: clientId,
           scope: "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly",
           ux_mode: "popup",
+          prompt: "consent",
           callback: (response: any) => {
             if (response.error) {
               reject(new Error(response.error));

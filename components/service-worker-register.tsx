@@ -7,28 +7,37 @@ export function ServiceWorkerRegister() {
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
+    let activeRegistration: ServiceWorkerRegistration | null = null;
+    let updateInterval: NodeJS.Timeout | null = null;
+
+    const checkForUpdate = () => {
+      if (activeRegistration && navigator.onLine) {
+        activeRegistration.update().catch((e) => console.warn("[SW] Background update check failed:", e));
+      }
+    };
+
+    const visibilityHandler = () => {
+      if (document.visibilityState === "visible") {
+        checkForUpdate();
+      }
+    };
+
     // Always register the service worker (even in dev) so push notifications work.
     // The sw.js itself detects localhost and bypasses caching to keep HMR working.
     navigator.serviceWorker.register("/sw.js").then((registration) => {
       console.log("[SW] Registered:", registration.scope);
+      activeRegistration = registration;
 
       // Force an update check immediately upon registration
       registration.update().catch((e) => console.warn("[SW] Initial update check failed:", e));
 
       // ── iOS & Mobile Update Optimization ──
       // Force check for update when the page is visible or focused again (e.g. app reopened)
-      const checkForUpdate = () => {
-        if (navigator.onLine) {
-          registration.update().catch((e) => console.warn("[SW] Focus update check failed:", e));
-        }
-      };
-
       window.addEventListener("focus", checkForUpdate);
-      document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible") {
-          checkForUpdate();
-        }
-      });
+      document.addEventListener("visibilitychange", visibilityHandler);
+
+      // Periodic check every 5 minutes while active
+      updateInterval = setInterval(checkForUpdate, 5 * 60 * 1000);
 
       // ── PWA Update Detection ──
       // If there is already a waiting worker (e.g. from a previous page load), prompt immediately.
@@ -56,12 +65,23 @@ export function ServiceWorkerRegister() {
     // When the controlling worker changes (after SKIP_WAITING), reload the page.
     const hasController = !!navigator.serviceWorker.controller;
     let refreshing = false;
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
+    const controllerChangeHandler = () => {
       if (refreshing) return;
       if (!hasController) return; // Prevent infinite reload loops on first sw registration
       refreshing = true;
       window.location.reload();
-    });
+    };
+
+    navigator.serviceWorker.addEventListener("controllerchange", controllerChangeHandler);
+
+    return () => {
+      window.removeEventListener("focus", checkForUpdate);
+      document.removeEventListener("visibilitychange", visibilityHandler);
+      navigator.serviceWorker.removeEventListener("controllerchange", controllerChangeHandler);
+      if (updateInterval) {
+        clearInterval(updateInterval);
+      }
+    };
   }, [])
 
   return null

@@ -100,6 +100,7 @@ const NETWORK_ONLY_PATTERNS = [
   /firebase/,
   /analytics/,
   /vitals/,
+  /sw\.js/,
 ];
 
 function isNetworkOnly(url) {

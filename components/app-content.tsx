@@ -349,6 +349,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         try {
           const hash = `${task.description}|${task.action_date}`;
           if (!task.google_event_id) {
+            // Add a small sleep to avoid rate limits
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            
             const eventId = await withRetry((t) => createGoogleEvent(task, t, selectedCalendarId));
             const doc = await db.tasks.findOne(task.id).exec();
             if (doc) await doc.patch({ google_event_id: eventId });
@@ -356,10 +359,32 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             console.log(`Calendar: Created "${task.description}"`);
           } else {
             // Smart sync: only update if the fields actually changed
-            if (syncedHashesRef.current.get(task.id) !== hash) {
-              await withRetry((t) => updateGoogleEvent(task, t, selectedCalendarId));
+            if (!syncedHashesRef.current.has(task.id)) {
+              // First time seeing this task in this session.
+              // It already has a google_event_id, so it was previously successfully synced.
+              // Just cache the current hash to prevent a useless update storm on page load.
               syncedHashesRef.current.set(task.id, hash);
-              console.log(`Updated calendar event for: ${task.description}`);
+            } else if (syncedHashesRef.current.get(task.id) !== hash) {
+              // Add a small sleep to avoid rate limits
+              await new Promise((resolve) => setTimeout(resolve, 250));
+              
+              try {
+                await withRetry((t) => updateGoogleEvent(task, t, selectedCalendarId));
+                syncedHashesRef.current.set(task.id, hash);
+                console.log(`Updated calendar event for: ${task.description}`);
+              } catch (err: any) {
+                // If the event was not found on Google Calendar, recreate it!
+                if (err.message?.includes("Not Found") || err.message?.includes("404")) {
+                  console.warn(`Event ${task.google_event_id} not found during auto-sync. Recreating...`);
+                  const eventId = await withRetry((t) => createGoogleEvent(task, t, selectedCalendarId));
+                  const doc = await db.tasks.findOne(task.id).exec();
+                  if (doc) await doc.patch({ google_event_id: eventId });
+                  syncedHashesRef.current.set(task.id, hash);
+                  console.log(`Calendar: Recreated "${task.description}"`);
+                } else {
+                  throw err;
+                }
+              }
             }
           }
         } catch (err: any) {
@@ -374,6 +399,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       const staleTasks = activeTasks.filter(t => t.google_event_id && (!t.action_date || t.status === "Done"));
       for (const task of staleTasks) {
         try {
+          // Add a small sleep to avoid rate limits
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          
           await withRetry((t) => deleteGoogleEvent(task.google_event_id!, t, selectedCalendarId));
           const doc = await db.tasks.findOne(task.id).exec();
           if (doc) await doc.patch({ google_event_id: null });
@@ -575,14 +603,49 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             userUid={user.uid}
             onSyncCalendar={async (token) => {
               const actionTasks = activeTasks.filter(t => t.action_date && t.status !== "Done");
+              let successCount = 0;
+              let errorCount = 0;
+              
               for (const task of actionTasks) {
-                if (!task.google_event_id) {
-                  const eventId = await createGoogleEvent(task, token, selectedCalendarId);
-                  const doc = await db.tasks.findOne(task.id).exec();
-                  if (doc) await doc.patch({ google_event_id: eventId });
-                } else {
-                  await updateGoogleEvent(task, token, selectedCalendarId);
+                // Add a small sleep to avoid rate limits
+                await new Promise((resolve) => setTimeout(resolve, 250));
+                
+                try {
+                  const hash = `${task.description}|${task.action_date}`;
+                  if (!task.google_event_id) {
+                    const eventId = await createGoogleEvent(task, token, selectedCalendarId);
+                    const doc = await db.tasks.findOne(task.id).exec();
+                    if (doc) await doc.patch({ google_event_id: eventId });
+                    syncedHashesRef.current.set(task.id, hash);
+                    successCount++;
+                  } else {
+                    try {
+                      await updateGoogleEvent(task, token, selectedCalendarId);
+                      syncedHashesRef.current.set(task.id, hash);
+                      successCount++;
+                    } catch (err: any) {
+                      if (err.message?.includes("Not Found") || err.message?.includes("404")) {
+                        console.warn(`Event ${task.google_event_id} not found during manual sync. Recreating...`);
+                        const eventId = await createGoogleEvent(task, token, selectedCalendarId);
+                        const doc = await db.tasks.findOne(task.id).exec();
+                        if (doc) await doc.patch({ google_event_id: eventId });
+                        syncedHashesRef.current.set(task.id, hash);
+                        successCount++;
+                      } else {
+                        throw err;
+                      }
+                    }
+                  }
+                } catch (err: any) {
+                  console.error(`Manual sync failed for task ${task.id}:`, err);
+                  errorCount++;
                 }
+              }
+              
+              if (errorCount > 0) {
+                toast.warning(`Sync completed with some errors: ${successCount} successfully synced, ${errorCount} failed.`);
+              } else {
+                toast.success(`All ${successCount} tasks successfully pushed and synced!`);
               }
             }}
           />
