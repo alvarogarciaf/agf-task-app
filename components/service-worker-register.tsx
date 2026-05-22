@@ -28,7 +28,8 @@ export function ServiceWorkerRegister() {
         if (worker.state === "installed") {
           const hasController = !!navigator.serviceWorker.controller;
           const isUpdating = localStorage.getItem("pwa_updating") === "true";
-          if (hasController || isUpdating) {
+          const wasSwActive = localStorage.getItem("sw_active") === "true";
+          if (hasController || isUpdating || wasSwActive) {
             promptUserToUpdate(worker);
           }
         }
@@ -41,6 +42,11 @@ export function ServiceWorkerRegister() {
       console.log("[SW] Registered:", registration.scope);
       activeRegistration = registration;
 
+      // If a service worker is already active or controlling the page, mark sw_active
+      if (navigator.serviceWorker.controller || registration.active) {
+        localStorage.setItem("sw_active", "true");
+      }
+ 
       // Force an update check immediately upon registration
       registration.update().catch((e) => console.warn("[SW] Initial update check failed:", e));
 
@@ -86,6 +92,7 @@ export function ServiceWorkerRegister() {
         return; // First-time SW registration, skip reload
       }
 
+      localStorage.setItem("sw_active", "true"); // Ensure sw_active is set
       localStorage.removeItem("pwa_updating");
       refreshing = true;
       window.location.reload();
@@ -120,6 +127,7 @@ function promptUserToUpdate(waitingWorker: ServiceWorker) {
           if (refreshed) return;
           refreshed = true;
           console.log(`[SW] Reloading page due to: ${reason}`);
+          localStorage.setItem("sw_active", "true"); // Ensure sw_active is set
           localStorage.removeItem("pwa_updating");
           window.location.reload();
         };
