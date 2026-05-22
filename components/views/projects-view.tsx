@@ -129,7 +129,7 @@ export function ProjectsView({
           )
         })()
       ) : (
-        <div>
+        <div className="pb-24 md:pb-0">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-1 rounded-md border border-border bg-card p-1 w-fit">
               {(["Ongoing", "Closed", "All"] as const).map((s) => (
@@ -304,7 +304,7 @@ function ProjectDetail({
   const done = projTasks.filter((t) => t.status === "Done")
 
   return (
-    <div className="px-6 py-6">
+    <div className="px-6 pt-6 pb-24 md:py-6">
       <button
         type="button"
         onClick={onBack}

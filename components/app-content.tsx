@@ -718,7 +718,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             ? "px-0 md:px-6 pt-0 pb-28 md:py-6" 
             : "px-4 md:px-6 pt-6 pb-28 md:py-6"
         )}>
-          <div className="w-full h-full">
+          <div className="w-full min-h-full">
             {renderView()}
           </div>
         </main>
