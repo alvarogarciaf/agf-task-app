@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import webpush from "web-push";
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY!;
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "BG9e9lycq2PgLJzbOm0SKj3rdq8ZcdGS9MjaZUNQd6wwzDogWptiu_i5t6qRUIg8ly4b_OkNEEQJ9-TORHQgl9w";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "AjYQHVPktUMewp7xy9in2nuGPbk6MLbWV-32nfwSgFM";
 
 webpush.setVapidDetails(
   "mailto:notifications@garciaamar.com",
