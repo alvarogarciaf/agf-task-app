@@ -396,7 +396,7 @@ function ProjectDetail({
       </div>
 
       {tab === "tasks" ? (
-        <div className="mt-5 h-[500px] -mx-6">
+        <div className="mt-5 h-auto md:h-[500px] -mx-6">
           <FilteredTasks
             tasks={projTasks}
             projects={projects}

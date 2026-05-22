@@ -169,7 +169,7 @@ export function InboxView({
         </button>
       </div>
 
-      <div className="h-[calc(100vh-200px)] -mx-6">
+      <div className="h-auto md:h-[calc(100vh-200px)] -mx-6">
         <FilteredTasks
           tasks={inbox}
           projects={projects}

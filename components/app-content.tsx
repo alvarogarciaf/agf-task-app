@@ -713,10 +713,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         />
         
         <main className={cn(
-          "flex-1 overflow-y-auto pb-24 md:pb-6",
+          "flex-1 overflow-y-auto",
           (activeView === "all" || activeView === "saved-view") 
-            ? "px-0 md:px-6 py-0 md:py-6" 
-            : "px-4 md:px-6 py-6"
+            ? "px-0 md:px-6 pt-0 pb-28 md:py-6" 
+            : "px-4 md:px-6 pt-6 pb-28 md:py-6"
         )}>
           <div className="w-full h-full">
             {renderView()}

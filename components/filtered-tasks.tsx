@@ -644,7 +644,7 @@ export function FilteredTasks({
         </div>
       )}
 
-      <div className="min-h-0 min-w-0 w-full overflow-y-auto max-h-[calc(100vh-180px)]">
+      <div className="min-h-0 min-w-0 w-full overflow-y-visible md:overflow-y-auto max-h-none md:max-h-[calc(100vh-180px)]">
         {groupedByProject ? (
           <div className="flex flex-col gap-8 p-4">
             {groupedByProject.map((group) => (
