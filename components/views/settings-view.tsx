@@ -447,6 +447,68 @@ export function SettingsView({
                   </button>
                 </div>
               </div>
+
+              {/* Hard Reset PWA Cache Section */}
+              <div className="p-4 border border-destructive/20 bg-destructive/5 rounded-lg">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h4 className="font-medium text-destructive">Hard Reset Cache & Data</h4>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      Wipe all local app cache, service workers, browser storage (IndexedDB & LocalStorage), and reload.
+                      This forces the PWA to download the latest deployed version and resolves stuck PWA instances. 
+                      You will need to sign in again. No cloud data will be lost.
+                    </p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (confirm("This will completely clear your local storage, delete local databases, unregister the PWA, and reload the app. You will need to sign in again. Continue?")) {
+                        try {
+                          localStorage.clear()
+                          sessionStorage.clear()
+                          
+                          if (window.indexedDB) {
+                            if (userUid) {
+                              window.indexedDB.deleteDatabase(`taskeragf_${userUid}`)
+                            }
+                            if ((window.indexedDB as any).databases) {
+                              const dbs = await (window.indexedDB as any).databases()
+                              for (const db of dbs) {
+                                if (db.name) window.indexedDB.deleteDatabase(db.name)
+                              }
+                            }
+                          }
+                          
+                          if ('caches' in window) {
+                            const keys = await caches.keys()
+                            for (const key of keys) {
+                              await caches.delete(key)
+                            }
+                          }
+                          
+                          if ('serviceWorker' in navigator) {
+                            const regs = await navigator.serviceWorker.getRegistrations()
+                            for (const reg of regs) {
+                              await reg.unregister()
+                            }
+                          }
+                          
+                          toast.success("Cache and data wiped! Reloading app...")
+                          setTimeout(() => {
+                            window.location.reload()
+                          }, 1500)
+                        } catch (err: any) {
+                          console.error("Hard reset error:", err)
+                          toast.error("Failed to clear completely: " + err.message)
+                        }
+                      }
+                    }}
+                    className="shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground text-xs font-medium rounded-md hover:bg-destructive/90 transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Clear Cache & Reset
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
