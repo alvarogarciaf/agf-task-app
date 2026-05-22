@@ -54,9 +54,11 @@ export function ServiceWorkerRegister() {
     });
 
     // When the controlling worker changes (after SKIP_WAITING), reload the page.
+    const hasController = !!navigator.serviceWorker.controller;
     let refreshing = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       if (refreshing) return;
+      if (!hasController) return; // Prevent infinite reload loops on first sw registration
       refreshing = true;
       window.location.reload();
     });

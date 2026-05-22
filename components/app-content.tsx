@@ -69,7 +69,29 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [urgencies, setUrgencies] = useState<UrgencyLevel[]>([])
   const [savedViews, setSavedViews] = useState<SavedView[]>([])
   const [editingView, setEditingView] = useState<SavedView | null>(null)
-  const [activeSettingsTab, setActiveSettingsTab] = useState<TabKey>("persons")
+  const [activeSettingsTab, setActiveSettingsTab] = useState<TabKey>(() => {
+    if (typeof window === "undefined") return "persons"
+    const t = new URLSearchParams(window.location.search).get("tab") as TabKey
+    return t || "persons"
+  })
+
+  // Synchronize state with URL search params (for browser back/forward and initial loads)
+  useEffect(() => {
+    const view = searchParams.get("view") as ViewKey
+    if (view && view !== activeView) {
+      setActiveView(view)
+    }
+
+    const savedViewId = searchParams.get("savedViewId")
+    if (savedViewId !== activeSavedViewId) {
+      setActiveSavedViewId(savedViewId || null)
+    }
+
+    const tab = searchParams.get("tab") as TabKey
+    if (tab && tab !== activeSettingsTab) {
+      setActiveSettingsTab(tab)
+    }
+  }, [searchParams, activeView, activeSavedViewId, activeSettingsTab])
 
   // Subscriptions — targeted queries so IndexedDB does the heavy filtering
   useEffect(() => {
