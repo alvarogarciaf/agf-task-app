@@ -169,18 +169,14 @@ export function TasksTable({
   const cellRefs = useRef<Record<string, HTMLTableCellElement | null>>({})
   const isMobile = useIsMobile()
 
-  // Auto-focus logic for new tasks
+  // Auto-focus logic for new tasks - opens the detail dialog in edit mode
   useEffect(() => {
     if (autoFocusTaskId && tasks.some(t => t.id === autoFocusTaskId)) {
-      if (isMobile) {
-        setActiveTaskId(autoFocusTaskId)
-      } else {
-        setSelectedCell({ taskId: autoFocusTaskId, column: "description" })
-        setIsEditing(true)
-      }
+      setDetailMode("edit")
+      setActiveTaskId(autoFocusTaskId)
       onAutoFocusComplete?.()
     }
-  }, [autoFocusTaskId, tasks, isMobile, onAutoFocusComplete])
+  }, [autoFocusTaskId, tasks, onAutoFocusComplete])
 
   // Refocus cell when exiting edit mode
   useEffect(() => {
