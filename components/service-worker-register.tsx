@@ -114,6 +114,30 @@ function promptUserToUpdate(waitingWorker: ServiceWorker) {
       label: "Update Now",
       onClick: () => {
         localStorage.setItem("pwa_updating", "true");
+
+        let refreshed = false;
+        const triggerReload = (reason: string) => {
+          if (refreshed) return;
+          refreshed = true;
+          console.log(`[SW] Reloading page due to: ${reason}`);
+          localStorage.removeItem("pwa_updating");
+          window.location.reload();
+        };
+
+        // 1. Direct statechange fallback listener on the waiting worker
+        const handleStateChange = () => {
+          if (waitingWorker.state === "activated") {
+            triggerReload("Worker activated (statechange)");
+          }
+        };
+        waitingWorker.addEventListener("statechange", handleStateChange);
+
+        // 2. Safety timeout fallback (1.5 seconds) in case events are dropped by Chromium
+        setTimeout(() => {
+          triggerReload("Safety timeout (1.5s)");
+        }, 1500);
+
+        // 3. Trigger skip waiting on the waiting worker
         waitingWorker.postMessage({ type: "SKIP_WAITING" });
       },
     },

@@ -406,16 +406,28 @@ export function FilteredTasks({
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
-        // Only trigger if we're not already in an input/textarea
-        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+        // Only trigger if we're not already in an input/textarea/contenteditable
+        if (
+          e.target instanceof HTMLInputElement ||
+          e.target instanceof HTMLTextAreaElement ||
+          (e.target instanceof HTMLElement && (e.target.isContentEditable || e.target.closest("[contenteditable]")))
+        ) {
+          return
+        }
         
         e.preventDefault()
         handleAddNewTask()
       }
 
       if ((e.key === "Delete" || e.key === "Backspace") && selectedIds.size > 0) {
-        // Only trigger if we're not already in an input/textarea
-        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+        // Only trigger if we're not already in an input/textarea/contenteditable
+        if (
+          e.target instanceof HTMLInputElement ||
+          e.target instanceof HTMLTextAreaElement ||
+          (e.target instanceof HTMLElement && (e.target.isContentEditable || e.target.closest("[contenteditable]")))
+        ) {
+          return
+        }
         e.preventDefault()
         handleBulkDelete()
       }

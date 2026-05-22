@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { RichMarkdownEditor } from "@/components/rich-markdown-editor"
 import {
   Select,
   SelectContent,
@@ -149,27 +150,6 @@ export function TaskDetailDialog({
     onOpenChange(false)
   }
 
-  function handleDetailsKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "b" && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      const textarea = e.currentTarget;
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const val = textarea.value;
-
-      const selectedText = val.substring(start, end);
-      const replacement = `**${selectedText}**`;
-
-      const newDetails = val.substring(0, start) + replacement + val.substring(end);
-      update("details", newDetails === "" ? undefined : newDetails);
-
-      // Restore cursor selection after update
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(start + 2, start + 2 + selectedText.length);
-      }, 0);
-    }
-  }
 
   const urgency = urgencies.find(u => u.id === draft.urgency_id) || urgencies[0]
   const sortedUrgencies = [...urgencies].sort((a, b) => a.order - b.order)
@@ -629,15 +609,12 @@ export function TaskDetailDialog({
               {/* Details */}
               <div className="mt-5">
                 <Label icon={<FileText className="h-3 w-3" />}>Details</Label>
-                <Textarea
+                <RichMarkdownEditor
                   value={draft.details ?? ""}
-                  onChange={(e) =>
-                    update("details", e.target.value === "" ? undefined : e.target.value)
+                  onChange={(val) =>
+                    update("details", val === "" ? undefined : val)
                   }
-                  onKeyDown={handleDetailsKeyDown}
                   placeholder="Add notes, links, or context. Markdown supported."
-                  className="mt-1.5 min-h-[120px] border-border bg-background text-sm leading-relaxed"
-                  rows={5}
                 />
               </div>
             </div>

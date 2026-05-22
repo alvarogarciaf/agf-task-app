@@ -442,7 +442,13 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   // Keyboard shortcuts
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target instanceof HTMLElement && (e.target.isContentEditable || e.target.closest("[contenteditable]")))
+      ) {
+        return
+      }
       // Ignore shortcuts if a modifier key is pressed (e.g. Ctrl+C should not navigate to Contexts)
       if (e.ctrlKey || e.metaKey || e.altKey) return
       

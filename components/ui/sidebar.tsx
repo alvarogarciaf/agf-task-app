@@ -100,6 +100,15 @@ function SidebarProvider({
         event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
         (event.metaKey || event.ctrlKey)
       ) {
+        // Skip if focused inside input, textarea, or contenteditable
+        if (
+          event.target instanceof HTMLInputElement ||
+          event.target instanceof HTMLTextAreaElement ||
+          (event.target instanceof HTMLElement && (event.target.isContentEditable || event.target.closest("[contenteditable]")))
+        ) {
+          return
+        }
+
         event.preventDefault()
         toggleSidebar()
       }
