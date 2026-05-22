@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from "react"
-import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock } from "lucide-react"
+import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock, Eye, Pencil } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import {
@@ -163,6 +163,7 @@ export function TasksTable({
   const [dragKey, setDragKey] = useState<TaskColumnKey | null>(null)
   const [dropTarget, setDropTarget] = useState<TaskColumnKey | null>(null)
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
+  const [detailMode, setDetailMode] = useState<"view" | "edit">("view")
   const [selectedCell, setSelectedCell] = useState<{ taskId: string; column: TaskColumnKey } | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const cellRefs = useRef<Record<string, HTMLTableCellElement | null>>({})
@@ -224,8 +225,15 @@ export function TasksTable({
       window.history.back()
     } else {
       setActiveTaskId(null)
+      setDetailMode("view")
     }
   }, [isMobile, activeTaskId])
+
+  useEffect(() => {
+    if (!activeTaskId) {
+      setDetailMode("view")
+    }
+  }, [activeTaskId])
 
   function handleDragStart(e: React.DragEvent<HTMLDivElement>, key: TaskColumnKey) {
     setDragKey(key)
@@ -427,8 +435,13 @@ export function TasksTable({
                     if (selectedIds.size > 0) {
                       onToggleSelection?.(t.id)
                     } else {
+                      setDetailMode("view")
                       setActiveTaskId(t.id)
                     }
+                  }}
+                  onEditClick={(t) => {
+                    setDetailMode("edit")
+                    setActiveTaskId(t.id)
                   }}
                   isSelected={selectedIds.has(task.id)}
                   onToggleSelection={() => onToggleSelection?.(task.id)}
@@ -659,7 +672,24 @@ export function TasksTable({
                               }}
                             />
                           ) : (
-                            renderCell(key, { task, project, person, contexts: tCtx, urgency, onToggleProcessed, onToggleStatus, inboxMode })
+                            renderCell(key, {
+                              task,
+                              project,
+                              person,
+                              contexts: tCtx,
+                              urgency,
+                              onToggleProcessed,
+                              onToggleStatus,
+                              inboxMode,
+                              onOpenView: (id) => {
+                                setDetailMode("view")
+                                setActiveTaskId(id)
+                              },
+                              onOpenEdit: (id) => {
+                                setDetailMode("edit")
+                                setActiveTaskId(id)
+                              },
+                            })
                           )}
                         </td>
                       )
@@ -667,15 +697,6 @@ export function TasksTable({
                     {/* Open detail & More menu */}
                     <td className="w-16 pr-2 align-middle">
                       <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setActiveTaskId(task.id)}
-                          className="hidden rounded p-0.5 text-muted-foreground/40 transition-colors hover:text-foreground group-hover:inline-flex"
-                          title="Open detail"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </button>
-                        
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button
@@ -754,6 +775,8 @@ export function TasksTable({
         contexts={contexts}
         urgencies={urgencies}
         onUpdate={onUpdate}
+        mode={detailMode}
+        onModeChange={setDetailMode}
       />
     </div>
   )
@@ -768,6 +791,8 @@ interface CellContext {
   onToggleProcessed: (id: string) => void
   onToggleStatus: (id: string) => void
   inboxMode: boolean
+  onOpenView?: (id: string) => void
+  onOpenEdit?: (id: string) => void
 }
 
 function renderCell(key: TaskColumnKey, ctx: CellContext) {
@@ -818,14 +843,42 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
 
     case "description":
       return (
-        <span
-          className={cn(
-            "block truncate text-sm",
-            task.processed ? "text-muted-foreground" : "text-foreground",
-          )}
-        >
-          {task.description === "New task" ? "" : task.description}
-        </span>
+        <div className="group/desc relative flex items-center gap-2 w-full min-w-0 h-full min-h-[1.5rem]">
+          <span
+            className={cn(
+              "truncate text-sm min-w-0",
+              task.processed ? "text-muted-foreground" : "text-foreground",
+            )}
+          >
+            {task.description === "New task" ? "" : task.description}
+          </span>
+          <div className="hidden group-hover/desc:flex items-center gap-1.5 shrink-0 bg-background/80 backdrop-blur-[2px] px-1 py-0.5 rounded border border-border/20 shadow-sm animate-fade-in">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                ctx.onOpenView?.(task.id)
+              }}
+              className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/5 hover:bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary transition-colors cursor-pointer"
+              title="View details"
+            >
+              <Eye className="h-3 w-3" />
+              <span>View</span>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                ctx.onOpenEdit?.(task.id)
+              }}
+              className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/5 hover:bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary transition-colors cursor-pointer"
+              title="Edit task"
+            >
+              <Pencil className="h-3 w-3" />
+              <span>Edit</span>
+            </button>
+          </div>
+        </div>
       )
 
     case "details":
@@ -987,6 +1040,7 @@ function MobileTaskRow({
   onArchiveTask,
   onDeleteTask,
   onClick,
+  onEditClick,
   isSelected,
   onToggleSelection,
 }: {
@@ -996,6 +1050,7 @@ function MobileTaskRow({
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
   onClick: (task: Task) => void
+  onEditClick?: (task: Task) => void
   isSelected: boolean
   onToggleSelection: () => void
 }) {
@@ -1100,6 +1155,11 @@ function MobileTaskRow({
               <DropdownMenuLabel>Task Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
               
+              <DropdownMenuItem onClick={() => onEditClick?.(task)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                <span>Edit Task</span>
+              </DropdownMenuItem>
+
               <DropdownMenuItem onClick={() => onToggleProcessed(task.id)}>
                 <CircleCheck className="mr-2 h-4 w-4" />
                 <span>Mark as Done</span>
