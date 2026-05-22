@@ -557,7 +557,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         return (
           <SettingsView 
             activeTab={activeSettingsTab}
-            onTabChange={setActiveSettingsTab}
+            onTabChange={(tab) => handleNavigate("settings", undefined, tab)}
             persons={persons}
             contexts={contexts}
             urgencies={urgencies}

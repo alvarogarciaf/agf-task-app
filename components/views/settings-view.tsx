@@ -131,7 +131,7 @@ export function SettingsView({
   return (
     <div className="max-w-4xl mx-auto">
       {/* Tabs - Scrollable on mobile, full tabs on desktop */}
-      <div className="flex items-center gap-1 border-b border-border mb-6 overflow-x-auto no-scrollbar">
+      <div className="hidden md:flex items-center gap-1 border-b border-border mb-6 overflow-x-auto no-scrollbar">
         <TabButton ref={tab === "persons" ? activeTabRef : null} active={tab === "persons"} onClick={() => setTab("persons")} icon={Users}>
           People
         </TabButton>
