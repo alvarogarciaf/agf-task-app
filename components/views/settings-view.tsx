@@ -806,13 +806,7 @@ function NotificationsPanel({ userUid }: { userUid?: string }) {
 
       // Get the service worker registration and subscribe
       const registration = await navigator.serviceWorker.ready
-      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-
-      if (!vapidPublicKey) {
-        toast.error("VAPID key not configured.")
-        setIsSubscribing(false)
-        return
-      }
+      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "BDu7S7201JRVRfWAFy9BDfnQ4f_lFRpw2DL2j_sCfw16vd3L_hgnWLZ2iSonMVOW1h9NdHoieWqrH8cnyi_d3dM"
 
       // Convert VAPID key to Uint8Array
       const urlBase64ToUint8Array = (base64String: string) => {
