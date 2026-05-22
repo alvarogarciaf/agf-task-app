@@ -141,7 +141,18 @@ export function GoogleCalendarProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh_token: prefs.refreshToken }),
       });
-      if (!res.ok) throw new Error("Refresh failed");
+      
+      if (!res.ok) {
+        if (res.status === 400) {
+          console.warn("[calendar] Stale or revoked refresh token (400), auto-disconnecting...");
+          await disconnect();
+          toast.error("Google Calendar connection has been revoked or expired. Please reconnect.", { id: "gcal_expired", duration: 8000 });
+          alertShownRef.current = true;
+          return null;
+        }
+        throw new Error("Refresh failed");
+      }
+      
       const data = await res.json();
 
       const expiresAt = Date.now() + 50 * 60 * 1000;

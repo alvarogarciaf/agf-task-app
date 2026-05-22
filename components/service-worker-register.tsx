@@ -22,6 +22,19 @@ export function ServiceWorkerRegister() {
       }
     };
 
+    // Helper function to track the state change of an installing service worker
+    const trackInstalling = (worker: ServiceWorker) => {
+      worker.addEventListener("statechange", () => {
+        if (worker.state === "installed") {
+          const hasController = !!navigator.serviceWorker.controller;
+          const isUpdating = localStorage.getItem("pwa_updating") === "true";
+          if (hasController || isUpdating) {
+            promptUserToUpdate(worker);
+          }
+        }
+      });
+    };
+
     // Always register the service worker (even in dev) so push notifications work.
     // The sw.js itself detects localhost and bypasses caching to keep HMR working.
     navigator.serviceWorker.register("/sw.js").then((registration) => {
@@ -40,34 +53,40 @@ export function ServiceWorkerRegister() {
       updateInterval = setInterval(checkForUpdate, 5 * 60 * 1000);
 
       // ── PWA Update Detection ──
-      // If there is already a waiting worker (e.g. from a previous page load), prompt immediately.
+      // 1. If there is already a waiting worker, prompt immediately
       if (registration.waiting) {
         promptUserToUpdate(registration.waiting);
       }
 
-      // Listen for new workers that finish installing and enter the "waiting" state.
+      // 2. If there is an installing worker immediately, track it
+      if (registration.installing) {
+        trackInstalling(registration.installing);
+      }
+
+      // 3. Listen for new workers that start installing
       registration.addEventListener("updatefound", () => {
         const newWorker = registration.installing;
-        if (!newWorker) return;
-
-        newWorker.addEventListener("statechange", () => {
-          // The new worker is installed and waiting to activate.
-          // This happens when a new version of sw.js has been deployed.
-          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-            promptUserToUpdate(newWorker);
-          }
-        });
+        if (newWorker) {
+          trackInstalling(newWorker);
+        }
       });
     }).catch((err) => {
       console.warn("[SW] Registration failed:", err);
     });
 
     // When the controlling worker changes (after SKIP_WAITING), reload the page.
-    const hasController = !!navigator.serviceWorker.controller;
     let refreshing = false;
     const controllerChangeHandler = () => {
       if (refreshing) return;
-      if (!hasController) return; // Prevent infinite reload loops on first sw registration
+
+      const wasControlled = !!navigator.serviceWorker.controller;
+      const isUpdating = localStorage.getItem("pwa_updating") === "true";
+
+      if (!wasControlled && !isUpdating) {
+        return; // First-time SW registration, skip reload
+      }
+
+      localStorage.removeItem("pwa_updating");
       refreshing = true;
       window.location.reload();
     };
@@ -94,8 +113,8 @@ function promptUserToUpdate(waitingWorker: ServiceWorker) {
     action: {
       label: "Update Now",
       onClick: () => {
+        localStorage.setItem("pwa_updating", "true");
         waitingWorker.postMessage({ type: "SKIP_WAITING" });
-        // The controllerchange event listener will handle the reload
       },
     },
   });

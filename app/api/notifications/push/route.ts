@@ -1,17 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import webpush from "web-push";
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "BG9e9lycq2PgLJzbOm0SKj3rdq8ZcdGS9MjaZUNQd6wwzDogWptiu_i5t6qRUIg8ly4b_OkNEEQJ9-TORHQgl9w";
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "AjYQHVPktUMewp7xy9in2nuGPbk6MLbWV-32nfwSgFM";
+let isVapidInitialized = false;
 
-webpush.setVapidDetails(
-  "mailto:notifications@garciaamar.com",
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
-);
+function ensureVapidDetails() {
+  if (isVapidInitialized) return;
+
+  const VAPID_PUBLIC_KEY = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY !== "undefined")
+    ? process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    : "BG9e9lycq2PgLJzbOm0SKj3rdq8ZcdGS9MjaZUNQd6wwzDogWptiu_i5t6qRUIg8ly4b_OkNEEQJ9-TORHQgl9w";
+
+  const VAPID_PRIVATE_KEY = (process.env.VAPID_PRIVATE_KEY && process.env.VAPID_PRIVATE_KEY !== "undefined")
+    ? process.env.VAPID_PRIVATE_KEY
+    : "AjYQHVPktUMewp7xy9in2nuGPbk6MLbWV-32nfwSgFM";
+
+  webpush.setVapidDetails(
+    "mailto:notifications@garciaamar.com",
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
+  );
+  isVapidInitialized = true;
+}
 
 export async function POST(request: NextRequest) {
   try {
+    ensureVapidDetails();
     const body = await request.json();
     const { subscriptions, title, body: notifBody } = body;
 
