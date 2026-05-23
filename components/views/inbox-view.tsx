@@ -49,9 +49,15 @@ export function InboxView({
       collection(firestoreDb, `users/${user.uid}/messages`),
       where("type", "==", "invite")
     )
-    const unsub = onSnapshot(q, (snap) => {
-      setInvites(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-    })
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setInvites(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+      },
+      (error) => {
+        console.warn("[InboxView] invite snapshot error (expected offline):", error);
+      }
+    )
     return () => unsub()
   }, [user?.uid])
 

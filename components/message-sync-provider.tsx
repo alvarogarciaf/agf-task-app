@@ -58,157 +58,163 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
     const messagesRef = collection(firestoreDb, `users/${uid}/messages`);
     const q = query(messagesRef);
 
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
-      if (snapshot.empty) return;
+    const unsubscribe = onSnapshot(
+      q,
+      async (snapshot) => {
+        if (snapshot.empty) return;
 
-      for (const change of snapshot.docChanges()) {
-        if (change.type === "added") {
-          const msg = { id: change.doc.id, ...change.doc.data() } as SyncMessage;
+        for (const change of snapshot.docChanges()) {
+          if (change.type === "added") {
+            const msg = { id: change.doc.id, ...change.doc.data() } as SyncMessage;
 
-          try {
-            if (msg.type === "invite_accepted" && msg.fromEmail && msg.fromUid) {
-              // Find local person with this pending email
-              const persons = await db.persons.find().exec();
-              const target = persons.find(p => p.pending_invite_email === msg.fromEmail);
-              if (target) {
-                await target.patch({
-                  linked_uid: msg.fromUid,
-                  linked_email: msg.fromEmail,
-                  pending_invite_email: null
-                });
-                console.log(`[Sync] Linked person ${target.name} to ${msg.fromEmail}`);
+            try {
+              if (msg.type === "invite_accepted" && msg.fromEmail && msg.fromUid) {
+                // Find local person with this pending email
+                const persons = await db.persons.find().exec();
+                const target = persons.find(p => p.pending_invite_email === msg.fromEmail);
+                if (target) {
+                  await target.patch({
+                    linked_uid: msg.fromUid,
+                    linked_email: msg.fromEmail,
+                    pending_invite_email: null
+                  });
+                  console.log(`[Sync] Linked person ${target.name} to ${msg.fromEmail}`);
+                }
+              } 
+              else if (msg.type === "task_upsert" && msg.task && msg.task.id) {
+                // Find local person mapped to this sender UID
+                const allPersons = await db.persons.find().exec();
+                const mappedPerson = allPersons.find(p => p.linked_uid === msg.fromUid);
+
+                if (!mappedPerson) {
+                  console.warn(`[Sync] Received task from unlinked user ${msg.fromUid}`);
+                } else {
+                  const existingTask = await db.tasks.findOne(msg.task.id).exec();
+                  
+                  // Track this hash so our outbound listener ignores it
+                  const hash = getSharedTaskHash(msg.task);
+                  lastProcessedTaskHash.current[msg.task.id] = hash;
+
+                  // Non-shared task-project sync logic
+                  const incomingProjId = msg.task.project_id ?? null;
+                  let finalProjId = existingTask ? existingTask.project_id : null;
+
+                  // Helper to check if a project is shared locally
+                  const isProjectSharedLocally = async (projId: string | null | undefined) => {
+                    if (!projId) return false;
+                    const projDoc = await db.projects.findOne(projId).exec();
+                    return projDoc && projDoc.linked_person_id !== null && projDoc.linked_person_id !== undefined;
+                  };
+
+                  const incomingIsShared = await isProjectSharedLocally(incomingProjId);
+                  const currentIsShared = await isProjectSharedLocally(finalProjId);
+
+                  if (incomingIsShared) {
+                    // Rule 1: incoming project is shared -> assign it
+                    finalProjId = incomingProjId;
+                  } else if (currentIsShared) {
+                    // Rule 2: incoming project is NOT shared, but current local is shared -> clear it
+                    finalProjId = null;
+                  }
+                  // Rule 3: incoming is NOT shared, current is NOT shared -> keep finalProjId as is
+
+                  if (existingTask) {
+                    await existingTask.patch({
+                      description: msg.task.description,
+                      details: msg.task.details,
+                      date_created: msg.task.date_created,
+                      action_date: msg.task.action_date,
+                      status: msg.task.status,
+                      processed: msg.task.processed,
+                      archived: msg.task.archived,
+                      person_id: mappedPerson.id, // Ensure it's assigned to the linked person
+                      project_id: finalProjId,
+                    });
+                  } else {
+                    // Create new task with defaults for local-only fields
+                    const defaultUrgency = await db.urgencies.findOne().exec();
+                    await db.tasks.insert({
+                      id: msg.task.id,
+                      description: msg.task.description!,
+                      details: msg.task.details,
+                      date_created: msg.task.date_created!,
+                      action_date: msg.task.action_date,
+                      status: msg.task.status as any,
+                      processed: msg.task.processed!,
+                      archived: msg.task.archived,
+                      urgency_id: defaultUrgency?.id || "u_medium",
+                      context_ids: [],
+                      person_id: mappedPerson.id,
+                      project_id: finalProjId,
+                    });
+                  }
+                }
               }
-            } 
-            else if (msg.type === "task_upsert" && msg.task && msg.task.id) {
-              // Find local person mapped to this sender UID
-              const allPersons = await db.persons.find().exec();
-              const mappedPerson = allPersons.find(p => p.linked_uid === msg.fromUid);
-
-              if (!mappedPerson) {
-                console.warn(`[Sync] Received task from unlinked user ${msg.fromUid}`);
-              } else {
+              else if (msg.type === "task_delete" && msg.task?.id) {
                 const existingTask = await db.tasks.findOne(msg.task.id).exec();
-                
-                // Track this hash so our outbound listener ignores it
-                const hash = getSharedTaskHash(msg.task);
-                lastProcessedTaskHash.current[msg.task.id] = hash;
-
-                // Non-shared task-project sync logic
-                const incomingProjId = msg.task.project_id ?? null;
-                let finalProjId = existingTask ? existingTask.project_id : null;
-
-                // Helper to check if a project is shared locally
-                const isProjectSharedLocally = async (projId: string | null | undefined) => {
-                  if (!projId) return false;
-                  const projDoc = await db.projects.findOne(projId).exec();
-                  return projDoc && projDoc.linked_person_id !== null && projDoc.linked_person_id !== undefined;
-                };
-
-                const incomingIsShared = await isProjectSharedLocally(incomingProjId);
-                const currentIsShared = await isProjectSharedLocally(finalProjId);
-
-                if (incomingIsShared) {
-                  // Rule 1: incoming project is shared -> assign it
-                  finalProjId = incomingProjId;
-                } else if (currentIsShared) {
-                  // Rule 2: incoming project is NOT shared, but current local is shared -> clear it
-                  finalProjId = null;
-                }
-                // Rule 3: incoming is NOT shared, current is NOT shared -> keep finalProjId as is
-
                 if (existingTask) {
-                  await existingTask.patch({
-                    description: msg.task.description,
-                    details: msg.task.details,
-                    date_created: msg.task.date_created,
-                    action_date: msg.task.action_date,
-                    status: msg.task.status,
-                    processed: msg.task.processed,
-                    archived: msg.task.archived,
-                    person_id: mappedPerson.id, // Ensure it's assigned to the linked person
-                    project_id: finalProjId,
-                  });
-                } else {
-                  // Create new task with defaults for local-only fields
-                  const defaultUrgency = await db.urgencies.findOne().exec();
-                  await db.tasks.insert({
-                    id: msg.task.id,
-                    description: msg.task.description!,
-                    details: msg.task.details,
-                    date_created: msg.task.date_created!,
-                    action_date: msg.task.action_date,
-                    status: msg.task.status as any,
-                    processed: msg.task.processed!,
-                    archived: msg.task.archived,
-                    urgency_id: defaultUrgency?.id || "u_medium",
-                    context_ids: [],
-                    person_id: mappedPerson.id,
-                    project_id: finalProjId,
-                  });
+                  lastProcessedTaskHash.current[msg.task.id] = "deleted";
+                  await existingTask.remove();
                 }
               }
-            }
-            else if (msg.type === "task_delete" && msg.task?.id) {
-              const existingTask = await db.tasks.findOne(msg.task.id).exec();
-              if (existingTask) {
-                lastProcessedTaskHash.current[msg.task.id] = "deleted";
-                await existingTask.remove();
-              }
-            }
-            else if (msg.type === "project_upsert" && msg.project && msg.project.id) {
-              const allPersons = await db.persons.find().exec();
-              const mappedPerson = allPersons.find(p => p.linked_uid === msg.fromUid);
+              else if (msg.type === "project_upsert" && msg.project && msg.project.id) {
+                const allPersons = await db.persons.find().exec();
+                const mappedPerson = allPersons.find(p => p.linked_uid === msg.fromUid);
 
-              if (!mappedPerson) {
-                console.warn(`[Sync] Received project from unlinked user ${msg.fromUid}`);
-              } else {
+                if (!mappedPerson) {
+                  console.warn(`[Sync] Received project from unlinked user ${msg.fromUid}`);
+                } else {
+                  const existingProj = await db.projects.findOne(msg.project.id).exec();
+                  
+                  // If it is unlinked, linked_person_id is null. Otherwise map it to mappedPerson.id
+                  const incomingLinkedPersonId = msg.project.linked_person_id === null ? null : mappedPerson.id;
+
+                  const localProjRepresent = {
+                    name: msg.project.name!,
+                    details: msg.project.details,
+                    status: msg.project.status as any,
+                    linked_person_id: incomingLinkedPersonId,
+                  };
+
+                  const hash = getSharedProjectHash(localProjRepresent);
+                  lastProcessedProjectHash.current[msg.project.id] = hash;
+
+                  if (existingProj) {
+                    await existingProj.patch(localProjRepresent);
+                    console.log(`[Sync] Patched project ${msg.project.id}`);
+                  } else {
+                    await db.projects.insert({
+                      id: msg.project.id,
+                      ...localProjRepresent,
+                    });
+                    console.log(`[Sync] Inserted project ${msg.project.id}`);
+                  }
+                }
+              }
+              else if (msg.type === "project_delete" && msg.project?.id) {
                 const existingProj = await db.projects.findOne(msg.project.id).exec();
-                
-                // If it is unlinked, linked_person_id is null. Otherwise map it to mappedPerson.id
-                const incomingLinkedPersonId = msg.project.linked_person_id === null ? null : mappedPerson.id;
-
-                const localProjRepresent = {
-                  name: msg.project.name!,
-                  details: msg.project.details,
-                  status: msg.project.status as any,
-                  linked_person_id: incomingLinkedPersonId,
-                };
-
-                const hash = getSharedProjectHash(localProjRepresent);
-                lastProcessedProjectHash.current[msg.project.id] = hash;
-
                 if (existingProj) {
-                  await existingProj.patch(localProjRepresent);
-                  console.log(`[Sync] Patched project ${msg.project.id}`);
-                } else {
-                  await db.projects.insert({
-                    id: msg.project.id,
-                    ...localProjRepresent,
-                  });
-                  console.log(`[Sync] Inserted project ${msg.project.id}`);
+                  lastProcessedProjectHash.current[msg.project.id] = "deleted";
+                  await existingProj.remove();
+                  console.log(`[Sync] Deleted project ${msg.project.id}`);
                 }
               }
-            }
-            else if (msg.type === "project_delete" && msg.project?.id) {
-              const existingProj = await db.projects.findOne(msg.project.id).exec();
-              if (existingProj) {
-                lastProcessedProjectHash.current[msg.project.id] = "deleted";
-                await existingProj.remove();
-                console.log(`[Sync] Deleted project ${msg.project.id}`);
-              }
-            }
 
-            // Always delete the message after processing, EXCEPT invites. 
-            // Invites are handled by the Inbox UI manually.
-            if (msg.type !== "invite") {
-              await deleteDoc(doc(firestoreDb, `users/${uid}/messages/${msg.id}`));
+              // Always delete the message after processing, EXCEPT invites. 
+              // Invites are handled by the Inbox UI manually.
+              if (msg.type !== "invite") {
+                await deleteDoc(doc(firestoreDb, `users/${uid}/messages/${msg.id}`));
+              }
+            } catch (err) {
+              console.error("[Sync] Error processing message", msg, err);
             }
-          } catch (err) {
-            console.error("[Sync] Error processing message", msg, err);
           }
         }
+      },
+      (error) => {
+        console.warn("[Sync] messages snapshot error (expected offline):", error);
       }
-    });
+    );
 
     return () => unsubscribe();
   }, [uid, db]);

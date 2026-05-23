@@ -54,16 +54,22 @@ export function HomeView({
       collection(firestoreDb, `users/${user.uid}/messages`),
       where("type", "==", "invite")
     )
-    const unsub = onSnapshot(q, (snap) => {
-      const uniqueInvites = new Map();
-      snap.docs.forEach((d) => {
-        const data = d.data();
-        if (!uniqueInvites.has(data.fromUid)) {
-          uniqueInvites.set(data.fromUid, { id: d.id, ...data });
-        }
-      });
-      setInvites(Array.from(uniqueInvites.values()));
-    })
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const uniqueInvites = new Map();
+        snap.docs.forEach((d) => {
+          const data = d.data();
+          if (!uniqueInvites.has(data.fromUid)) {
+            uniqueInvites.set(data.fromUid, { id: d.id, ...data });
+          }
+        });
+        setInvites(Array.from(uniqueInvites.values()));
+      },
+      (error) => {
+        console.warn("[HomeView] invite snapshot error (expected offline):", error);
+      }
+    )
     return () => unsub()
   }, [user?.uid])
 

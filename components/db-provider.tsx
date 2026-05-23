@@ -49,6 +49,7 @@ export function DbProvider({
   children: ReactNode;
 }) {
   const [db, setDb] = useState<RxDatabase | null>(() => getDatabaseSync(userUid));
+  const [throwError, setThrowError] = useState<Error | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(() => ({
     browserOnline:
       typeof navigator !== "undefined" ? navigator.onLine : true,
@@ -63,7 +64,15 @@ export function DbProvider({
 
     const onBrowserOnline = () => {
       if (!mounted) return;
-      setSyncStatus((s) => ({ ...s, browserOnline: true }));
+      setSyncStatus((s) => ({ ...s, browserOnline: true, replicationError: null }));
+      // Immediately force manual resync for all collections when network is restored
+      replications.forEach((r) => {
+        try {
+          r.reSync();
+        } catch (e) {
+          console.warn("[DbProvider] replication reSync failed:", e);
+        }
+      });
     };
     const onBrowserOffline = () => {
       if (!mounted) return;
@@ -103,10 +112,12 @@ export function DbProvider({
             combineLatest(replications.map((r) => r.active$)).subscribe(
               (actives) => {
                 if (!mounted) return;
+                const allActive = actives.length > 0 && actives.every(Boolean);
                 setSyncStatus((s) => ({
                   ...s,
-                  replicationActive:
-                    actives.length > 0 && actives.every(Boolean),
+                  replicationActive: allActive,
+                  // Clear replicationError once all sync queues are active
+                  replicationError: allActive ? null : s.replicationError,
                 }));
               },
             ),
@@ -123,6 +134,10 @@ export function DbProvider({
           );
         }
       });
+    }).catch((err) => {
+      if (!mounted) return;
+      console.error("[DbProvider] Failed to load local database:", err);
+      setThrowError(err instanceof Error ? err : new Error(String(err)));
     });
 
     return () => {
@@ -135,6 +150,10 @@ export function DbProvider({
       void Promise.all(replications.map((r) => r.cancel()));
     };
   }, [userUid]);
+
+  if (throwError) {
+    throw throwError;
+  }
 
   if (!db) {
     return (
