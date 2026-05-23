@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, ListChecks, FolderKanban, Tags, Users, Star } from "lucide-react"
+import { Home, ListChecks, FolderKanban, Tags, Users, Star, Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ViewKey, SavedView } from "@/lib/types"
 import {
@@ -16,6 +16,7 @@ interface MobileNavProps {
   activeSavedViewId?: string | null
   onChange: (key: ViewKey, savedViewId?: string) => void
   inboxCount: number
+  todayCount: number
   savedViews: SavedView[]
 }
 
@@ -24,14 +25,15 @@ export function MobileNav({
   activeSavedViewId,
   onChange, 
   inboxCount,
+  todayCount,
   savedViews 
 }: MobileNavProps) {
   const items = [
     { key: "home" as ViewKey, label: "Inbox", icon: Home, badge: inboxCount },
+    { key: "today" as ViewKey, label: "Today", icon: Calendar, badge: todayCount },
     { key: "all" as ViewKey, label: "Tasks", icon: ListChecks },
     { key: "projects" as ViewKey, label: "Projects", icon: FolderKanban },
     { key: "contexts" as ViewKey, label: "Contexts", icon: Tags },
-    { key: "persons" as ViewKey, label: "People", icon: Users },
   ]
 
   const isSavedViewActive = active === "saved-view"

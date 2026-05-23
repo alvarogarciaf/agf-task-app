@@ -161,6 +161,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     personId: string | null
     urgencyId?: string
     processed?: boolean
+    showOn?: string | null
+    actionDate?: string | null
   }) => {
     const byOrder = [...urgencies].sort((a, b) => a.order - b.order)
     const defaultUrgency = byOrder[0]?.id ?? "u_low"
@@ -186,6 +188,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       status: "Open",
       date_created: new Date().toISOString(),
       archived: false,
+      show_on: input.showOn ?? null,
+      action_date: input.actionDate ?? null,
     })
     return doc.id
   }
@@ -468,6 +472,13 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const inboxCount = inboxTasks.length
   const totalCount = activeTasks.length
 
+  const todayStr = new Date().toLocaleDateString("en-CA")
+  const todayCount = activeTasks.filter(t => {
+    if (t.status === "Done" || !t.action_date) return false
+    const localDateStr = new Date(t.action_date).toLocaleDateString("en-CA")
+    return localDateStr === todayStr
+  }).length
+
   // Shared props for views that use activeTasks (All Tasks, Saved Views, Projects)
   const activeViewProps = {
     tasks: activeTasks,
@@ -515,6 +526,30 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             initialSortKey={sv.sort_key}
             initialSortDirection={sv.sort_direction}
             fullWidthOnMobile={true}
+          />
+        )
+      }
+      case "today": {
+        const todayStr = new Date().toLocaleDateString("en-CA")
+        const todayTasks = activeTasks.filter(t => {
+          if (t.status === "Done" || !t.action_date) return false
+          const localDateStr = new Date(t.action_date).toLocaleDateString("en-CA")
+          return localDateStr === todayStr
+        })
+
+        return (
+          <AllTasksView
+            {...activeViewProps}
+            tasks={todayTasks}
+            fullWidthOnMobile={true}
+            onCreate={async (input) => {
+              const todayIsoString = new Date().toISOString()
+              return await handleCreateTask({
+                ...input,
+                actionDate: todayIsoString,
+                showOn: null
+              })
+            }}
           />
         )
       }
@@ -710,6 +745,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         onEditSavedView={setEditingView}
         onDeleteSavedView={handleDeleteSavedView}
         inboxCount={inboxCount}
+        todayCount={todayCount}
         totalCount={totalCount}
         syncStatus={syncStatus}
         workspaceLabel={workspaceLabel}
@@ -751,6 +787,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         activeSavedViewId={activeSavedViewId}
         onChange={handleNavigate} 
         inboxCount={inboxCount} 
+        todayCount={todayCount}
         savedViews={savedViews}
       />
 

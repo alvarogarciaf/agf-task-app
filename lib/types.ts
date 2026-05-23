@@ -76,3 +76,4 @@ export type ViewKey =
   | "projects"
   | "settings"
   | "saved-view"
+  | "today"

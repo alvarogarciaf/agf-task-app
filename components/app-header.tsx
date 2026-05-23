@@ -26,6 +26,7 @@ const TITLES: Record<ViewKey, string> = {
   projects: "Projects",
   settings: "Settings",
   "saved-view": "Saved View",
+  today: "Today",
 }
 
 interface AppHeaderProps {

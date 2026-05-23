@@ -11,6 +11,7 @@ import {
   CloudOff,
   AlertCircle,
   Settings,
+  Calendar,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ViewKey, SavedView } from "@/lib/types"
@@ -41,6 +42,7 @@ interface AppSidebarProps {
   onReorderSavedViews?: (views: SavedView[]) => void
   inboxCount: number
   totalCount: number
+  todayCount: number
   syncStatus: SyncStatus
   workspaceLabel: string
   workspaceInitial: string
@@ -56,6 +58,7 @@ export function AppSidebar({
   onReorderSavedViews,
   inboxCount,
   totalCount,
+  todayCount,
   syncStatus,
   workspaceLabel,
   workspaceInitial,
@@ -63,6 +66,7 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const items: NavItem[] = [
     { key: "home", label: "Inbox", icon: Home, shortcut: "I" },
+    { key: "today", label: "Today", icon: Calendar, badge: todayCount, shortcut: "T" },
     { key: "all", label: "All Tasks", icon: ListChecks, badge: totalCount, shortcut: "A" },
   ]
   const browse: NavItem[] = [
