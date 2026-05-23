@@ -475,8 +475,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const todayStr = new Date().toLocaleDateString("en-CA")
   const todayCount = activeTasks.filter(t => {
     if (t.status === "Done" || !t.action_date) return false
-    const localDateStr = new Date(t.action_date).toLocaleDateString("en-CA")
-    return localDateStr === todayStr
+    const taskDateStr = t.action_date.slice(0, 10)
+    return taskDateStr === todayStr
   }).length
 
   // Shared props for views that use activeTasks (All Tasks, Saved Views, Projects)
@@ -533,14 +533,15 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         const todayStr = new Date().toLocaleDateString("en-CA")
         const todayTasks = activeTasks.filter(t => {
           if (t.status === "Done" || !t.action_date) return false
-          const localDateStr = new Date(t.action_date).toLocaleDateString("en-CA")
-          return localDateStr === todayStr
+          const taskDateStr = t.action_date.slice(0, 10)
+          return taskDateStr === todayStr
         })
 
         return (
           <AllTasksView
             {...activeViewProps}
             tasks={todayTasks}
+            allowUnprocessed={true}
             fullWidthOnMobile={true}
             onCreate={async (input) => {
               const todayIsoString = new Date().toISOString()

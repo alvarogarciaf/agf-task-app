@@ -24,6 +24,7 @@ interface AllTasksViewProps {
   initialSortKey?: string
   initialSortDirection?: "asc" | "desc"
   fullWidthOnMobile?: boolean
+  allowUnprocessed?: boolean
   onCreate?: (input: {
     description: string
     contextIds: string[]

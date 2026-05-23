@@ -66,6 +66,7 @@ interface FilteredTasksProps {
   }) => Promise<string | void>
   hideFilterBar?: boolean
   fullWidthOnMobile?: boolean
+  allowUnprocessed?: boolean
 }
 
 export function FilteredTasks({
@@ -97,6 +98,7 @@ export function FilteredTasks({
   onCreate,
   hideFilterBar = false,
   fullWidthOnMobile = false,
+  allowUnprocessed = false,
 }: FilteredTasksProps) {
   const [contextIds, setContextIds] = useState<string[]>(() => {
     if (initialContextIds) return initialContextIds
@@ -180,8 +182,8 @@ export function FilteredTasks({
           // Inbox only shows UNPROCESSED and OPEN tasks
           if (t.processed || t.status !== "Open") return false
         } else {
-          // Everywhere else only shows PROCESSED tasks
-          if (!t.processed) return false
+          // Everywhere else only shows PROCESSED tasks unless allowed
+          if (!allowUnprocessed && !t.processed) return false
           
           // 2. Status Filter: Open vs Done (only applies to non-inbox views)
           if (showStatus === "all") return true
@@ -252,6 +254,7 @@ export function FilteredTasks({
     persons,
     contexts,
     showHiddenByShowOn,
+    allowUnprocessed,
   ])
 
   const groupedByProject = useMemo(() => {
