@@ -499,110 +499,112 @@ export function TaskDetailDialog({
                   </div>
                 </div>
 
-                {/* Project */}
-                <div>
-                  <Label icon={<FolderKanban className="h-3 w-3" />}>Project</Label>
-                  <Select
-                    value={draft.project_id ?? "__none__"}
-                    onValueChange={(v) => {
-                      const projId = v === "__none__" ? null : v;
-                      const proj = projId ? projects.find(p => p.id === projId) : null;
-                      if (proj && proj.linked_person_id) {
-                        setDraft(prev => prev ? { ...prev, project_id: projId, person_id: proj.linked_person_id } : null);
-                      } else {
-                        setDraft(prev => prev ? { ...prev, project_id: projId } : null);
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="mt-1.5 w-full border-border bg-background h-11 md:h-9">
-                      <SelectValue placeholder="No project" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">
-                        <span className="text-muted-foreground">No project</span>
-                      </SelectItem>
-                      {projects.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name}
+                {/* Project & Person Row */}
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex-1 min-w-[200px]">
+                    <Label icon={<FolderKanban className="h-3 w-3" />}>Project</Label>
+                    <Select
+                      value={draft.project_id ?? "__none__"}
+                      onValueChange={(v) => {
+                        const projId = v === "__none__" ? null : v;
+                        const proj = projId ? projects.find(p => p.id === projId) : null;
+                        if (proj && proj.linked_person_id) {
+                          setDraft(prev => prev ? { ...prev, project_id: projId, person_id: proj.linked_person_id } : null);
+                        } else {
+                          setDraft(prev => prev ? { ...prev, project_id: projId } : null);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="mt-1.5 w-full border-border bg-background h-11 md:h-9">
+                        <SelectValue placeholder="No project" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">
+                          <span className="text-muted-foreground">No project</span>
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Person */}
-                <div>
-                  <div className="flex items-center justify-between">
-                    <Label icon={<User className="h-3 w-3" />}>Person</Label>
-                    {isProjectShared && (
-                      <span className="flex items-center gap-1 text-[10px] font-medium text-blue-500 font-mono animate-fade-in">
-                        <Lock className="h-2.5 w-2.5" /> Locked to project partner
-                      </span>
-                    )}
-                  </div>
-                  <Select
-                    disabled={isProjectShared}
-                    value={draft.person_id ?? "__none__"}
-                    onValueChange={(v) =>
-                      update("person_id", v === "__none__" ? null : v)
-                    }
-                  >
-                    <SelectTrigger className={cn("mt-1.5 w-full border-border bg-background h-11 md:h-9", isProjectShared && "opacity-80 cursor-not-allowed bg-muted/20")}>
-                      <SelectValue placeholder="No one" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">
-                        <span className="text-muted-foreground">No one</span>
-                      </SelectItem>
-                      {persons.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          <span className="flex items-center gap-2">
-                            <span
-                              className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-semibold"
-                              style={{
-                                backgroundColor: `color-mix(in oklch, ${p.color} 30%, transparent)`,
-                              }}
-                            >
-                              {p.initials}
-                            </span>
+                        {projects.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
                             {p.name}
-                          </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex-1 min-w-[200px]">
+                    <div className="flex items-center justify-between">
+                      <Label icon={<User className="h-3 w-3" />}>Person</Label>
+                      {isProjectShared && (
+                        <span className="flex items-center gap-1 text-[10px] font-medium text-blue-500 font-mono animate-fade-in">
+                          <Lock className="h-2.5 w-2.5" /> Locked
+                        </span>
+                      )}
+                    </div>
+                    <Select
+                      disabled={isProjectShared}
+                      value={draft.person_id ?? "__none__"}
+                      onValueChange={(v) =>
+                        update("person_id", v === "__none__" ? null : v)
+                      }
+                    >
+                      <SelectTrigger className={cn("mt-1.5 w-full border-border bg-background h-11 md:h-9", isProjectShared && "opacity-80 cursor-not-allowed bg-muted/20")}>
+                        <SelectValue placeholder="No one" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">
+                          <span className="text-muted-foreground">No one</span>
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        {persons.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            <span className="flex items-center gap-2">
+                              <span
+                                className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-semibold"
+                                style={{
+                                  backgroundColor: `color-mix(in oklch, ${p.color} 30%, transparent)`,
+                                }}
+                              >
+                                {p.initials}
+                              </span>
+                              {p.name}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
-                {/* Show on */}
-                <div>
-                  <Label icon={<Calendar className="h-3 w-3" />}>Show on</Label>
-                  <input
-                    type="date"
-                    value={toDateInputValue(draft.show_on)}
-                    onChange={(e) =>
-                      update(
-                        "show_on",
-                        e.target.value === "" ? null : new Date(e.target.value).toISOString(),
-                      )
-                    }
-                    className="mt-1.5 h-11 w-full rounded-md border border-border bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-ring/40 md:h-9 md:text-sm"
-                  />
-                </div>
+                {/* Show on & Action date Row */}
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex-1 min-w-[200px]">
+                    <Label icon={<Calendar className="h-3 w-3" />}>Show on</Label>
+                    <input
+                      type="date"
+                      value={toDateInputValue(draft.show_on)}
+                      onChange={(e) =>
+                        update(
+                          "show_on",
+                          e.target.value === "" ? null : new Date(e.target.value).toISOString(),
+                        )
+                      }
+                      className="mt-1.5 h-11 w-full rounded-md border border-border bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-ring/40 md:h-9 md:text-sm"
+                    />
+                  </div>
 
-                {/* Action date */}
-                <div>
-                  <Label icon={<Calendar className="h-3 w-3" />}>Action date</Label>
-                  <input
-                    type="date"
-                    value={toDateInputValue(draft.action_date)}
-                    onChange={(e) =>
-                      update(
-                        "action_date",
-                        e.target.value === "" ? null : new Date(e.target.value).toISOString(),
-                      )
-                    }
-                    className="mt-1.5 h-11 w-full rounded-md border border-border bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-ring/40 md:h-9 md:text-sm"
-                  />
+                  <div className="flex-1 min-w-[200px]">
+                    <Label icon={<Calendar className="h-3 w-3" />}>Action date</Label>
+                    <input
+                      type="date"
+                      value={toDateInputValue(draft.action_date)}
+                      onChange={(e) =>
+                        update(
+                          "action_date",
+                          e.target.value === "" ? null : new Date(e.target.value).toISOString(),
+                        )
+                      }
+                      className="mt-1.5 h-11 w-full rounded-md border border-border bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-ring/40 md:h-9 md:text-sm"
+                    />
+                  </div>
                 </div>
               </div>
 
