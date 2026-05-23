@@ -112,18 +112,23 @@ export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDelete
                     <MoreVertical className="h-4 w-4" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-32">
+                <DropdownMenuContent 
+                  align="end" 
+                  className="w-32"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <DropdownMenuItem
-                    onClick={() => {
-                        const plain: Person = {
-                          id: p.id,
-                          name: p.name,
-                          initials: p.initials,
-                          color: p.color,
-                          linked_uid: p.linked_uid ?? null,
-                          linked_email: p.linked_email ?? null,
-                          pending_invite_email: p.pending_invite_email ?? null,
-                        }
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      const plain: Person = {
+                        id: p.id,
+                        name: p.name,
+                        initials: p.initials,
+                        color: p.color,
+                        linked_uid: p.linked_uid ?? null,
+                        linked_email: p.linked_email ?? null,
+                        pending_invite_email: p.pending_invite_email ?? null,
+                      }
                       setEditing(plain)
                     }}
                   >
@@ -132,7 +137,8 @@ export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDelete
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation()
                       if (confirm(`Are you sure you want to delete person "${p.name}"?`)) {
                         onDeletePerson?.(p.id)
                       }

@@ -105,9 +105,14 @@ export function ContextsView({ contexts, tasks, onSelect, onUpdateContext, onDel
                     <MoreVertical className="h-4 w-4" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-32">
+                <DropdownMenuContent 
+                  align="end" 
+                  className="w-32"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <DropdownMenuItem
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation()
                       const plain: Context = {
                         id: c.id,
                         name: c.name,
@@ -122,7 +127,8 @@ export function ContextsView({ contexts, tasks, onSelect, onUpdateContext, onDel
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation()
                       if (confirm(`Are you sure you want to delete context "${c.name}"?`)) {
                         onDeleteContext?.(c.id)
                       }
