@@ -726,6 +726,12 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           user={user} 
           onSignOut={onSignOut} 
           syncStatus={syncStatus}
+          tasks={activeTasks}
+          projects={projects}
+          persons={persons}
+          contexts={contexts}
+          urgencies={urgencies}
+          onUpdateTask={handleUpdateTask}
         />
         
         <main className={cn(

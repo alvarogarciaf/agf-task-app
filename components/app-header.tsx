@@ -1,9 +1,11 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
-import { Search, Command, Settings, LogOut, ChevronDown, Menu, Users, Tags, AlertCircle, Calendar, Trash2, Info, Bell } from "lucide-react"
-import type { ViewKey } from "@/lib/types"
+import { useState, useRef, useEffect, useMemo } from "react"
+import { Search, Command, Settings, LogOut, ChevronDown, Menu, Users, Tags, AlertCircle, Calendar, Trash2, Info, Bell, Circle, CheckCircle2 } from "lucide-react"
+import type { ViewKey, Task, Project, Person, Context, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "./db-provider"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { TaskDetailDialog } from "./task-detail-dialog"
 import { Cloud, CloudOff } from "lucide-react"
 import { 
   Drawer, 
@@ -33,13 +35,73 @@ interface AppHeaderProps {
   user?: { uid: string; displayName: string | null; email: string | null; photoURL?: string | null } | null
   onSignOut?: () => void
   syncStatus?: SyncStatus
+  tasks?: Task[]
+  projects?: Project[]
+  persons?: Person[]
+  contexts?: Context[]
+  urgencies?: UrgencyLevel[]
+  onUpdateTask?: (task: Task) => void
 }
 
-export function AppHeader({ view, savedViewName, onNavigate, user, onSignOut, syncStatus }: AppHeaderProps) {
+export function AppHeader({
+  view,
+  savedViewName,
+  onNavigate,
+  user,
+  onSignOut,
+  syncStatus,
+  tasks = [],
+  projects = [],
+  persons = [],
+  contexts = [],
+  urgencies = [],
+  onUpdateTask,
+}: AppHeaderProps) {
   const title = view === "saved-view" ? savedViewName || "Saved View" : TITLES[view]
   const [avatarOpen, setAvatarOpen] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [activeTask, setActiveTask] = useState<Task | null>(null)
+  const [detailMode, setDetailMode] = useState<"view" | "edit">("view")
+
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Listen for global keyboard shortcut (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault()
+        setSearchOpen((o) => !o)
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [])
+
+  // Focus input when modal opens, clear query when it closes
+  useEffect(() => {
+    if (searchOpen) {
+      setTimeout(() => {
+        searchInputRef.current?.focus()
+      }, 80)
+    } else {
+      setSearchQuery("")
+    }
+  }, [searchOpen])
+
+  // Filter tasks by case-insensitive query matches in description or details
+  const filteredTasks = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim()
+    if (!q) return []
+    return tasks.filter((t) => {
+      const desc = t.description?.toLowerCase() || ""
+      const det = t.details?.toLowerCase() || ""
+      return desc.includes(q) || det.includes(q)
+    })
+  }, [searchQuery, tasks])
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -122,10 +184,8 @@ export function AppHeader({ view, savedViewName, onNavigate, user, onSignOut, sy
           {/* Search */}
           <button
             type="button"
-            disabled
-            title="Search is not available yet"
-            aria-disabled="true"
-            className="flex h-10 cursor-not-allowed items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-muted-foreground opacity-60 md:h-8 md:text-xs"
+            onClick={() => setSearchOpen(true)}
+            className="flex h-10 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-muted-foreground transition-all hover:bg-muted active:scale-[0.98] md:h-8 md:text-xs"
           >
             <Search className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Search…</span>
@@ -207,6 +267,144 @@ export function AppHeader({ view, savedViewName, onNavigate, user, onSignOut, sy
           </div>
         </div>
       </div>
+
+      {/* Search Modal */}
+      <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
+        <DialogContent className="max-w-xl gap-0 overflow-hidden p-0 bg-card sm:rounded-xl border border-border shadow-2xl">
+          <DialogTitle className="sr-only">Search Tasks</DialogTitle>
+          
+          {/* Search Input Box */}
+          <div className="flex items-center gap-3 border-b border-border px-4 py-3 bg-muted/20">
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tasks by description or details..."
+              className="h-10 w-full bg-transparent text-base focus:outline-none placeholder:text-muted-foreground md:h-9 md:text-sm"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="text-xs font-medium text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded bg-muted/60 transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Results Area */}
+          <div className="max-h-[60vh] overflow-y-auto p-2">
+            {!searchQuery ? (
+              <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                <Search className="h-8 w-8 opacity-25 mb-2.5" />
+                <span className="text-sm font-medium">Type to search across the whole database</span>
+                <span className="text-[11px] opacity-75 mt-0.5">Searching description and details...</span>
+              </div>
+            ) : filteredTasks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                <AlertCircle className="h-8 w-8 opacity-25 mb-2.5 text-destructive" />
+                <span className="text-sm font-medium">No results found matching your search</span>
+                <span className="text-[11px] opacity-75 mt-0.5">Check for typos or try different terms</span>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {filteredTasks.map((t) => {
+                  const project = projects.find((p) => p.id === t.project_id)
+                  const taskContexts = contexts.filter((c) => t.context_ids.includes(c.id))
+                  const isDone = t.status === "Done"
+                  
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => {
+                        setActiveTask(t)
+                        setDetailMode("view")
+                        setSearchOpen(false)
+                      }}
+                      className="group flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors hover:bg-muted/70 active:bg-muted/90"
+                    >
+                      {/* Status Icon */}
+                      <div className="mt-0.5 shrink-0">
+                        {isDone ? (
+                          <CheckCircle2 className="h-4.5 w-4.5 text-primary" />
+                        ) : (
+                          <Circle className="h-4.5 w-4.5 text-muted-foreground" />
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0 text-left">
+                        {/* Description */}
+                        <div className={`text-sm font-medium leading-normal tracking-tight truncate ${isDone ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                          {t.description}
+                        </div>
+
+                        {/* Details snippet */}
+                        {t.details && (
+                          <div className="mt-0.5 text-xs text-muted-foreground/80 line-clamp-1 truncate">
+                            {t.details}
+                          </div>
+                        )}
+
+                        {/* Tags / Badges */}
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          {/* Project Badge */}
+                          {project && (
+                            <span className="rounded bg-secondary/80 px-1.5 py-0.5 font-sans text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider">
+                              {project.name}
+                            </span>
+                          )}
+
+                          {/* Context Tags */}
+                          {taskContexts.map((c) => (
+                            <span
+                              key={c.id}
+                              className="rounded px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-wider"
+                              style={{
+                                backgroundColor: `color-mix(in oklch, ${c.color} 12%, transparent)`,
+                                color: c.color,
+                              }}
+                            >
+                              {c.name}
+                            </span>
+                          ))}
+                          
+                          {/* Action Date / Due Badge */}
+                          {t.action_date && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground font-mono">
+                              <Calendar className="h-3 w-3" />
+                              {t.action_date}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Task Details Dialog (Search Results View/Edit Page) */}
+      <TaskDetailDialog
+        task={activeTask}
+        open={activeTask !== null}
+        onOpenChange={(o) => {
+          if (!o) setActiveTask(null)
+        }}
+        projects={projects}
+        persons={persons}
+        contexts={contexts}
+        urgencies={urgencies}
+        onUpdate={onUpdateTask || (() => {})}
+        mode={detailMode}
+        onModeChange={setDetailMode}
+      />
     </header>
   )
 }
