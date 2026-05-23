@@ -55,7 +55,13 @@ export function ContextsView({ contexts, tasks, onSelect, onUpdateContext, onDel
           return (
             <div
               key={c.id}
-              onClick={() => onSelect(c.id)}
+              onClick={(e) => {
+                const target = e.target as HTMLElement
+                if (target.closest('[data-options-trigger="true"]')) {
+                  return
+                }
+                onSelect(c.id)
+              }}
               className="group flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:border-primary/30 hover:bg-card/80"
             >
               {/* Icon */}
@@ -91,6 +97,7 @@ export function ContextsView({ contexts, tasks, onSelect, onUpdateContext, onDel
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
+                    data-options-trigger="true"
                     onClick={(e) => e.stopPropagation()}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:opacity-0 md:group-hover:opacity-100"
                     aria-label={`Options for ${c.name}`}

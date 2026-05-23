@@ -57,7 +57,13 @@ export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDelete
           return (
             <div
               key={p.id}
-              onClick={() => onSelect(p.id)}
+              onClick={(e) => {
+                const target = e.target as HTMLElement
+                if (target.closest('[data-options-trigger="true"]')) {
+                  return
+                }
+                onSelect(p.id)
+              }}
               className="group flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:border-primary/30 hover:bg-card/80"
             >
               {/* Avatar */}
@@ -98,6 +104,7 @@ export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDelete
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
+                    data-options-trigger="true"
                     onClick={(e) => e.stopPropagation()}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:opacity-0 md:group-hover:opacity-100"
                     aria-label={`Options for ${p.name}`}
