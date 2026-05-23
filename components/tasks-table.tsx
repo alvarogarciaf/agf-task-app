@@ -321,7 +321,7 @@ export function TasksTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
+    <div className="overflow-hidden md:rounded-lg md:border md:border-border md:bg-card">
       {/* Toolbar */}
       {!hideToolbar && (
         <div className="hidden md:flex items-center justify-between border-b border-border px-3 py-2">
@@ -428,6 +428,7 @@ export function TasksTable({
                   onToggleStatus={onToggleStatus}
                   onArchiveTask={onArchiveTask}
                   onDeleteTask={onDeleteTask}
+                  inboxMode={inboxMode}
                   onClick={(t) => {
                     if (selectedIds.size > 0) {
                       onToggleSelection?.(t.id)
@@ -1041,6 +1042,7 @@ function MobileTaskRow({
   onEditClick,
   isSelected,
   onToggleSelection,
+  inboxMode = false,
 }: {
   task: Task
   urgency?: UrgencyLevel
@@ -1052,6 +1054,7 @@ function MobileTaskRow({
   onEditClick?: (task: Task) => void
   isSelected: boolean
   onToggleSelection: () => void
+  inboxMode?: boolean
 }) {
   const [longPressTriggered, setLongPressTriggered] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -1113,15 +1116,27 @@ function MobileTaskRow({
         type="button"
         onClick={(e) => {
           e.stopPropagation()
-          onToggleProcessed(task.id)
+          if (inboxMode) {
+            onToggleProcessed(task.id)
+          } else {
+            onToggleStatus(task.id)
+          }
         }}
         className="shrink-0 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
-        aria-label={task.processed ? "Mark as inbox" : "Mark as processed"}
+        aria-label={inboxMode ? (task.processed ? "Mark as inbox" : "Mark as processed") : (task.status === "Done" ? "Mark as open" : "Mark as done")}
       >
-        {task.processed ? (
-          <CircleCheck className="h-4.5 w-4.5 text-primary" />
+        {inboxMode ? (
+          task.processed ? (
+            <CircleCheck className="h-4.5 w-4.5 text-primary" />
+          ) : (
+            <Circle className="h-4.5 w-4.5" />
+          )
         ) : (
-          <Circle className="h-4.5 w-4.5" />
+          task.status === "Done" ? (
+            <CircleCheck className="h-4.5 w-4.5 text-primary" />
+          ) : (
+            <Circle className="h-4.5 w-4.5" />
+          )
         )}
       </button>
 
