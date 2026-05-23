@@ -464,7 +464,7 @@ export function FilteredTasks({
 
   return (
     <div key={`${initialContextId}-${initialContextIds?.join(",")}-${initialProjectId}-${initialPersonId}-${initialShowStatus}-${initialIsGroupedByProject}-${initialShowHiddenByShowOn}-${initialSortKey}-${initialSortDirection}`} className={cn(
-      "flex flex-col min-w-0 w-full bg-card overflow-hidden",
+      "flex flex-col min-w-0 w-full bg-transparent md:bg-card overflow-hidden",
       fullWidthOnMobile 
         ? "border-b border-border md:rounded-lg md:border" 
         : "rounded-lg border border-border"
@@ -687,7 +687,7 @@ export function FilteredTasks({
           <div className="flex flex-col gap-8 p-4">
             {groupedByProject.map((group) => (
               <div key={group.id} className="flex flex-col gap-2">
-                <div className="sticky top-0 z-20 flex items-center justify-between bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/75 py-2 px-1">
+                <div className="sticky top-0 z-20 flex items-center justify-between bg-background/95 md:bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 md:supports-[backdrop-filter]:bg-card/75 py-2 px-1">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                     {group.name}
