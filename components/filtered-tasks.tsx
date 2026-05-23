@@ -24,6 +24,7 @@ import {
 import type { Context, Person, Project, Task, UrgencyLevel, SavedView } from "@/lib/types"
 import { useDatabase } from "./db-provider"
 import { SaveViewDialog } from "./save-view-dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { v4 as uuidv4 } from "uuid"
 import {
   isTaskHiddenOnlyByShowOn,
@@ -116,6 +117,14 @@ export function FilteredTasks({
   const [showHiddenByShowOn, setShowHiddenByShowOn] = useState(initialShowHiddenByShowOn ?? false)
   const [isGroupedByProject, setIsGroupedByProject] = useState(initialIsGroupedByProject ?? false)
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  
+  const activeFiltersCount = 
+    (showStatus !== "all" ? 1 : 0) + 
+    (contextIds.length > 0 ? 1 : 0) + 
+    (projectId ? 1 : 0) + 
+    (personId ? 1 : 0)
+
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null)
   const db = useDatabase()
@@ -459,67 +468,93 @@ export function FilteredTasks({
     )}>
       {/* Filter bar */}
       {!hideFilterBar && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/20 p-3 md:p-2">
-          <div className="flex items-center gap-1.5 px-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-            <Filter className="h-3 w-3" />
+        <div className="flex items-center justify-between border-b border-border bg-muted/20 p-3 md:p-2">
+          
+          {/* Desktop Filter Bar (hidden on mobile, flex on desktop) */}
+          <div className="hidden md:flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 px-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              <Filter className="h-3 w-3" />
+            </div>
+
+            {!hideFilters.includes("status") && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted md:py-1"
+                  >
+                    {showStatus === "all" ? "All" : showStatus === "open" ? "Open" : "Done"}
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-32">
+                  <DropdownMenuItem onClick={() => setShowStatus("all")}>All</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowStatus("open")}>Open</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowStatus("done")}>Done</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
+            {!hideFilters.includes("context") && (
+              <FilterPill
+                label="Context"
+                value={
+                  contextIds.length > 1 
+                    ? `${contextIds.length} selected` 
+                    : (contextIds.length === 1 ? contexts.find((c) => c.id === contextIds[0])?.name : undefined)
+                }
+                options={contexts.map((c) => ({ id: c.id, label: c.name, color: c.color }))}
+                selectedIds={contextIds}
+                onSelect={(id) => setContextIds((prev) => 
+                  prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+                )}
+                onClear={() => setContextIds([])}
+                multiSelect={true}
+              />
+            )}
+
+            {!hideFilters.includes("project") && (
+              <FilterPill
+                label="Project"
+                value={projectId ? projects.find((p) => p.id === projectId)?.name : undefined}
+                options={projects.map((p) => ({ id: p.id, label: p.name }))}
+                onSelect={(id) => setProjectId((p) => (p === id ? null : id))}
+                onClear={() => setProjectId(null)}
+              />
+            )}
+
+            {!hideFilters.includes("person") && (
+              <FilterPill
+                label="Person"
+                value={personId ? persons.find((p) => p.id === personId)?.name : undefined}
+                options={persons.map((p) => ({ id: p.id, label: p.name, color: p.color }))}
+                onSelect={(id) => setPersonId((p) => (p === id ? null : id))}
+                onClear={() => setPersonId(null)}
+              />
+            )}
           </div>
 
-          {!hideFilters.includes("status") && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted md:py-1"
-                >
-                  {showStatus === "all" ? "All" : showStatus === "open" ? "Open" : "Done"}
-                  <ChevronDown className="h-3 w-3" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-32">
-                <DropdownMenuItem onClick={() => setShowStatus("all")}>All</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowStatus("open")}>Open</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowStatus("done")}>Done</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-
-          {!hideFilters.includes("context") && (
-            <FilterPill
-              label="Context"
-              value={
-                contextIds.length > 1 
-                  ? `${contextIds.length} selected` 
-                  : (contextIds.length === 1 ? contexts.find((c) => c.id === contextIds[0])?.name : undefined)
-              }
-              options={contexts.map((c) => ({ id: c.id, label: c.name, color: c.color }))}
-              selectedIds={contextIds}
-              onSelect={(id) => setContextIds((prev) => 
-                prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+          {/* Mobile Filter Bar (flex on mobile, hidden on desktop) */}
+          <div className="flex md:hidden items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen(true)}
+              className={cn(
+                "inline-flex h-9 items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold transition-all hover:bg-muted active:scale-[0.98] select-none outline-none cursor-pointer",
+                activeFiltersCount > 0
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-background text-muted-foreground"
               )}
-              onClear={() => setContextIds([])}
-              multiSelect={true}
-            />
-          )}
-
-          {!hideFilters.includes("project") && (
-            <FilterPill
-              label="Project"
-              value={projectId ? projects.find((p) => p.id === projectId)?.name : undefined}
-              options={projects.map((p) => ({ id: p.id, label: p.name }))}
-              onSelect={(id) => setProjectId((p) => (p === id ? null : id))}
-              onClear={() => setProjectId(null)}
-            />
-          )}
-
-          {!hideFilters.includes("person") && (
-            <FilterPill
-              label="Person"
-              value={personId ? persons.find((p) => p.id === personId)?.name : undefined}
-              options={persons.map((p) => ({ id: p.id, label: p.name, color: p.color }))}
-              onSelect={(id) => setPersonId((p) => (p === id ? null : id))}
-              onClear={() => setPersonId(null)}
-            />
-          )}
+            >
+              <Filter className="h-3.5 w-3.5" />
+              <span>Filters</span>
+              {activeFiltersCount > 0 && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 font-mono text-[10px] font-bold text-primary-foreground">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </button>
+          </div>
 
           <div className="ml-auto flex items-center gap-2">
             <span className="hidden lg:inline font-mono text-[10px] uppercase tracking-wider text-muted-foreground mr-2">
@@ -747,6 +782,166 @@ export function FilteredTasks({
         onOpenChange={setIsSaveDialogOpen}
         onSave={handleSaveView}
       />
+
+      {/* Mobile Filters Dialog */}
+      <Dialog open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+        <DialogContent className="max-w-md gap-0 overflow-hidden p-0 bg-card sm:rounded-xl border border-border shadow-2xl">
+          <DialogTitle className="sr-only">Filter Tasks</DialogTitle>
+          
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-border bg-card px-5 py-4">
+            <div className="flex items-center gap-2 text-primary">
+              <Filter className="h-4.5 w-4.5" />
+              <span className="text-sm font-semibold">Filter Tasks</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen(false)}
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="space-y-5 px-5 py-5 bg-card">
+            {/* Status Segmented Control */}
+            {!hideFilters.includes("status") && (
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                  Status
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["all", "open", "done"] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setShowStatus(s)}
+                      className={cn(
+                        "h-10 rounded-md border text-sm font-medium transition-all cursor-pointer",
+                        showStatus === s
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-background text-muted-foreground hover:bg-muted"
+                      )}
+                    >
+                      {s === "all" ? "All" : s === "open" ? "Open" : s === "done" ? "Done" : ""}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Context Pills Grid */}
+            {!hideFilters.includes("context") && (
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                  Contexts
+                </label>
+                <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto pr-1">
+                  {contexts.map((c) => {
+                    const isSelected = contextIds.includes(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() =>
+                          setContextIds((prev) =>
+                            prev.includes(c.id)
+                              ? prev.filter((x) => x !== c.id)
+                              : [...prev, c.id]
+                          )
+                        }
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all cursor-pointer",
+                          isSelected
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-background text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: c.color }}
+                        />
+                        {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Project Select dropdown */}
+            {!hideFilters.includes("project") && (
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                  Project
+                </label>
+                <select
+                  value={projectId || ""}
+                  onChange={(e) => setProjectId(e.target.value || null)}
+                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                >
+                  <option value="">All Projects</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Person Select dropdown */}
+            {!hideFilters.includes("person") && (
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                  Person
+                </label>
+                <select
+                  value={personId || ""}
+                  onChange={(e) => setPersonId(e.target.value || null)}
+                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                >
+                  <option value="">All People</option>
+                  {persons.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Footer with Clear All / Apply Buttons */}
+          <div className="flex items-center gap-3 border-t border-border bg-background/40 px-5 py-4">
+            {activeFiltersCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowStatus("all");
+                  setContextIds([]);
+                  setProjectId(null);
+                  setPersonId(null);
+                }}
+                className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 rounded-md border border-destructive/20 bg-destructive/10 text-destructive text-sm font-semibold hover:bg-destructive/15 transition-colors cursor-pointer"
+              >
+                Clear All
+              </button>
+            ) : (
+              <div className="flex-1 text-xs text-muted-foreground font-mono">No active filters</div>
+            )}
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen(false)}
+              className="flex-1 h-10 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
+            >
+              Apply Filters
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
