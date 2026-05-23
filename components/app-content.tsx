@@ -70,9 +70,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [savedViews, setSavedViews] = useState<SavedView[]>([])
   const [editingView, setEditingView] = useState<SavedView | null>(null)
   const [activeSettingsTab, setActiveSettingsTab] = useState<TabKey>(() => {
-    if (typeof window === "undefined") return "persons"
+    if (typeof window === "undefined") return "contexts"
     const t = new URLSearchParams(window.location.search).get("tab") as TabKey
-    return t || "persons"
+    return t || "contexts"
   })
 
   // Synchronize state with URL search params (for browser back/forward and initial loads)

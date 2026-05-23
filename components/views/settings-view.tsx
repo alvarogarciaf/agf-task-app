@@ -12,7 +12,7 @@ import { firestoreDb } from "@/lib/firebase/config"
 import type { Context, Person, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "@/components/db-provider"
 
-export type TabKey = "persons" | "contexts" | "urgencies" | "calendar" | "data" | "notifications" | "troubleshoot"
+export type TabKey = "contexts" | "calendar" | "data" | "notifications" | "troubleshoot"
 
 interface SettingsViewProps {
   activeTab?: TabKey
@@ -57,7 +57,7 @@ export function SettingsView({
   userUid,
   onSyncCalendar,
 }: SettingsViewProps) {
-  const [internalTab, setInternalTab] = useState<TabKey>("persons")
+  const [internalTab, setInternalTab] = useState<TabKey>("contexts")
   const tab = controlledTab || internalTab
   const setTab = onTabChange || setInternalTab
   const activeTabRef = useRef<HTMLButtonElement | null>(null)
@@ -132,14 +132,8 @@ export function SettingsView({
     <div className="max-w-4xl mx-auto">
       {/* Tabs - Scrollable on mobile, full tabs on desktop */}
       <div className="hidden md:flex items-center gap-1 border-b border-border mb-6 overflow-x-auto no-scrollbar">
-        <TabButton ref={tab === "persons" ? activeTabRef : null} active={tab === "persons"} onClick={() => setTab("persons")} icon={Users}>
-          People
-        </TabButton>
         <TabButton ref={tab === "contexts" ? activeTabRef : null} active={tab === "contexts"} onClick={() => setTab("contexts")} icon={Tags}>
           Contexts
-        </TabButton>
-        <TabButton ref={tab === "urgencies" ? activeTabRef : null} active={tab === "urgencies"} onClick={() => setTab("urgencies")} icon={AlertCircle}>
-          Urgencies
         </TabButton>
         <TabButton ref={tab === "calendar" ? activeTabRef : null} active={tab === "calendar"} onClick={() => setTab("calendar")} icon={Calendar}>
           Calendar
@@ -157,30 +151,6 @@ export function SettingsView({
 
       {/* Content */}
       <div className="bg-card border border-border rounded-lg overflow-hidden">
-        {tab === "persons" && (
-          <EntityManager
-            title="People"
-            description="Manage the people you assign tasks to."
-            items={persons}
-            onAdd={onAddPerson}
-            onUpdate={onUpdatePerson}
-            onDelete={onDeletePerson}
-            fields={[
-              { key: "name", label: "Name", type: "text" },
-              { key: "initials", label: "Initials", type: "text", width: "w-20" },
-              { key: "color", label: "Color", type: "color", width: "w-24" },
-            ]}
-            renderAvatar={(item) => (
-              <div
-                className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold text-foreground mr-3 shrink-0"
-                style={{ backgroundColor: `color-mix(in oklch, ${item.color} 30%, transparent)` }}
-              >
-                {item.initials}
-              </div>
-            )}
-          />
-        )}
-
         {tab === "contexts" && (
           <EntityManager
             title="Contexts"
@@ -193,28 +163,6 @@ export function SettingsView({
               { key: "name", label: "Name", type: "text" },
               { key: "icon", label: "Icon Name", type: "text", width: "w-32" },
               { key: "color", label: "Color", type: "color", width: "w-24" },
-            ]}
-            renderAvatar={(item) => (
-              <span
-                className="h-2 w-2 rounded-full mr-3 shrink-0"
-                style={{ backgroundColor: item.color }}
-              />
-            )}
-          />
-        )}
-
-        {tab === "urgencies" && (
-          <EntityManager
-            title="Urgencies"
-            description="Manage urgency levels. They will be sorted by Order."
-            items={[...urgencies].sort((a, b) => a.order - b.order)}
-            onAdd={onAddUrgency}
-            onUpdate={onUpdateUrgency}
-            onDelete={onDeleteUrgency}
-            fields={[
-              { key: "name", label: "Name", type: "text" },
-              { key: "color", label: "Color", type: "color", width: "w-24" },
-              { key: "order", label: "Order", type: "number", width: "w-24" },
             ]}
             renderAvatar={(item) => (
               <span
