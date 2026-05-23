@@ -395,22 +395,22 @@ export function TasksTable({
         </div>
       ) : (
         <>
-          <div className="md:hidden flex w-full min-w-0 flex-col divide-y divide-border">
+          <div className="md:hidden flex w-full min-w-0 flex-col space-y-2 px-3.5 py-3 bg-muted/10">
             {selectedIds.size > 0 && (
-              <div className="flex items-center justify-between px-4 py-3 bg-primary/5 border-b border-border/50 animate-in slide-in-from-top duration-200">
+              <div className="flex items-center justify-between px-4 py-2.5 bg-primary/10 border border-primary/20 rounded-xl animate-in slide-in-from-top duration-200">
                 <span className="text-sm font-semibold text-primary">
                   {selectedIds.size} selected
                 </span>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => onBulkDelete?.()}
-                    className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-bold text-destructive active:bg-destructive/20 transition-colors"
+                    className="rounded-lg bg-destructive/10 px-3 py-1.5 text-xs font-semibold text-destructive active:bg-destructive/20 transition-colors cursor-pointer"
                   >
                     Delete
                   </button>
                   <button
                     onClick={() => onToggleAll?.([])}
-                    className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary active:bg-primary/20 transition-colors"
+                    className="rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary active:bg-primary/20 transition-colors cursor-pointer"
                   >
                     Deselect
                   </button>
@@ -1082,8 +1082,11 @@ function MobileTaskRow({
   return (
     <div 
       className={cn(
-        "flex min-h-[56px] items-center gap-2 px-4 py-2 transition-colors active:bg-muted/50 select-none",
-        isSelected ? "bg-primary/10" : "bg-card"
+        "relative flex min-h-[48px] items-center gap-3 rounded-xl border pl-4 pr-2.5 py-2 transition-all active:scale-[0.98] select-none shadow-sm",
+        isSelected 
+          ? "border-primary bg-primary/5 ring-1 ring-primary/20" 
+          : "border-border/80 bg-card hover:border-border",
+        task.status === "Done" ? "opacity-65 bg-muted/20" : ""
       )}
       onClick={(e) => {
         if (!longPressTriggered) {
@@ -1097,29 +1100,53 @@ function MobileTaskRow({
       onMouseUp={endPress}
       onMouseLeave={endPress}
     >
-      {/* Description - Maximize horizontal space and prevent overflow */}
+      {/* Absolute Left Urgency Line Indicator */}
+      {urgency && (
+        <div 
+          className="absolute left-0 top-0 bottom-0 w-[3.5px] rounded-l-xl"
+          style={{ backgroundColor: urgency.color }}
+        />
+      )}
+
+      {/* Checkbox status toggle (Left) */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggleProcessed(task.id)
+        }}
+        className="shrink-0 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+        aria-label={task.processed ? "Mark as inbox" : "Mark as processed"}
+      >
+        {task.processed ? (
+          <CircleCheck className="h-4.5 w-4.5 text-primary" />
+        ) : (
+          <Circle className="h-4.5 w-4.5" />
+        )}
+      </button>
+
+      {/* Description - Condensation & Text Balance */}
       <span
         className={cn(
-          "flex-1 min-w-0 truncate text-base leading-tight",
+          "flex-1 min-w-0 truncate text-sm font-medium leading-tight",
           task.status === "Done" ? "text-muted-foreground line-through" : (task.processed ? "text-muted-foreground" : "text-foreground")
         )}
       >
         {task.description}
       </span>
 
-      {/* Right side: Urgency Chip + Menu (Compact) */}
-      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-        {urgency && (
-          <div 
-            className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-tight"
+      {/* Right side: Urgency label text + Option Trigger Menu */}
+      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+        {urgency && task.status !== "Done" && (
+          <span 
+            className="hidden sm:inline-block font-mono text-[9px] font-bold uppercase tracking-tight px-1.5 py-0.5 rounded-md"
             style={{ 
-              backgroundColor: `${urgency.color}15`, 
-              color: urgency.color,
-              border: `1px solid ${urgency.color}30`
+              backgroundColor: `color-mix(in oklch, ${urgency.color} 12%, transparent)`, 
+              color: urgency.color 
             }}
           >
             {urgency.name}
-          </div>
+          </span>
         )}
 
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
@@ -1143,80 +1170,80 @@ function MobileTaskRow({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex h-12 w-12 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted active:bg-muted data-[state=open]:bg-muted"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted active:bg-muted data-[state=open]:bg-muted cursor-pointer"
                 style={{ pointerEvents: 'none' }}
               >
-                <MoreVertical className="h-5 w-5" />
+                <MoreVertical className="h-4 w-4" />
               </button>
             </DropdownMenuTrigger>
           </div>
-            <DropdownMenuContent align="end" className="w-64 p-1.5">
-              <DropdownMenuLabel className="px-3 py-2 text-sm font-semibold">Task Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              
-              <DropdownMenuItem 
-                className="py-3 px-3 text-[15px] font-medium cursor-pointer"
-                onClick={() => onEditClick?.(task)}
-              >
-                <Pencil className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
-                <span>Edit Task</span>
-              </DropdownMenuItem>
+          <DropdownMenuContent align="end" className="w-64 p-1.5">
+            <DropdownMenuLabel className="px-3 py-2 text-sm font-semibold">Task Actions</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            
+            <DropdownMenuItem 
+              className="py-3 px-3 text-[15px] font-medium cursor-pointer"
+              onClick={() => onEditClick?.(task)}
+            >
+              <Pencil className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
+              <span>Edit Task</span>
+            </DropdownMenuItem>
 
-              <DropdownMenuItem 
-                className="py-3 px-3 text-[15px] font-medium cursor-pointer"
-                onClick={() => onToggleStatus(task.id)}
-              >
-                {task.status === "Done" ? (
-                  <>
-                    <RotateCcw className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
-                    <span>Mark as Open</span>
-                  </>
-                ) : (
-                  <>
-                    <CircleCheck className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
-                    <span>Mark as Done</span>
-                  </>
-                )}
-              </DropdownMenuItem>
-
-              {task.processed ? (
-                <DropdownMenuItem 
-                  className="py-3 px-3 text-[15px] font-medium cursor-pointer"
-                  onClick={() => onToggleProcessed(task.id)}
-                >
+            <DropdownMenuItem 
+              className="py-3 px-3 text-[15px] font-medium cursor-pointer"
+              onClick={() => onToggleStatus(task.id)}
+            >
+              {task.status === "Done" ? (
+                <>
                   <RotateCcw className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
-                  <span>Mark as Unprocessed</span>
-                </DropdownMenuItem>
+                  <span>Mark as Open</span>
+                </>
               ) : (
-                <DropdownMenuItem 
-                  className="py-3 px-3 text-[15px] font-medium cursor-pointer"
-                  onClick={() => onToggleProcessed(task.id)}
-                >
+                <>
                   <CircleCheck className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
-                  <span>Mark as Processed</span>
-                </DropdownMenuItem>
+                  <span>Mark as Done</span>
+                </>
               )}
+            </DropdownMenuItem>
 
-              {onArchiveTask && (
-                <DropdownMenuItem 
-                  className="py-3 px-3 text-[15px] font-medium cursor-pointer"
-                  onClick={() => onArchiveTask(task.id)}
-                >
-                  <Archive className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
-                  <span>Archive</span>
-                </DropdownMenuItem>
-              )}
-
-              <DropdownMenuSeparator />
-              
+            {task.processed ? (
               <DropdownMenuItem 
-                className="py-3 px-3 text-[15px] font-medium cursor-pointer text-destructive focus:text-destructive"
-                onClick={() => onDeleteTask?.(task.id)}
+                className="py-3 px-3 text-[15px] font-medium cursor-pointer"
+                onClick={() => onToggleProcessed(task.id)}
               >
-                <Trash2 className="mr-3 h-5 w-5 shrink-0" />
-                <span>Delete</span>
+                <RotateCcw className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
+                <span>Mark as Unprocessed</span>
               </DropdownMenuItem>
-            </DropdownMenuContent>
+            ) : (
+              <DropdownMenuItem 
+                className="py-3 px-3 text-[15px] font-medium cursor-pointer"
+                onClick={() => onToggleProcessed(task.id)}
+              >
+                <CircleCheck className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
+                <span>Mark as Processed</span>
+              </DropdownMenuItem>
+            )}
+
+            {onArchiveTask && (
+              <DropdownMenuItem 
+                className="py-3 px-3 text-[15px] font-medium cursor-pointer"
+                onClick={() => onArchiveTask(task.id)}
+              >
+                <Archive className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
+                <span>Archive</span>
+              </DropdownMenuItem>
+            )}
+
+            <DropdownMenuSeparator />
+            
+            <DropdownMenuItem 
+              className="py-3 px-3 text-[15px] font-medium cursor-pointer text-destructive focus:text-destructive"
+              onClick={() => onDeleteTask?.(task.id)}
+            >
+              <Trash2 className="mr-3 h-5 w-5 shrink-0" />
+              <span>Delete</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
         </DropdownMenu>
       </div>
     </div>
