@@ -684,10 +684,10 @@ export function FilteredTasks({
 
       <div className="min-h-0 min-w-0 w-full overflow-y-visible md:overflow-y-auto max-h-none md:max-h-[calc(100vh-180px)]">
         {groupedByProject ? (
-          <div className="flex flex-col gap-8 p-4">
+          <div className="flex flex-col gap-8 p-0">
             {groupedByProject.map((group) => (
               <div key={group.id} className="flex flex-col gap-2">
-                <div className="sticky top-0 z-20 flex items-center justify-between bg-background/95 md:bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 md:supports-[backdrop-filter]:bg-card/75 py-2 px-1">
+                <div className="sticky top-0 z-20 flex items-center justify-between bg-background/95 md:bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 md:supports-[backdrop-filter]:bg-card/75 py-2.5 px-4">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                     {group.name}
