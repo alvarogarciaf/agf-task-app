@@ -323,7 +323,10 @@ export function TasksTable({
   }
 
   return (
-    <div className="overflow-hidden md:rounded-lg md:border md:border-border md:bg-card">
+    <div className={cn(
+      "overflow-hidden",
+      isNested ? "" : "md:rounded-lg md:border md:border-border md:bg-card"
+    )}>
       {/* Toolbar */}
       {!hideToolbar && (
         <div className="hidden md:flex items-center justify-between border-b border-border px-3 py-2">
