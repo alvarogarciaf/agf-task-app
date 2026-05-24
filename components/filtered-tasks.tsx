@@ -733,6 +733,7 @@ export function FilteredTasks({
                   onToggleAll={handleToggleAllSelection}
                   onBulkDelete={handleBulkDelete}
                   hideToolbar
+                  isNested={true}
                 />
               </div>
             ))}

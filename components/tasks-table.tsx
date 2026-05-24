@@ -125,6 +125,7 @@ interface TasksTableProps {
   onToggleSelection?: (id: string, shiftKey?: boolean) => void
   onToggleAll?: (ids: string[]) => void
   onBulkDelete?: () => void
+  isNested?: boolean
 }
 
 export function TasksTable({
@@ -155,6 +156,7 @@ export function TasksTable({
   onToggleSelection,
   onToggleAll,
   onBulkDelete,
+  isNested = false,
 }: TasksTableProps) {
   const internalColumnState = useTableColumns<TaskColumnKey>(
     storageKey, DEFAULT_ORDER, DEFAULT_VISIBILITY,
@@ -395,7 +397,10 @@ export function TasksTable({
         </div>
       ) : (
         <>
-          <div className="md:hidden flex w-full min-w-0 flex-col space-y-2 px-3.5 py-3 bg-muted/10">
+          <div className={cn(
+            "md:hidden flex w-full min-w-0 flex-col space-y-2",
+            isNested ? "p-0 bg-transparent" : "px-3.5 py-3 bg-muted/10"
+          )}>
             {selectedIds.size > 0 && (
               <div className="flex items-center justify-between px-4 py-2.5 bg-primary/10 border border-primary/20 rounded-xl animate-in slide-in-from-top duration-200">
                 <span className="text-sm font-semibold text-primary">
