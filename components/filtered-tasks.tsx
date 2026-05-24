@@ -702,7 +702,7 @@ export function FilteredTasks({
                       className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary transition-colors hover:bg-primary/20"
                     >
                       <Plus className="mr-1 h-3 w-3" />
-                      Add to {group.name}
+                      Add to project
                     </button>
                   )}
                 </div>
