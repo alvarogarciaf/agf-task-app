@@ -61,6 +61,12 @@ export const getDatabase = async (userUid: string) => {
           4: (oldDoc: any) => {
             oldDoc.google_event_id = oldDoc.google_event_id ?? null;
             return oldDoc;
+          },
+          // 5: Migrate from version 4 to 5 (unified object: add type + tag_ids)
+          5: (oldDoc: any) => {
+            oldDoc.type = oldDoc.type ?? 'task';
+            oldDoc.tag_ids = oldDoc.tag_ids ?? [];
+            return oldDoc;
           }
         }
       },
@@ -75,6 +81,12 @@ export const getDatabase = async (userUid: string) => {
           // 2: Add linked_person_id field
           2: (oldDoc: any) => {
             oldDoc.linked_person_id = oldDoc.linked_person_id ?? null;
+            return oldDoc;
+          },
+          // 3: Add icon and color fields
+          3: (oldDoc: any) => {
+            oldDoc.icon = oldDoc.icon ?? null;
+            oldDoc.color = oldDoc.color ?? null;
             return oldDoc;
           }
         }

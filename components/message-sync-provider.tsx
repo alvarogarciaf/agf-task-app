@@ -135,6 +135,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                     const defaultUrgency = await db.urgencies.findOne().exec();
                     await db.tasks.insert({
                       id: msg.task.id,
+                      type: "task",
                       description: msg.task.description!,
                       details: msg.task.details,
                       date_created: msg.task.date_created!,
@@ -144,6 +145,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                       archived: msg.task.archived,
                       urgency_id: defaultUrgency?.id || "u_medium",
                       context_ids: [],
+                      tag_ids: [],
                       person_id: mappedPerson.id,
                       project_id: finalProjId,
                     });

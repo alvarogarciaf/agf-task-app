@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from "react"
-import { Users, Tags, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Info, Database, Calendar, Copy, LogOut, Bell, BellOff, BellRing, CheckCircle2, XCircle, ShieldAlert } from "lucide-react"
+import { Users, Tags, Tag as TagIcon, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Info, Database, Calendar, Copy, LogOut, Bell, BellOff, BellRing, CheckCircle2, XCircle, ShieldAlert } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useGoogleCalendar } from "@/components/google-calendar-provider"
@@ -9,16 +9,17 @@ import { listGoogleCalendars, type GoogleCalendar } from "@/lib/google-calendar"
 import { useAuth } from "@/components/auth-provider"
 import { collection, doc, setDoc, deleteDoc, getDocs } from "firebase/firestore"
 import { firestoreDb } from "@/lib/firebase/config"
-import type { Context, Person, UrgencyLevel } from "@/lib/types"
+import type { Context, Person, Tag, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "@/components/db-provider"
 
-export type TabKey = "contexts" | "calendar" | "data" | "notifications" | "troubleshoot"
+export type TabKey = "contexts" | "tags" | "calendar" | "data" | "notifications" | "troubleshoot"
 
 interface SettingsViewProps {
   activeTab?: TabKey
   onTabChange?: (tab: TabKey) => void
   persons: Person[]
   contexts: Context[]
+  tags: Tag[]
   urgencies: UrgencyLevel[]
   onAddPerson: (person: Omit<Person, "id">) => void
   onUpdatePerson: (person: Person) => void
@@ -26,6 +27,9 @@ interface SettingsViewProps {
   onAddContext: (context: Omit<Context, "id">) => void
   onUpdateContext: (context: Context) => void
   onDeleteContext: (id: string) => void
+  onAddTag: (tag: Omit<Tag, "id">) => void
+  onUpdateTag: (tag: Tag) => void
+  onDeleteTag: (id: string) => void
   onAddUrgency: (urgency: Omit<UrgencyLevel, "id">) => void
   onUpdateUrgency: (urgency: UrgencyLevel) => void
   onDeleteUrgency: (id: string) => void
@@ -41,6 +45,7 @@ export function SettingsView({
   onTabChange,
   persons,
   contexts,
+  tags,
   urgencies,
   onAddPerson,
   onUpdatePerson,
@@ -48,6 +53,9 @@ export function SettingsView({
   onAddContext,
   onUpdateContext,
   onDeleteContext,
+  onAddTag,
+  onUpdateTag,
+  onDeleteTag,
   onAddUrgency,
   onUpdateUrgency,
   onDeleteUrgency,
@@ -135,6 +143,9 @@ export function SettingsView({
         <TabButton ref={tab === "contexts" ? activeTabRef : null} active={tab === "contexts"} onClick={() => setTab("contexts")} icon={Tags}>
           Contexts
         </TabButton>
+        <TabButton ref={tab === "tags" ? activeTabRef : null} active={tab === "tags"} onClick={() => setTab("tags")} icon={TagIcon}>
+          Tags
+        </TabButton>
         <TabButton ref={tab === "calendar" ? activeTabRef : null} active={tab === "calendar"} onClick={() => setTab("calendar")} icon={Calendar}>
           Calendar
         </TabButton>
@@ -159,6 +170,28 @@ export function SettingsView({
             onAdd={onAddContext}
             onUpdate={onUpdateContext}
             onDelete={onDeleteContext}
+            fields={[
+              { key: "name", label: "Name", type: "text" },
+              { key: "icon", label: "Icon Name", type: "text", width: "w-32" },
+              { key: "color", label: "Color", type: "color", width: "w-24" },
+            ]}
+            renderAvatar={(item) => (
+              <span
+                className="h-2 w-2 rounded-full mr-3 shrink-0"
+                style={{ backgroundColor: item.color }}
+              />
+            )}
+          />
+        )}
+
+        {tab === "tags" && (
+          <EntityManager
+            title="Tags"
+            description="Manage the tags you assign to notes."
+            items={tags}
+            onAdd={onAddTag}
+            onUpdate={onUpdateTag}
+            onDelete={onDeleteTag}
             fields={[
               { key: "name", label: "Name", type: "text" },
               { key: "icon", label: "Icon Name", type: "text", width: "w-32" },

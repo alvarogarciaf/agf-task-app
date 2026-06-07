@@ -13,9 +13,11 @@ import { InboxView } from "@/components/views/inbox-view"
 import { AllTasksView } from "@/components/views/all-tasks-view"
 import { ProjectsView } from "@/components/views/projects-view"
 import { ContextsView } from "@/components/views/contexts-view"
+import { TagsView } from "@/components/views/tags-view"
+import { NotesView } from "@/components/views/notes-view"
 import { SettingsView, type TabKey } from "@/components/views/settings-view"
 import { PersonsView } from "@/components/views/persons-view"
-import type { Context, Person, Project, Task, UrgencyLevel, ViewKey, SavedView } from "@/lib/types"
+import type { Context, Person, Project, Task, Tag, UrgencyLevel, ViewKey, SavedView } from "@/lib/types"
 import { syncCalendarToStorage } from "@/lib/calendar-sync-client"
 import { createGoogleEvent, updateGoogleEvent, deleteGoogleEvent } from "@/lib/google-calendar"
 import { useGoogleCalendar } from "@/components/google-calendar-provider"
@@ -59,13 +61,16 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   // Initial filter states for drill-down
   const [initialContextId, setInitialContextId] = useState<string | undefined>()
   const [initialPersonId, setInitialPersonId] = useState<string | undefined>()
+  const [initialTagId, setInitialTagId] = useState<string | undefined>()
 
   // Data state — split tasks into two efficient streams
   const [inboxTasks, setInboxTasks] = useState<Task[]>([])
   const [activeTasks, setActiveTasks] = useState<Task[]>([])
+  const [notes, setNotes] = useState<Task[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [persons, setPersons] = useState<Person[]>([])
   const [contexts, setContexts] = useState<Context[]>([])
+  const [tags, setTags] = useState<Tag[]>([])
   const [urgencies, setUrgencies] = useState<UrgencyLevel[]>([])
   const [savedViews, setSavedViews] = useState<SavedView[]>([])
   const [editingView, setEditingView] = useState<SavedView | null>(null)
@@ -111,20 +116,28 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     return () => window.removeEventListener("popstate", handlePopState)
   }, [])
 
-  // Subscriptions — targeted queries so IndexedDB does the heavy filtering
+  // Subscriptions — targeted queries so IndexedDB does the heavy filtering.
+  // A unified object is a note when `type === 'note'`; everything else (including
+  // legacy docs with a missing type) is treated as a task.
   useEffect(() => {
+    const isNote = (t: Task) => t.type === "note"
     const subs = [
-      // Inbox: only unprocessed, non-archived tasks
+      // Inbox: only unprocessed, non-archived tasks (notes never appear in the inbox)
       db.tasks.find({ selector: { archived: false, processed: false } }).$.subscribe(
-        docs => setInboxTasks(docs.map(d => d.toJSON()))
+        docs => setInboxTasks(docs.map(d => d.toJSON()).filter(t => !isNote(t)))
       ),
-      // Active: all non-archived tasks (for All Tasks, Projects, Contexts, etc.)
+      // Non-archived objects split into tasks (Active) and notes
       db.tasks.find({ selector: { archived: false } }).$.subscribe(
-        docs => setActiveTasks(docs.map(d => d.toJSON()))
+        docs => {
+          const all = docs.map(d => d.toJSON())
+          setActiveTasks(all.filter(t => !isNote(t)))
+          setNotes(all.filter(isNote))
+        }
       ),
       db.projects.find().$.subscribe(docs => setProjects(docs.map(d => d.toJSON()))),
       db.persons.find().$.subscribe(docs => setPersons(docs.map(d => d.toJSON()))),
       db.contexts.find().$.subscribe(docs => setContexts(docs.map(d => d.toJSON()))),
+      db.tags.find().$.subscribe(docs => setTags(docs.map(d => d.toJSON()))),
       db.urgencies.find().$.subscribe(docs => setUrgencies(docs.map(d => d.toJSON()))),
       db.saved_views.find({ sort: [{ order: 'asc' }] }).$.subscribe(docs => setSavedViews(docs.map(d => d.toJSON()))),
     ]
@@ -163,6 +176,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     processed?: boolean
     showOn?: string | null
     actionDate?: string | null
+    type?: "task" | "note"
+    tagIds?: string[]
   }) => {
     const byOrder = [...urgencies].sort((a, b) => a.order - b.order)
     const defaultUrgency = byOrder[0]?.id ?? "u_low"
@@ -176,15 +191,22 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       }
     }
 
+    const isNote = input.type === "note"
+
     const doc = await db.tasks.insert({
       id: crypto.randomUUID(),
+      type: input.type ?? "task",
       description: input.description,
       details: input.details ?? null,
       context_ids: input.contextIds,
+      tag_ids: input.tagIds ?? [],
       project_id: input.projectId,
       person_id: finalPersonId,
+      // Notes carry no urgency semantics in the UI but the schema still expects a
+      // value, so fall back to the default urgency to keep the insert valid.
       urgency_id: input.urgencyId || defaultUrgency,
-      processed: input.processed ?? false,
+      // Notes are not part of the inbox/triage flow, so they are created processed.
+      processed: isNote ? true : (input.processed ?? false),
       status: "Open",
       date_created: new Date().toISOString(),
       archived: false,
@@ -192,6 +214,23 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       action_date: input.actionDate ?? null,
     })
     return doc.id
+  }
+
+  const handleCreateNote = async (input: {
+    description: string
+    contextIds: string[]
+    projectId: string | null
+    personId: string | null
+    processed: boolean
+  }) => {
+    return handleCreateTask({
+      description: input.description,
+      contextIds: [],
+      projectId: input.projectId,
+      personId: input.personId,
+      type: "note",
+      tagIds: [],
+    })
   }
 
   const handleUpdateTask = async (task: Task) => {
@@ -284,10 +323,25 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     if (doc) await doc.remove()
   }
 
+  const handleAddTag = async (t: Omit<Tag, "id">) => {
+    await db.tags.insert({ id: crypto.randomUUID(), ...t })
+  }
+
+  const handleUpdateTag = async (t: Tag) => {
+    const doc = await db.tags.findOne(t.id).exec()
+    if (doc) await doc.patch(t)
+  }
+
+  const handleDeleteTag = async (id: string) => {
+    const doc = await db.tags.findOne(id).exec()
+    if (doc) await doc.remove()
+  }
+
   const handleNavigate = (view: ViewKey, savedViewId?: string, settingsTab?: TabKey) => {
     // Clear drill-down filters when navigating via sidebar/header
     setInitialContextId(undefined)
     setInitialPersonId(undefined)
+    setInitialTagId(undefined)
     setActiveView(view)
     setActiveSavedViewId(savedViewId || null)
     if (settingsTab) setActiveSettingsTab(settingsTab)
@@ -463,6 +517,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       if (key === "C") handleNavigate("contexts")
       if (key === "U") handleNavigate("persons")
       if (key === "S") handleNavigate("settings")
+      if (key === "N") handleNavigate("notes")
     }
     window.addEventListener("keydown", handleKey)
     return () => window.removeEventListener("keydown", handleKey)
@@ -603,6 +658,46 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             }}
           />
         )
+      case "notes":
+        return (
+          <NotesView
+            tasks={notes}
+            projects={projects}
+            persons={persons}
+            tags={tags}
+            urgencies={urgencies}
+            onUpdate={handleUpdateTask}
+            onToggleProcessed={handleToggleProcessed}
+            onToggleStatus={handleToggleStatus}
+            onArchiveTask={handleArchiveTask}
+            onDeleteTask={handleDeleteTask}
+            onCreate={handleCreateNote}
+            initialTagId={initialTagId}
+            fullWidthOnMobile={true}
+          />
+        )
+      case "tags":
+        return (
+          <TagsView
+            tags={tags}
+            notes={notes}
+            onSelect={(id) => {
+              setInitialTagId(id)
+              setActiveView("notes")
+              if (typeof window !== "undefined") {
+                const params = new URLSearchParams(window.location.search)
+                params.set("view", "notes")
+                params.delete("savedViewId")
+                params.delete("tab")
+                const newUrl = `${window.location.pathname}?${params.toString()}`
+                window.history.pushState(null, "", newUrl)
+              }
+            }}
+            onUpdateTag={handleUpdateTag}
+            onDeleteTag={handleDeleteTag}
+            onAddTag={handleAddTag}
+          />
+        )
       case "persons":
         return (
           <PersonsView 
@@ -642,6 +737,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             onTabChange={(tab) => handleNavigate("settings", undefined, tab)}
             persons={persons}
             contexts={contexts}
+            tags={tags}
             urgencies={urgencies}
             onAddPerson={async (p) => {
               await db.persons.insert({ id: crypto.randomUUID(), ...p })
@@ -665,6 +761,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
               const doc = await db.contexts.findOne(id).exec()
               if (doc) await doc.remove()
             }}
+            onAddTag={handleAddTag}
+            onUpdateTag={handleUpdateTag}
+            onDeleteTag={handleDeleteTag}
             onAddUrgency={async (u) => {
               await db.urgencies.insert({ id: crypto.randomUUID(), ...u })
             }}
@@ -764,9 +863,11 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           onSignOut={onSignOut} 
           syncStatus={syncStatus}
           tasks={activeTasks}
+          notes={notes}
           projects={projects}
           persons={persons}
           contexts={contexts}
+          tags={tags}
           urgencies={urgencies}
           onUpdateTask={handleUpdateTask}
         />

@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, ListChecks, FolderKanban, Tags, Users, Star, Calendar } from "lucide-react"
+import { Home, ListChecks, FileText, Star, Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ViewKey, SavedView } from "@/lib/types"
 import {
@@ -32,8 +32,7 @@ export function MobileNav({
     { key: "home" as ViewKey, label: "Inbox", icon: Home, badge: inboxCount },
     { key: "today" as ViewKey, label: "Today", icon: Calendar, badge: todayCount },
     { key: "all" as ViewKey, label: "Tasks", icon: ListChecks },
-    { key: "projects" as ViewKey, label: "Projects", icon: FolderKanban },
-    { key: "contexts" as ViewKey, label: "Contexts", icon: Tags },
+    { key: "notes" as ViewKey, label: "Notes", icon: FileText },
   ]
 
   const isSavedViewActive = active === "saved-view"

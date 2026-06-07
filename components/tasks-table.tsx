@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useRef, useCallback, useEffect } from "react"
-import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock, Eye, Pencil } from "lucide-react"
+import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock, Eye, Pencil, FileText, ArrowLeftRight } from "lucide-react"
+import { toast } from "sonner"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import {
@@ -13,7 +14,7 @@ import { useTableColumns } from "@/hooks/use-table-columns"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { TaskDetailDialog } from "@/components/task-detail-dialog"
 import { InlineTextEditor, InlineSelectEditor, InlineMultiSelectEditor, InlineDateEditor } from "@/components/inline-cell-editors"
-import type { Context, Person, Project, Task, UrgencyLevel } from "@/lib/types"
+import type { Context, Person, Project, Tag, Task, UrgencyLevel } from "@/lib/types"
 
 export type TaskColumnKey =
   | "status"
@@ -23,6 +24,7 @@ export type TaskColumnKey =
   | "project"
   | "person"
   | "contexts"
+  | "tags"
   | "show_on"
   | "action_date"
   | "date_created"
@@ -41,6 +43,7 @@ export const TASK_COLUMNS: ColumnDef[] = [
   { key: "project", label: "Project", defaultVisible: true },
   { key: "person", label: "Person", defaultVisible: true },
   { key: "contexts", label: "Contexts", defaultVisible: true },
+  { key: "tags", label: "Tags", defaultVisible: false },
   { key: "show_on", label: "Show on", defaultVisible: false },
   { key: "action_date", label: "Action date", defaultVisible: false },
   { key: "date_created", label: "Created", defaultVisible: true },
@@ -82,7 +85,7 @@ const COLUMN_CELL_CLASSES: Partial<Record<TaskColumnKey, string>> = {
 }
 
 const EDITABLE_COLUMNS = new Set<TaskColumnKey>([
-  "description", "details", "project", "person", "contexts", "urgency", "show_on", "action_date",
+  "description", "details", "project", "person", "contexts", "tags", "urgency", "show_on", "action_date",
 ])
 
 interface TasksTableProps {
@@ -90,12 +93,15 @@ interface TasksTableProps {
   projects: Project[]
   persons: Person[]
   contexts: Context[]
+  tags?: Tag[]
   urgencies: UrgencyLevel[]
   onToggleProcessed: (id: string) => void
   onToggleStatus: (id: string) => void
   onUpdate: (task: Task) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
+  /** When true, render note-appropriate UI (no status/urgency semantics). */
+  notesMode?: boolean
   /** Columns that should never appear or be toggleable in this instance. */
   hideColumns?: TaskColumnKey[]
   /** Custom storage key when this instance should remember a separate column config. */
@@ -133,12 +139,14 @@ export function TasksTable({
   projects,
   persons,
   contexts,
+  tags = [],
   urgencies,
   onToggleProcessed,
   onToggleStatus,
   onUpdate,
   onArchiveTask,
   onDeleteTask,
+  notesMode = false,
   hideColumns,
   storageKey = "velocity:tasks-table:columns",
   emptyTitle = "No tasks match these filters",
@@ -165,7 +173,10 @@ export function TasksTable({
   const [dragKey, setDragKey] = useState<TaskColumnKey | null>(null)
   const [dropTarget, setDropTarget] = useState<TaskColumnKey | null>(null)
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
-  const [detailMode, setDetailMode] = useState<"view" | "edit">("view")
+  // In the inbox, tapping a task should jump straight into editing (triage flow);
+  // everywhere else the default open action shows the read-only view first.
+  const defaultOpenMode: "view" | "edit" = inboxMode ? "edit" : "view"
+  const [detailMode, setDetailMode] = useState<"view" | "edit">(defaultOpenMode)
   const [selectedCell, setSelectedCell] = useState<{ taskId: string; column: TaskColumnKey } | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const cellRefs = useRef<Record<string, HTMLTableCellElement | null>>({})
@@ -304,12 +315,28 @@ export function TasksTable({
     else if (column === "person") patch = { person_id: value as string | null }
     else if (column === "urgency") patch = { urgency_id: value as string }
     else if (column === "contexts") patch = { context_ids: value as string[] }
+    else if (column === "tags") patch = { tag_ids: value as string[] }
     else if (column === "show_on") patch = { show_on: value as string | null }
     else if (column === "action_date") patch = { action_date: value as string | null }
     if (Object.keys(patch).length) onUpdate({ id: task.id, ...patch } as Task)
     if (close) {
       setIsEditing(false)
     }
+  }
+
+  function convertTaskType(task: Task) {
+    const nextType = task.type === "note" ? "task" : "note"
+    const patch: Partial<Task> = { id: task.id, type: nextType }
+    if (nextType === "task") {
+      if (!task.urgency_id) {
+        patch.urgency_id = [...urgencies].sort((a, b) => a.order - b.order)[0]?.id
+      }
+      if (task.status !== "Open" && task.status !== "Done") {
+        patch.status = "Open"
+      }
+    }
+    onUpdate(patch as Task)
+    toast.success(nextType === "note" ? "Converted to Note" : "Converted to Task")
   }
 
   function getCellValue(task: Task, column: TaskColumnKey): any {
@@ -319,6 +346,7 @@ export function TasksTable({
     if (column === "person") return task.person_id
     if (column === "urgency") return task.urgency_id
     if (column === "contexts") return task.context_ids
+    if (column === "tags") return task.tag_ids
     return null
   }
 
@@ -436,12 +464,14 @@ export function TasksTable({
                   onToggleStatus={onToggleStatus}
                   onArchiveTask={onArchiveTask}
                   onDeleteTask={onDeleteTask}
+                  onConvert={convertTaskType}
                   inboxMode={inboxMode}
+                  notesMode={notesMode}
                   onClick={(t) => {
                     if (selectedIds.size > 0) {
                       onToggleSelection?.(t.id)
                     } else {
-                      setDetailMode("view")
+                      setDetailMode(defaultOpenMode)
                       setActiveTaskId(t.id)
                     }
                   }}
@@ -521,6 +551,7 @@ export function TasksTable({
                 const project = projects.find((p) => p.id === task.project_id)
                 const person = persons.find((p) => p.id === task.person_id)
                 const tCtx = contexts.filter((c) => (task.context_ids || []).includes(c.id))
+                const tTags = tags.filter((tg) => (task.tag_ids || []).includes(tg.id))
                 const urgency = urgencies.find((u) => u.id === task.urgency_id)
                 return (
                   <tr
@@ -661,6 +692,7 @@ export function TasksTable({
                               projects={projects}
                               persons={persons}
                               contexts={contexts}
+                              tags={tags}
                               urgencies={urgencies}
                               onCommit={(val, close) => {
                                 commitCell(task, key, val, close)
@@ -683,6 +715,7 @@ export function TasksTable({
                               project,
                               person,
                               contexts: tCtx,
+                              tags: tTags,
                               urgency,
                               onToggleProcessed,
                               onToggleStatus,
@@ -736,6 +769,16 @@ export function TasksTable({
                               <Check className="mr-2 h-3 w-3" />
                               {task.status === "Done" ? "Mark as open" : "Mark as done"}
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                convertTaskType(task)
+                              }}
+                              className="text-xs"
+                            >
+                              <ArrowLeftRight className="mr-2 h-3 w-3" />
+                              {task.type === "note" ? "Convert to task" : "Convert to note"}
+                            </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={(e) => {
                                 e.stopPropagation()
@@ -779,6 +822,7 @@ export function TasksTable({
         projects={projects}
         persons={persons}
         contexts={contexts}
+        tags={tags}
         urgencies={urgencies}
         onUpdate={onUpdate}
         mode={detailMode}
@@ -793,6 +837,7 @@ interface CellContext {
   project?: Project
   person?: Person
   contexts: Context[]
+  tags: Tag[]
   urgency?: UrgencyLevel
   onToggleProcessed: (id: string) => void
   onToggleStatus: (id: string) => void
@@ -802,7 +847,7 @@ interface CellContext {
 }
 
 function renderCell(key: TaskColumnKey, ctx: CellContext) {
-  const { task, project, person, contexts, urgency, onToggleProcessed, onToggleStatus, inboxMode } = ctx
+  const { task, project, person, contexts, tags, urgency, onToggleProcessed, onToggleStatus, inboxMode } = ctx
 
   switch (key) {
     case "status":
@@ -950,6 +995,29 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
         </div>
       )
 
+    case "tags":
+      if (tags.length === 0) return <Empty />
+      if (tags.length > 1) {
+        return (
+          <span className="inline-flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-muted-foreground">
+            {tags.length} selected
+          </span>
+        )
+      }
+      return (
+        <div className="flex flex-wrap items-center gap-1">
+          {tags.map((tg) => (
+            <span
+              key={tg.id}
+              className="inline-flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-muted-foreground"
+            >
+              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: tg.color }} />
+              {tg.name}
+            </span>
+          ))}
+        </div>
+      )
+
     case "show_on":
       return task.show_on ? <DateCell value={task.show_on} /> : <Empty />
 
@@ -986,6 +1054,7 @@ interface InlineCellEditorProps {
   projects: Project[]
   persons: Person[]
   contexts: Context[]
+  tags: Tag[]
   urgencies: UrgencyLevel[]
   onCommit: (value: string | string[] | null, close?: boolean) => void
   onCancel: () => void
@@ -993,7 +1062,7 @@ interface InlineCellEditorProps {
   onCtrlEnter?: () => void
 }
 
-function InlineCellEditor({ task, column, projects, persons, contexts, urgencies, onCommit, onCancel, onTab, onCtrlEnter }: InlineCellEditorProps) {
+function InlineCellEditor({ task, column, projects, persons, contexts, tags, urgencies, onCommit, onCancel, onTab, onCtrlEnter }: InlineCellEditorProps) {
   const shared = { onCommit, onCancel, onTab, onCtrlEnter }
   switch (column) {
     case "description":
@@ -1026,6 +1095,12 @@ function InlineCellEditor({ task, column, projects, persons, contexts, urgencies
         currentIds={task.context_ids ?? []}
         {...shared}
       />
+    case "tags":
+      return <InlineMultiSelectEditor
+        options={tags.map((tg) => ({ id: tg.id, label: tg.name, color: tg.color }))}
+        currentIds={task.tag_ids ?? []}
+        {...shared}
+      />
     case "show_on":
       return <InlineDateEditor value={task.show_on ?? null} {...shared} />
     case "action_date":
@@ -1046,11 +1121,13 @@ function MobileTaskRow({
   onToggleStatus,
   onArchiveTask,
   onDeleteTask,
+  onConvert,
   onClick,
   onEditClick,
   isSelected,
   onToggleSelection,
   inboxMode = false,
+  notesMode = false,
 }: {
   task: Task
   urgency?: UrgencyLevel
@@ -1058,11 +1135,13 @@ function MobileTaskRow({
   onToggleStatus: (id: string) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
+  onConvert?: (task: Task) => void
   onClick: (task: Task) => void
   onEditClick?: (task: Task) => void
   isSelected: boolean
   onToggleSelection: () => void
   inboxMode?: boolean
+  notesMode?: boolean
 }) {
   const [longPressTriggered, setLongPressTriggered] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -1112,47 +1191,53 @@ function MobileTaskRow({
       onMouseLeave={endPress}
     >
       {/* Absolute Left Urgency Line Indicator */}
-      {urgency && (
+      {!notesMode && urgency && (
         <div 
           className="absolute left-0 top-0 bottom-0 w-[3.5px] rounded-l-xl"
           style={{ backgroundColor: urgency.color }}
         />
       )}
 
-      {/* Checkbox status toggle (Left) */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation()
-          if (inboxMode) {
-            onToggleProcessed(task.id)
-          } else {
-            onToggleStatus(task.id)
-          }
-        }}
-        className="shrink-0 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
-        aria-label={inboxMode ? (task.processed ? "Mark as inbox" : "Mark as processed") : (task.status === "Done" ? "Mark as open" : "Mark as done")}
-      >
-        {inboxMode ? (
-          task.processed ? (
-            <CircleCheck className="h-4.5 w-4.5 text-primary" />
+      {/* Note icon or checkbox status toggle (Left) */}
+      {notesMode ? (
+        <span className="shrink-0 text-muted-foreground">
+          <FileText className="h-4.5 w-4.5" />
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            if (inboxMode) {
+              onToggleProcessed(task.id)
+            } else {
+              onToggleStatus(task.id)
+            }
+          }}
+          className="shrink-0 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+          aria-label={inboxMode ? (task.processed ? "Mark as inbox" : "Mark as processed") : (task.status === "Done" ? "Mark as open" : "Mark as done")}
+        >
+          {inboxMode ? (
+            task.processed ? (
+              <CircleCheck className="h-4.5 w-4.5 text-primary" />
+            ) : (
+              <Circle className="h-4.5 w-4.5" />
+            )
           ) : (
-            <Circle className="h-4.5 w-4.5" />
-          )
-        ) : (
-          task.status === "Done" ? (
-            <CircleCheck className="h-4.5 w-4.5 text-primary" />
-          ) : (
-            <Circle className="h-4.5 w-4.5" />
-          )
-        )}
-      </button>
+            task.status === "Done" ? (
+              <CircleCheck className="h-4.5 w-4.5 text-primary" />
+            ) : (
+              <Circle className="h-4.5 w-4.5" />
+            )
+          )}
+        </button>
+      )}
 
       {/* Description - Condensation & Text Balance */}
       <span
         className={cn(
           "flex-1 min-w-0 truncate text-sm font-medium leading-tight",
-          task.status === "Done" ? "text-muted-foreground line-through" : (task.processed ? "text-muted-foreground" : "text-foreground")
+          !notesMode && task.status === "Done" ? "text-muted-foreground line-through" : "text-foreground"
         )}
       >
         {task.description}
@@ -1160,7 +1245,7 @@ function MobileTaskRow({
 
       {/* Right side: Urgency label text + Option Trigger Menu */}
       <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-        {urgency && task.status !== "Done" && (
+        {!notesMode && urgency && task.status !== "Done" && (
           <span 
             className="hidden sm:inline-block font-mono text-[9px] font-bold uppercase tracking-tight px-1.5 py-0.5 rounded-md"
             style={{ 
@@ -1201,7 +1286,7 @@ function MobileTaskRow({
             </DropdownMenuTrigger>
           </div>
           <DropdownMenuContent align="end" className="w-64 p-1.5">
-            <DropdownMenuLabel className="px-3 py-2 text-sm font-semibold">Task Actions</DropdownMenuLabel>
+            <DropdownMenuLabel className="px-3 py-2 text-sm font-semibold">{notesMode ? "Note Actions" : "Task Actions"}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             
             <DropdownMenuItem 
@@ -1209,41 +1294,55 @@ function MobileTaskRow({
               onClick={() => onEditClick?.(task)}
             >
               <Pencil className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
-              <span>Edit Task</span>
+              <span>{notesMode ? "Edit Note" : "Edit Task"}</span>
             </DropdownMenuItem>
 
-            <DropdownMenuItem 
-              className="py-3 px-3 text-[15px] font-medium cursor-pointer"
-              onClick={() => onToggleStatus(task.id)}
-            >
-              {task.status === "Done" ? (
-                <>
-                  <RotateCcw className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
-                  <span>Mark as Open</span>
-                </>
-              ) : (
-                <>
-                  <CircleCheck className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
-                  <span>Mark as Done</span>
-                </>
-              )}
-            </DropdownMenuItem>
-
-            {task.processed ? (
+            {!notesMode && (
               <DropdownMenuItem 
                 className="py-3 px-3 text-[15px] font-medium cursor-pointer"
-                onClick={() => onToggleProcessed(task.id)}
+                onClick={() => onToggleStatus(task.id)}
               >
-                <RotateCcw className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
-                <span>Mark as Unprocessed</span>
+                {task.status === "Done" ? (
+                  <>
+                    <RotateCcw className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
+                    <span>Mark as Open</span>
+                  </>
+                ) : (
+                  <>
+                    <CircleCheck className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
+                    <span>Mark as Done</span>
+                  </>
+                )}
               </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem 
+            )}
+
+            {!notesMode && (
+              task.processed ? (
+                <DropdownMenuItem 
+                  className="py-3 px-3 text-[15px] font-medium cursor-pointer"
+                  onClick={() => onToggleProcessed(task.id)}
+                >
+                  <RotateCcw className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
+                  <span>Mark as Unprocessed</span>
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem 
+                  className="py-3 px-3 text-[15px] font-medium cursor-pointer"
+                  onClick={() => onToggleProcessed(task.id)}
+                >
+                  <CircleCheck className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
+                  <span>Mark as Processed</span>
+                </DropdownMenuItem>
+              )
+            )}
+
+            {onConvert && (
+              <DropdownMenuItem
                 className="py-3 px-3 text-[15px] font-medium cursor-pointer"
-                onClick={() => onToggleProcessed(task.id)}
+                onClick={() => onConvert(task)}
               >
-                <CircleCheck className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
-                <span>Mark as Processed</span>
+                <ArrowLeftRight className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
+                <span>{notesMode ? "Convert to Task" : "Convert to Note"}</span>
               </DropdownMenuItem>
             )}
 

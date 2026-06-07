@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useRef, useEffect, useMemo } from "react"
-import { Search, Command, Settings, LogOut, ChevronDown, Menu, Users, Tags, AlertCircle, Calendar, Trash2, Info, Bell, Circle, CheckCircle2 } from "lucide-react"
-import type { ViewKey, Task, Project, Person, Context, UrgencyLevel } from "@/lib/types"
+import { Search, Command, Settings, LogOut, ChevronDown, Menu, Users, Tags, Tag as TagIcon, AlertCircle, Calendar, Trash2, Info, Bell, Circle, CheckCircle2, FolderKanban, ListChecks, FileText } from "lucide-react"
+import type { ViewKey, Task, Project, Person, Context, Tag, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "./db-provider"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { TaskDetailDialog } from "./task-detail-dialog"
@@ -27,6 +27,8 @@ const TITLES: Record<ViewKey, string> = {
   settings: "Settings",
   "saved-view": "Saved View",
   today: "Today",
+  notes: "Notes",
+  tags: "Tags",
 }
 
 interface AppHeaderProps {
@@ -37,9 +39,11 @@ interface AppHeaderProps {
   onSignOut?: () => void
   syncStatus?: SyncStatus
   tasks?: Task[]
+  notes?: Task[]
   projects?: Project[]
   persons?: Person[]
   contexts?: Context[]
+  tags?: Tag[]
   urgencies?: UrgencyLevel[]
   onUpdateTask?: (task: Task) => void
 }
@@ -52,9 +56,11 @@ export function AppHeader({
   onSignOut,
   syncStatus,
   tasks = [],
+  notes = [],
   projects = [],
   persons = [],
   contexts = [],
+  tags = [],
   urgencies = [],
   onUpdateTask,
 }: AppHeaderProps) {
@@ -65,6 +71,7 @@ export function AppHeader({
 
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [searchScope, setSearchScope] = useState<"tasks" | "notes" | "all">("tasks")
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [detailMode, setDetailMode] = useState<"view" | "edit">("view")
 
@@ -82,27 +89,39 @@ export function AppHeader({
     return () => document.removeEventListener("keydown", handleKeyDown)
   }, [])
 
-  // Focus input when modal opens, clear query when it closes
+  // Focus input when modal opens, clear query when it closes.
+  // Default the search scope to match where it was opened from: Notes screens
+  // search notes first, everything else searches tasks first.
   useEffect(() => {
     if (searchOpen) {
+      setSearchScope(view === "notes" || view === "tags" ? "notes" : "tasks")
       setTimeout(() => {
         searchInputRef.current?.focus()
       }, 80)
     } else {
       setSearchQuery("")
     }
-  }, [searchOpen])
+  }, [searchOpen, view])
 
-  // Filter tasks by case-insensitive query matches in description or details
-  const filteredTasks = useMemo(() => {
+  // Filter objects by case-insensitive query matches in description or details,
+  // scoped to tasks, notes, or both.
+  const filteredResults = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
     if (!q) return []
-    return tasks.filter((t) => {
+    const pool =
+      searchScope === "tasks" ? tasks : searchScope === "notes" ? notes : [...tasks, ...notes]
+    return pool.filter((t) => {
       const desc = t.description?.toLowerCase() || ""
       const det = t.details?.toLowerCase() || ""
       return desc.includes(q) || det.includes(q)
     })
-  }, [searchQuery, tasks])
+  }, [searchQuery, searchScope, tasks, notes])
+
+  const scopeOptions: { key: "tasks" | "notes" | "all"; label: string }[] = [
+    { key: "tasks", label: "Tasks" },
+    { key: "notes", label: "Notes" },
+    { key: "all", label: "All" },
+  ]
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -127,10 +146,21 @@ export function AppHeader({
 
   const settingsOptions: { key: TabKey; label: string; icon: any }[] = [
     { key: "contexts", label: "Contexts", icon: Tags },
+    { key: "tags", label: "Tags", icon: TagIcon },
     { key: "calendar", label: "Calendar", icon: Calendar },
     { key: "data", label: "Data Management", icon: Trash2 },
     { key: "notifications", label: "Notifications", icon: Bell },
     { key: "troubleshoot", label: "Sync & Debug", icon: Info },
+  ]
+
+  // Browse destinations relocated from the mobile bottom bar into the hamburger menu.
+  const browseOptions: { key: ViewKey; label: string; icon: any }[] = [
+    { key: "all", label: "All Tasks", icon: ListChecks },
+    { key: "notes", label: "Notes", icon: FileText },
+    { key: "projects", label: "Projects", icon: FolderKanban },
+    { key: "contexts", label: "Contexts", icon: Tags },
+    { key: "tags", label: "Tags", icon: TagIcon },
+    { key: "persons", label: "People", icon: Users },
   ]
 
   return (
@@ -152,10 +182,30 @@ export function AppHeader({
               <DrawerContent className="h-full w-[280px]">
                 <DrawerHeader className="border-b border-border">
                   <DrawerTitle className="text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Settings & Configuration
+                    Menu
                   </DrawerTitle>
                 </DrawerHeader>
-                <div className="flex flex-col py-2">
+                <div className="flex flex-col overflow-y-auto py-2">
+                  <div className="px-4 pt-2 pb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Browse
+                  </div>
+                  {browseOptions.map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => {
+                        onNavigate?.(opt.key)
+                        setDrawerOpen(false)
+                      }}
+                      className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted active:bg-muted"
+                    >
+                      <opt.icon className="h-4.5 w-4.5 text-muted-foreground" />
+                      {opt.label}
+                    </button>
+                  ))}
+
+                  <div className="mt-2 border-t border-border px-4 pt-3 pb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Settings
+                  </div>
                   {settingsOptions.map((opt) => (
                     <button
                       key={opt.key}
@@ -294,15 +344,41 @@ export function AppHeader({
             )}
           </div>
 
+          {/* Scope toggle: Tasks / Notes / All */}
+          <div className="flex items-center gap-1 border-b border-border px-3 py-2">
+            <div className="inline-flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5">
+              {scopeOptions.map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setSearchScope(opt.key)}
+                  className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+                    searchScope === opt.key
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Results Area */}
           <div className="max-h-[60vh] overflow-y-auto p-2">
             {!searchQuery ? (
               <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
                 <Search className="h-8 w-8 opacity-25 mb-2.5" />
-                <span className="text-sm font-medium">Type to search across the whole database</span>
+                <span className="text-sm font-medium">
+                  {searchScope === "notes"
+                    ? "Type to search your notes"
+                    : searchScope === "all"
+                      ? "Type to search tasks and notes"
+                      : "Type to search your tasks"}
+                </span>
                 <span className="text-[11px] opacity-75 mt-0.5">Searching description and details...</span>
               </div>
-            ) : filteredTasks.length === 0 ? (
+            ) : filteredResults.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
                 <AlertCircle className="h-8 w-8 opacity-25 mb-2.5 text-destructive" />
                 <span className="text-sm font-medium">No results found matching your search</span>
@@ -310,11 +386,13 @@ export function AppHeader({
               </div>
             ) : (
               <div className="space-y-1">
-                {filteredTasks.map((t) => {
+                {filteredResults.map((t) => {
+                  const isNote = t.type === "note"
                   const project = projects.find((p) => p.id === t.project_id)
                   const taskContexts = contexts.filter((c) => t.context_ids.includes(c.id))
+                  const noteTags = tags.filter((tg) => (t.tag_ids || []).includes(tg.id))
                   const isDone = t.status === "Done"
-                  
+
                   return (
                     <div
                       key={t.id}
@@ -325,9 +403,11 @@ export function AppHeader({
                       }}
                       className="group flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors hover:bg-muted/70 active:bg-muted/90"
                     >
-                      {/* Status Icon */}
+                      {/* Leading icon */}
                       <div className="mt-0.5 shrink-0">
-                        {isDone ? (
+                        {isNote ? (
+                          <FileText className="h-4.5 w-4.5 text-muted-foreground" />
+                        ) : isDone ? (
                           <CheckCircle2 className="h-4.5 w-4.5 text-primary" />
                         ) : (
                           <Circle className="h-4.5 w-4.5 text-muted-foreground" />
@@ -337,7 +417,7 @@ export function AppHeader({
                       {/* Content */}
                       <div className="flex-1 min-w-0 text-left">
                         {/* Description */}
-                        <div className={`text-sm font-medium leading-normal tracking-tight truncate ${isDone ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                        <div className={`text-sm font-medium leading-normal tracking-tight truncate ${!isNote && isDone ? "text-muted-foreground line-through" : "text-foreground"}`}>
                           {t.description}
                         </div>
 
@@ -350,6 +430,11 @@ export function AppHeader({
 
                         {/* Tags / Badges */}
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          {/* Note vs Task indicator */}
+                          <span className="rounded bg-muted px-1.5 py-0.5 font-sans text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                            {isNote ? "Note" : "Task"}
+                          </span>
+
                           {/* Project Badge */}
                           {project && (
                             <span className="rounded bg-secondary/80 px-1.5 py-0.5 font-sans text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider">
@@ -357,22 +442,35 @@ export function AppHeader({
                             </span>
                           )}
 
-                          {/* Context Tags */}
-                          {taskContexts.map((c) => (
-                            <span
-                              key={c.id}
-                              className="rounded px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-wider"
-                              style={{
-                                backgroundColor: `color-mix(in oklch, ${c.color} 12%, transparent)`,
-                                color: c.color,
-                              }}
-                            >
-                              {c.name}
-                            </span>
-                          ))}
-                          
-                          {/* Action Date / Due Badge */}
-                          {t.action_date && (
+                          {/* Contexts (tasks) or Tags (notes) */}
+                          {isNote
+                            ? noteTags.map((tg) => (
+                                <span
+                                  key={tg.id}
+                                  className="rounded px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-wider"
+                                  style={{
+                                    backgroundColor: `color-mix(in oklch, ${tg.color} 12%, transparent)`,
+                                    color: tg.color,
+                                  }}
+                                >
+                                  {tg.name}
+                                </span>
+                              ))
+                            : taskContexts.map((c) => (
+                                <span
+                                  key={c.id}
+                                  className="rounded px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-wider"
+                                  style={{
+                                    backgroundColor: `color-mix(in oklch, ${c.color} 12%, transparent)`,
+                                    color: c.color,
+                                  }}
+                                >
+                                  {c.name}
+                                </span>
+                              ))}
+
+                          {/* Action Date / Due Badge (tasks only) */}
+                          {!isNote && t.action_date && (
                             <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground font-mono">
                               <Calendar className="h-3 w-3" />
                               {t.action_date}
@@ -399,6 +497,7 @@ export function AppHeader({
         projects={projects}
         persons={persons}
         contexts={contexts}
+        tags={tags}
         urgencies={urgencies}
         onUpdate={onUpdateTask || (() => {})}
         mode={detailMode}

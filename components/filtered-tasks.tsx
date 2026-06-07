@@ -7,6 +7,14 @@ import { toast } from "sonner"
 import { TasksTable, TASK_COLUMNS, COLUMN_MAP } from "@/components/tasks-table"
 import type { TaskColumnKey } from "@/components/tasks-table"
 import { useTableColumns } from "@/hooks/use-table-columns"
+import { FormMultiSelect } from "@/components/form-multi-select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -21,7 +29,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import type { Context, Person, Project, Task, UrgencyLevel, SavedView } from "@/lib/types"
+import type { Context, Person, Project, Tag, Task, UrgencyLevel, SavedView } from "@/lib/types"
 import { useDatabase } from "./db-provider"
 import { SaveViewDialog } from "./save-view-dialog"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
@@ -36,6 +44,7 @@ interface FilteredTasksProps {
   projects: Project[]
   persons: Person[]
   contexts: Context[]
+  tags?: Tag[]
   urgencies: UrgencyLevel[]
   onToggleProcessed: (id: string) => void
   onToggleStatus: (id: string) => void
@@ -44,6 +53,8 @@ interface FilteredTasksProps {
   onDeleteTask?: (id: string) => void
   initialContextId?: string | null
   initialContextIds?: string[]
+  initialTagId?: string | null
+  initialTagIds?: string[]
   initialPersonId?: string | null
   initialProjectId?: string | null
   initialShowStatus?: "all" | "open" | "done"
@@ -57,6 +68,8 @@ interface FilteredTasksProps {
   emptyHint?: string
   itemNoun?: string
   inboxMode?: boolean
+  /** When true, render note-appropriate columns/filters (tags instead of contexts). */
+  notesMode?: boolean
   onCreate?: (input: {
     description: string
     contextIds: string[]
@@ -74,6 +87,7 @@ export function FilteredTasks({
   projects,
   persons,
   contexts,
+  tags = [],
   urgencies,
   onToggleProcessed,
   onToggleStatus,
@@ -82,6 +96,8 @@ export function FilteredTasks({
   onDeleteTask,
   initialContextId,
   initialContextIds,
+  initialTagId,
+  initialTagIds,
   initialPersonId,
   initialProjectId,
   initialShowStatus,
@@ -95,6 +111,7 @@ export function FilteredTasks({
   emptyHint,
   itemNoun = "task",
   inboxMode = false,
+  notesMode = false,
   onCreate,
   hideFilterBar = false,
   fullWidthOnMobile = false,
@@ -103,6 +120,11 @@ export function FilteredTasks({
   const [contextIds, setContextIds] = useState<string[]>(() => {
     if (initialContextIds) return initialContextIds
     if (initialContextId) return [initialContextId]
+    return []
+  })
+  const [tagIds, setTagIds] = useState<string[]>(() => {
+    if (initialTagIds) return initialTagIds
+    if (initialTagId) return [initialTagId]
     return []
   })
   const [personId, setPersonId] = useState<string | null>(initialPersonId ?? null)
@@ -122,8 +144,9 @@ export function FilteredTasks({
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   
   const activeFiltersCount = 
-    (showStatus !== "all" ? 1 : 0) + 
-    (contextIds.length > 0 ? 1 : 0) + 
+    (!notesMode && showStatus !== "all" ? 1 : 0) + 
+    (!notesMode && contextIds.length > 0 ? 1 : 0) + 
+    (notesMode && tagIds.length > 0 ? 1 : 0) + 
     (projectId ? 1 : 0) + 
     (personId ? 1 : 0)
 
@@ -137,6 +160,10 @@ export function FilteredTasks({
     acc[c.key] = c.defaultVisible
     return acc
   }, {} as Record<TaskColumnKey, boolean>)
+  // Notes show the tags column by default in place of task-only columns.
+  if (notesMode) {
+    defaultVisibility.tags = true
+  }
 
   const columnState = useTableColumns<TaskColumnKey>(
     storageKey ?? "velocity:tasks-table:columns",
@@ -151,6 +178,11 @@ export function FilteredTasks({
     } else {
       setContextIds(initialContextId ? [initialContextId] : [])
     }
+    if (initialTagIds) {
+      setTagIds(initialTagIds)
+    } else {
+      setTagIds(initialTagId ? [initialTagId] : [])
+    }
     setPersonId(initialPersonId ?? null)
     setProjectId(initialProjectId ?? null)
     setShowStatus(initialShowStatus ?? "open")
@@ -160,13 +192,18 @@ export function FilteredTasks({
       key: initialSortKey ?? "urgency",
       direction: initialSortDirection ?? "asc",
     })
-  }, [initialContextId, initialContextIds, initialPersonId, initialProjectId, initialShowStatus, initialIsGroupedByProject, initialShowHiddenByShowOn, initialSortKey, initialSortDirection])
+  }, [initialContextId, initialContextIds, initialTagId, initialTagIds, initialPersonId, initialProjectId, initialShowStatus, initialIsGroupedByProject, initialShowHiddenByShowOn, initialSortKey, initialSortDirection])
 
   const filtered = useMemo(() => {
     return tasks
       .filter((t) => {
         if (contextIds.length === 0) return true
         return contextIds.some(id => (t.context_ids || []).includes(id))
+      })
+      .filter((t) => {
+        // Tag filter only applies in notes mode
+        if (!notesMode || tagIds.length === 0) return true
+        return tagIds.some(id => (t.tag_ids || []).includes(id))
       })
       .filter((t) => {
         if (!personId) return true
@@ -177,6 +214,9 @@ export function FilteredTasks({
         return t.project_id === projectId
       })
       .filter((t) => {
+        // Notes have no inbox/processed/status semantics in the UI.
+        if (notesMode) return true
+
         // 1. Visibility Rule: Inbox vs Everywhere Else
         if (inboxMode) {
           // Inbox only shows UNPROCESSED and OPEN tasks
@@ -195,9 +235,12 @@ export function FilteredTasks({
       })
       .filter((t) => true) // archived already excluded by RxDB query
       .filter((t) =>
-        showHiddenByShowOn
-          ? isTaskHiddenOnlyByShowOn(t)
-          : isTaskVisibleByShowOnRule(t),
+        // Show-on hiding is a task-only concept.
+        notesMode
+          ? true
+          : showHiddenByShowOn
+            ? isTaskHiddenOnlyByShowOn(t)
+            : isTaskVisibleByShowOnRule(t),
       )
       .sort((a, b) => {
         if (autoFocusTaskId) {
@@ -244,10 +287,12 @@ export function FilteredTasks({
   }, [
     tasks,
     contextIds,
+    tagIds,
     personId,
     projectId,
     showStatus,
     inboxMode,
+    notesMode,
     sortConfig,
     urgencies,
     projects,
@@ -448,7 +493,7 @@ export function FilteredTasks({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [handleAddNewTask, selectedIds, handleBulkDelete])
 
-  const hasFilter = contextIds.length > 0 || personId || projectId
+  const hasFilter = contextIds.length > 0 || tagIds.length > 0 || personId || projectId
 
   const tableEmptyTitle = showHiddenByShowOn
     ? "No tasks hidden by Show on"
@@ -457,10 +502,9 @@ export function FilteredTasks({
     ? "Tasks with a Show on date after today appear here so you can change or clear the date."
     : (emptyHint ?? "Try clearing one or capturing a new task.")
 
-  const hiddenCols: ("status" | "urgency" | "description" | "details" | "project" | "person" | "contexts" | "show_on" | "action_date" | "date_created")[] = []
-  if (inboxMode) {
-    // If we have an inboxMode, maybe we hide certain columns or handle the column label differently
-  }
+  const hiddenCols: TaskColumnKey[] = notesMode
+    ? ["status", "urgency", "contexts", "show_on", "action_date"]
+    : ["tags"]
 
   return (
     <div key={`${initialContextId}-${initialContextIds?.join(",")}-${initialProjectId}-${initialPersonId}-${initialShowStatus}-${initialIsGroupedByProject}-${initialShowHiddenByShowOn}-${initialSortKey}-${initialSortDirection}`} className={cn(
@@ -479,7 +523,7 @@ export function FilteredTasks({
               <Filter className="h-3 w-3" />
             </div>
 
-            {!hideFilters.includes("status") && (
+            {!notesMode && !hideFilters.includes("status") && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -498,7 +542,7 @@ export function FilteredTasks({
               </DropdownMenu>
             )}
 
-            {!hideFilters.includes("context") && (
+            {!notesMode && !hideFilters.includes("context") && (
               <FilterPill
                 label="Context"
                 value={
@@ -512,6 +556,24 @@ export function FilteredTasks({
                   prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
                 )}
                 onClear={() => setContextIds([])}
+                multiSelect={true}
+              />
+            )}
+
+            {notesMode && (
+              <FilterPill
+                label="Tag"
+                value={
+                  tagIds.length > 1 
+                    ? `${tagIds.length} selected` 
+                    : (tagIds.length === 1 ? tags.find((t) => t.id === tagIds[0])?.name : undefined)
+                }
+                options={tags.map((t) => ({ id: t.id, label: t.name, color: t.color }))}
+                selectedIds={tagIds}
+                onSelect={(id) => setTagIds((prev) => 
+                  prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+                )}
+                onClear={() => setTagIds([])}
                 multiSelect={true}
               />
             )}
@@ -537,28 +599,6 @@ export function FilteredTasks({
             )}
           </div>
 
-          {/* Mobile Filter Bar (flex on mobile, hidden on desktop) */}
-          <div className="flex md:hidden items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setMobileFiltersOpen(true)}
-              className={cn(
-                "inline-flex h-9 items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold transition-all hover:bg-muted active:scale-[0.98] select-none outline-none cursor-pointer",
-                activeFiltersCount > 0
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-background text-muted-foreground"
-              )}
-            >
-              <Filter className="h-3.5 w-3.5" />
-              <span>Filters</span>
-              {activeFiltersCount > 0 && (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 font-mono text-[10px] font-bold text-primary-foreground">
-                  {activeFiltersCount}
-                </span>
-              )}
-            </button>
-          </div>
-
           <div className="ml-auto flex items-center gap-2">
             <span className="hidden lg:inline font-mono text-[10px] uppercase tracking-wider text-muted-foreground mr-2">
               {filtered.length} {filtered.length === 1 ? itemNoun : `${itemNoun}s`}
@@ -581,10 +621,12 @@ export function FilteredTasks({
               </button>
             )}
 
-            <ShowOnVisibilityToggle
-              active={showHiddenByShowOn}
-              onToggle={() => setShowHiddenByShowOn((v) => !v)}
-            />
+            {!notesMode && (
+              <ShowOnVisibilityToggle
+                active={showHiddenByShowOn}
+                onToggle={() => setShowHiddenByShowOn((v) => !v)}
+              />
+            )}
 
             <div className="h-4 w-px bg-border mx-1 hidden md:block" />
 
@@ -649,7 +691,7 @@ export function FilteredTasks({
                 className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span className="hidden md:inline">Add task</span>
+                <span className="hidden md:inline">{notesMode ? "Add note" : "Add task"}</span>
               </button>
             )}
 
@@ -658,6 +700,7 @@ export function FilteredTasks({
                 type="button"
                 onClick={() => {
                   setContextIds([])
+                  setTagIds([])
                   setPersonId(null)
                   setProjectId(null)
                   setShowHiddenByShowOn(false)
@@ -711,7 +754,9 @@ export function FilteredTasks({
                   projects={projects}
                   persons={persons}
                   contexts={contexts}
+                  tags={tags}
                   urgencies={urgencies}
+                  notesMode={notesMode}
                   onToggleProcessed={onToggleProcessed}
                   onUpdate={onUpdate}
                   onArchiveTask={onArchiveTask}
@@ -744,7 +789,9 @@ export function FilteredTasks({
             projects={projects}
             persons={persons}
             contexts={contexts}
+            tags={tags}
             urgencies={urgencies}
+            notesMode={notesMode}
             onToggleProcessed={onToggleProcessed}
             onUpdate={onUpdate}
             onArchiveTask={onArchiveTask}
@@ -770,16 +817,39 @@ export function FilteredTasks({
         )}
       </div>
 
-      {onCreate && (
-        <button
-          type="button"
-          onClick={() => handleAddNewTask()}
-          className="fixed bottom-[88px] right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 transition-transform md:hidden"
-          aria-label="Add task"
-        >
-          <Plus className="h-6 w-6" />
-        </button>
-      )}
+      {/* Mobile floating action buttons */}
+      <div className="fixed bottom-[88px] right-5 z-40 flex items-center gap-2.5 md:hidden">
+        {!hideFilterBar && (
+          <button
+            type="button"
+            onClick={() => setMobileFiltersOpen(true)}
+            className={cn(
+              "relative flex h-12 w-12 items-center justify-center rounded-full border shadow-lg active:scale-95 transition-transform",
+              activeFiltersCount > 0
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-card text-muted-foreground"
+            )}
+            aria-label="Filters"
+          >
+            <Filter className="h-5 w-5" />
+            {activeFiltersCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 font-mono text-[10px] font-bold text-primary-foreground">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
+        )}
+        {onCreate && (
+          <button
+            type="button"
+            onClick={() => handleAddNewTask()}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 transition-transform"
+            aria-label={notesMode ? "Add note" : "Add task"}
+          >
+            <Plus className="h-5 w-5" />
+          </button>
+        )}
+      </div>
 
       <SaveViewDialog
         open={isSaveDialogOpen}
@@ -790,13 +860,13 @@ export function FilteredTasks({
       {/* Mobile Filters Dialog */}
       <Dialog open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
         <DialogContent className="max-w-md gap-0 overflow-hidden p-0 bg-card sm:rounded-xl border border-border shadow-2xl">
-          <DialogTitle className="sr-only">Filter Tasks</DialogTitle>
+          <DialogTitle className="sr-only">{notesMode ? "Filter Notes" : "Filter Tasks"}</DialogTitle>
           
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border bg-card px-5 py-4">
             <div className="flex items-center gap-2 text-primary">
               <Filter className="h-4.5 w-4.5" />
-              <span className="text-sm font-semibold">Filter Tasks</span>
+              <span className="text-sm font-semibold">{notesMode ? "Filter Notes" : "Filter Tasks"}</span>
             </div>
             <button
               type="button"
@@ -808,10 +878,10 @@ export function FilteredTasks({
             </button>
           </div>
 
-          {/* Body */}
+          {/* Body — dropdowns styled to match the task edit view */}
           <div className="space-y-5 px-5 py-5 bg-card">
-            {/* Status Segmented Control */}
-            {!hideFilters.includes("status") && (
+            {/* Status Segmented Control (tasks only) */}
+            {!notesMode && !hideFilters.includes("status") && (
               <div>
                 <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
                   Status
@@ -829,91 +899,100 @@ export function FilteredTasks({
                           : "border-border bg-background text-muted-foreground hover:bg-muted"
                       )}
                     >
-                      {s === "all" ? "All" : s === "open" ? "Open" : s === "done" ? "Done" : ""}
+                      {s === "all" ? "All" : s === "open" ? "Open" : "Done"}
                     </button>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Context Pills Grid */}
-            {!hideFilters.includes("context") && (
+            {/* Contexts (tasks only) */}
+            {!notesMode && !hideFilters.includes("context") && (
               <div>
                 <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
                   Contexts
                 </label>
-                <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto pr-1">
-                  {contexts.map((c) => {
-                    const isSelected = contextIds.includes(c.id);
-                    return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() =>
-                          setContextIds((prev) =>
-                            prev.includes(c.id)
-                              ? prev.filter((x) => x !== c.id)
-                              : [...prev, c.id]
-                          )
-                        }
-                        className={cn(
-                          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all cursor-pointer",
-                          isSelected
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border bg-background text-muted-foreground hover:bg-muted"
-                        )}
-                      >
-                        <span
-                          className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: c.color }}
-                        />
-                        {c.name}
-                      </button>
-                    );
-                  })}
-                </div>
+                <FormMultiSelect
+                  options={contexts.map((c) => ({ id: c.id, label: c.name, color: c.color }))}
+                  selectedIds={contextIds}
+                  onChange={setContextIds}
+                  placeholder="All contexts"
+                />
               </div>
             )}
 
-            {/* Project Select dropdown */}
+            {/* Tags (notes only) */}
+            {notesMode && (
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                  Tags
+                </label>
+                <FormMultiSelect
+                  options={tags.map((t) => ({ id: t.id, label: t.name, color: t.color }))}
+                  selectedIds={tagIds}
+                  onChange={setTagIds}
+                  placeholder="All tags"
+                />
+              </div>
+            )}
+
+            {/* Project Select */}
             {!hideFilters.includes("project") && (
               <div>
                 <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
                   Project
                 </label>
-                <select
-                  value={projectId || ""}
-                  onChange={(e) => setProjectId(e.target.value || null)}
-                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                <Select
+                  value={projectId ?? "__none__"}
+                  onValueChange={(v) => setProjectId(v === "__none__" ? null : v)}
                 >
-                  <option value="">All Projects</option>
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full border-border bg-background h-11 md:h-9">
+                    <SelectValue placeholder="All projects" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">
+                      <span className="text-muted-foreground">All projects</span>
+                    </SelectItem>
+                    {projects.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
-            {/* Person Select dropdown */}
+            {/* Person Select */}
             {!hideFilters.includes("person") && (
               <div>
                 <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
                   Person
                 </label>
-                <select
-                  value={personId || ""}
-                  onChange={(e) => setPersonId(e.target.value || null)}
-                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                <Select
+                  value={personId ?? "__none__"}
+                  onValueChange={(v) => setPersonId(v === "__none__" ? null : v)}
                 >
-                  <option value="">All People</option>
-                  {persons.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full border-border bg-background h-11 md:h-9">
+                    <SelectValue placeholder="All people" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">
+                      <span className="text-muted-foreground">All people</span>
+                    </SelectItem>
+                    {persons.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        <span className="flex items-center gap-2">
+                          <span
+                            className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-semibold"
+                            style={{ backgroundColor: `color-mix(in oklch, ${p.color} 30%, transparent)` }}
+                          >
+                            {p.initials}
+                          </span>
+                          {p.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </div>
@@ -926,6 +1005,7 @@ export function FilteredTasks({
                 onClick={() => {
                   setShowStatus("all");
                   setContextIds([]);
+                  setTagIds([]);
                   setProjectId(null);
                   setPersonId(null);
                 }}

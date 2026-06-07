@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react"
 import { createPortal } from "react-dom"
 import { Check, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { isoToDateInputValue, dateInputToIso } from "@/lib/date-field"
 
 interface EditorProps {
   onCommit: (value: string | string[] | null, close?: boolean) => void
@@ -302,7 +303,7 @@ export function InlineDateEditor({
   onCtrlEnter,
 }: EditorProps & { value: string | null }) {
   // If value is an ISO string, extract the date part for the input
-  const initial = value ? value.split('T')[0] : ""
+  const initial = isoToDateInputValue(value)
   const [date, setDate] = useState(initial)
   const ref = useRef<HTMLInputElement>(null)
 
@@ -316,9 +317,8 @@ export function InlineDateEditor({
   }, [])
 
   const commit = useCallback((val: string) => {
-    // If we have a date string (YYYY-MM-DD), convert to ISO at UTC midnight
-    const iso = val ? new Date(val).toISOString() : null
-    onCommit(iso)
+    // Convert date string (YYYY-MM-DD) to ISO at UTC midnight
+    onCommit(dateInputToIso(val))
   }, [onCommit])
 
   return (

@@ -3,12 +3,13 @@ import type { Task, Project, Person, Context } from '../types';
 
 export const taskSchemaLiteral = {
   title: 'task schema',
-  version: 4,
-  description: 'describes a task',
+  version: 5,
+  description: 'describes a task or note (unified object)',
   primaryKey: 'id',
   type: 'object',
   properties: {
     id: { type: 'string', maxLength: 100 },
+    type: { type: 'string', enum: ['task', 'note'], default: 'task' },
     description: { type: 'string' },
     details: { type: ['string', 'null'] },
     date_created: { type: 'string' },
@@ -17,6 +18,10 @@ export const taskSchemaLiteral = {
     project_id: { type: ['string', 'null'] },
     person_id: { type: ['string', 'null'] },
     context_ids: {
+      type: 'array',
+      items: { type: 'string' },
+    },
+    tag_ids: {
       type: 'array',
       items: { type: 'string' },
     },
@@ -52,7 +57,7 @@ export type UrgencyDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof urg
 
 export const projectSchemaLiteral = {
   title: 'project schema',
-  version: 2,
+  version: 3,
   description: 'describes a project',
   primaryKey: 'id',
   type: 'object',
@@ -65,6 +70,8 @@ export const projectSchemaLiteral = {
       enum: ['Ongoing', 'Closed'],
     },
     linked_person_id: { type: ['string', 'null'] },
+    icon: { type: ['string', 'null'] },
+    color: { type: ['string', 'null'] },
   },
   required: ['id', 'name', 'status'],
 } as const;
@@ -108,6 +115,23 @@ export const contextSchemaLiteral = {
 export const contextSchemaTyped = toTypedRxJsonSchema(contextSchemaLiteral);
 export type ContextDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof contextSchemaTyped>;
 
+export const tagSchemaLiteral = {
+  title: 'tag schema',
+  version: 0,
+  description: 'describes a tag',
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: { type: 'string', maxLength: 100 },
+    name: { type: 'string' },
+    icon: { type: 'string' },
+    color: { type: 'string' },
+  },
+  required: ['id', 'name', 'icon', 'color'],
+} as const;
+export const tagSchemaTyped = toTypedRxJsonSchema(tagSchemaLiteral);
+export type TagDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof tagSchemaTyped>;
+
 export const savedViewSchemaLiteral = {
   title: 'saved view schema',
   version: 3,
@@ -144,5 +168,6 @@ export const DatabaseCollections = {
   projects: { schema: projectSchemaLiteral },
   persons: { schema: personSchemaLiteral },
   contexts: { schema: contextSchemaLiteral },
+  tags: { schema: tagSchemaLiteral },
   saved_views: { schema: savedViewSchemaLiteral },
 };

@@ -5,8 +5,10 @@ import {
   Home,
   ListChecks,
   Tags,
+  Tag as TagIcon,
   Users,
   FolderKanban,
+  FileText,
   Cloud,
   CloudOff,
   AlertCircle,
@@ -69,9 +71,13 @@ export function AppSidebar({
     { key: "today", label: "Today", icon: Calendar, badge: todayCount, shortcut: "T" },
     { key: "all", label: "All Tasks", icon: ListChecks, badge: totalCount, shortcut: "A" },
   ]
+  const notesItems: NavItem[] = [
+    { key: "notes", label: "Notes", icon: FileText, shortcut: "N" },
+  ]
   const browse: NavItem[] = [
     { key: "projects", label: "Projects", icon: FolderKanban, shortcut: "P" },
     { key: "contexts", label: "Contexts", icon: Tags, shortcut: "C" },
+    { key: "tags", label: "Tags", icon: TagIcon },
     { key: "persons", label: "People", icon: Users, shortcut: "U" },
   ]
 
@@ -115,8 +121,19 @@ export function AppSidebar({
 
       {/* Primary nav */}
       <nav className="px-2 overflow-y-auto">
-        <NavGroup label="Workflow">
+        <NavGroup label="Tasks">
           {items.map((item) => (
+            <NavLink
+              key={item.key}
+              item={item}
+              active={active === item.key}
+              onClick={() => onChange(item.key)}
+            />
+          ))}
+        </NavGroup>
+
+        <NavGroup label="Notes">
+          {notesItems.map((item) => (
             <NavLink
               key={item.key}
               item={item}

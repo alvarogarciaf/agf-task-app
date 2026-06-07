@@ -29,7 +29,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { MoreVertical, Edit2 } from "lucide-react"
+import { ICON_OPTIONS, ICONS, COLOR_PALETTE } from "@/lib/constants"
 import type { Context, Person, Project, Task, UrgencyLevel, ProjectStatus } from "@/lib/types"
+
+const DEFAULT_PROJECT_ICON = "Layers"
 
 interface ProjectsViewProps {
   projects: Project[]
@@ -198,7 +201,28 @@ export function ProjectsView({
               </div>
 
               <div className="flex items-center justify-between gap-2 min-w-0 pr-6">
-                <h3 className="text-sm font-semibold tracking-tight truncate flex-1">{p.name}</h3>
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {(() => {
+                    const ProjIcon = p.icon ? ICONS[p.icon] ?? FolderKanban : FolderKanban
+                    return (
+                      <div
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+                        style={
+                          p.color
+                            ? {
+                                backgroundColor: `color-mix(in oklch, ${p.color} 15%, transparent)`,
+                                color: p.color,
+                                boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${p.color} 30%, transparent)`,
+                              }
+                            : undefined
+                        }
+                      >
+                        <ProjIcon className={cn("h-4 w-4", !p.color && "text-primary")} />
+                      </div>
+                    )
+                  })()}
+                  <h3 className="text-sm font-semibold tracking-tight truncate">{p.name}</h3>
+                </div>
                 <div className="flex items-center gap-1 shrink-0">
                   {p.linked_person_id && (() => {
                     const lp = persons.find(per => per.id === p.linked_person_id)
@@ -316,9 +340,25 @@ function ProjectDetail({
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/15 text-primary">
-            <FolderKanban className="h-5 w-5" />
-          </div>
+          {(() => {
+            const ProjIcon = project.icon ? ICONS[project.icon] ?? FolderKanban : FolderKanban
+            return project.color ? (
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-md"
+                style={{
+                  backgroundColor: `color-mix(in oklch, ${project.color} 15%, transparent)`,
+                  color: project.color,
+                  boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${project.color} 30%, transparent)`,
+                }}
+              >
+                <ProjIcon className="h-5 w-5" />
+              </div>
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/15 text-primary">
+                <ProjIcon className="h-5 w-5" />
+              </div>
+            )
+          })()}
           <div>
             <h2 className="text-xl font-semibold tracking-tight">{project.name}</h2>
             <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
@@ -360,11 +400,9 @@ function ProjectDetail({
             type="button"
             onClick={() => {
               const current = project.status
-              onUpdateProject({ 
-                id: project.id,
-                name: project.name,
-                details: project.details,
-                status: current === "Ongoing" ? "Closed" : "Ongoing" 
+              onUpdateProject({
+                ...project,
+                status: current === "Ongoing" ? "Closed" : "Ongoing",
               })
             }}
             className={cn(
@@ -477,6 +515,8 @@ function ProjectEditor({
   const [details, setDetails] = useState("")
   const [status, setStatus] = useState<ProjectStatus>("Ongoing")
   const [linkedPersonId, setLinkedPersonId] = useState<string>("not_shared")
+  const [icon, setIcon] = useState<string>(DEFAULT_PROJECT_ICON)
+  const [color, setColor] = useState<string>(COLOR_PALETTE[0])
 
   useEffect(() => {
     if (open) {
@@ -484,6 +524,8 @@ function ProjectEditor({
       setDetails(project?.details ?? "")
       setStatus(project?.status ?? "Ongoing")
       setLinkedPersonId(project?.linked_person_id ?? "not_shared")
+      setIcon(project?.icon ?? DEFAULT_PROJECT_ICON)
+      setColor(project?.color ?? COLOR_PALETTE[0])
     }
   }, [open, project])
 
@@ -495,6 +537,8 @@ function ProjectEditor({
       details: details.trim() || null,
       status,
       linked_person_id: linkedPersonId === "not_shared" ? null : linkedPersonId,
+      icon,
+      color,
     } as any)
   }
 
@@ -527,6 +571,51 @@ function ProjectEditor({
               onChange={(e) => setDetails(e.target.value)}
               rows={4}
             />
+          </div>
+          <div className="grid gap-2">
+            <Label>Icon</Label>
+            <div className="grid grid-cols-8 gap-1.5 sm:grid-cols-9 max-h-40 overflow-y-auto rounded-md border border-border bg-background/40 p-2">
+              {ICON_OPTIONS.map((opt) => {
+                const OptIcon = opt.icon
+                const isSelected = icon === opt.name
+                return (
+                  <button
+                    key={opt.name}
+                    type="button"
+                    onClick={() => setIcon(opt.name)}
+                    className={cn(
+                      "flex h-9 w-9 items-center justify-center rounded-lg border transition-colors",
+                      isSelected
+                        ? "border-primary bg-primary/15 text-primary"
+                        : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                    aria-label={opt.name}
+                  >
+                    <OptIcon className="h-4 w-4" />
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>Color</Label>
+            <div className="flex flex-wrap gap-2">
+              {COLOR_PALETTE.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setColor(c)}
+                  className={cn(
+                    "h-8 w-8 rounded-full border-2 transition-all",
+                    color === c
+                      ? "border-foreground scale-110"
+                      : "border-transparent hover:scale-110"
+                  )}
+                  style={{ backgroundColor: c }}
+                  aria-label={c}
+                />
+              ))}
+            </div>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="status">Status</Label>
