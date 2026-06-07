@@ -874,7 +874,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         
         <main className={cn(
           "flex-1 overflow-y-auto",
-          (activeView === "all" || activeView === "saved-view") 
+          (activeView === "all" || activeView === "saved-view" || activeView === "notes")
             ? "px-0 md:px-6 pt-0 pb-28 md:py-6" 
             : "px-4 md:px-6 pt-6 pb-28 md:py-6"
         )}>

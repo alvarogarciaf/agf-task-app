@@ -68,17 +68,17 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const items: NavItem[] = [
     { key: "home", label: "Inbox", icon: Home, shortcut: "I" },
-    { key: "today", label: "Today", icon: Calendar, badge: todayCount, shortcut: "T" },
     { key: "all", label: "All Tasks", icon: ListChecks, badge: totalCount, shortcut: "A" },
+    { key: "contexts", label: "Contexts", icon: Tags, shortcut: "C" },
   ]
   const notesItems: NavItem[] = [
     { key: "notes", label: "Notes", icon: FileText, shortcut: "N" },
+    { key: "tags", label: "Tags", icon: TagIcon },
   ]
   const browse: NavItem[] = [
     { key: "projects", label: "Projects", icon: FolderKanban, shortcut: "P" },
-    { key: "contexts", label: "Contexts", icon: Tags, shortcut: "C" },
-    { key: "tags", label: "Tags", icon: TagIcon },
     { key: "persons", label: "People", icon: Users, shortcut: "U" },
+    { key: "today", label: "Today", icon: Calendar, badge: todayCount, shortcut: "T" },
   ]
 
   const [draggedId, setDraggedId] = useState<string | null>(null)
@@ -132,7 +132,7 @@ export function AppSidebar({
           ))}
         </NavGroup>
 
-        <NavGroup label="Notes">
+        <NavGroup label="Notes" divider>
           {notesItems.map((item) => (
             <NavLink
               key={item.key}
@@ -143,7 +143,7 @@ export function AppSidebar({
           ))}
         </NavGroup>
 
-        <NavGroup label="Browse">
+        <NavGroup label="Browse" divider>
           {browse.map((item) => (
             <NavLink
               key={item.key}
@@ -155,7 +155,7 @@ export function AppSidebar({
         </NavGroup>
 
         {savedViews.length > 0 && (
-          <NavGroup label="Saved Views">
+          <NavGroup label="Saved Views" divider>
             {savedViews.map((sv) => {
               const Icon = ICONS[sv.icon] || Star
               return (
@@ -278,12 +278,14 @@ function SyncStatusRow({ syncStatus }: { syncStatus: SyncStatus }) {
 function NavGroup({
   label,
   children,
+  divider,
 }: {
   label: string
   children: React.ReactNode
+  divider?: boolean
 }) {
   return (
-    <div className="mb-4">
+    <div className={cn("mb-4", divider && "mt-4 border-t border-sidebar-border pt-4")}>
       <div className="px-2 pb-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
         {label}
       </div>

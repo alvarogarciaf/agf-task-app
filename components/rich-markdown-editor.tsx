@@ -43,6 +43,14 @@ function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;")
 }
 
+// Matches a bare URL token: an explicit http(s):// URL, a www.* host, or a
+// domain with a 2+ letter TLD and optional path (e.g. "example.com/page").
+const URL_TOKEN_RE = /^(https?:\/\/[^\s]+|www\.[^\s]+|[^\s]+\.[a-z]{2,}(?:\/[^\s]*)?)$/i
+
+function normalizeUrl(token: string): string {
+  return /^https?:\/\//i.test(token) ? token : `https://${token}`
+}
+
 interface EditorSurfaceProps {
   value: string
   onChange: (val: string) => void
@@ -111,7 +119,10 @@ function EditorSurface({
     handleInput()
   }
 
-  const openLinkPopover = () => {
+  // Capture the editor selection and seed the form. Radix owns the open state
+  // (via onOpenChange) so we must not toggle `linkOpen` here — doing so fought
+  // with Radix's own trigger toggle and made the popover flicker shut.
+  const prepareLinkPopover = () => {
     const selection = window.getSelection()
     if (selection && selection.rangeCount > 0) {
       savedRange.current = selection.getRangeAt(0).cloneRange()
@@ -121,7 +132,6 @@ function EditorSurface({
       setLinkText("")
     }
     setLinkUrl("")
-    setLinkOpen(true)
   }
 
   const insertLink = () => {
@@ -157,6 +167,17 @@ function EditorSurface({
       n = n.parentNode
     }
     return null
+  }
+
+  const isInsideAnchor = (n: Node | null): boolean => {
+    let cur: Node | null = n
+    while (cur && cur !== editorRef.current) {
+      if (cur.nodeType === Node.ELEMENT_NODE && (cur as HTMLElement).tagName === "A") {
+        return true
+      }
+      cur = cur.parentNode
+    }
+    return false
   }
 
   const placeCaretAtStart = (el: Node) => {
@@ -253,6 +274,43 @@ function EditorSurface({
         const text = node.nodeValue || ""
         const offset = range.startOffset
         const textBeforeCursor = text.substring(0, offset)
+
+        // Auto-link: if the token right before the cursor is a URL, wrap it in a
+        // link (then insert the triggering space after the link).
+        const tokenMatch = textBeforeCursor.match(/(\S+)$/)
+        if (tokenMatch && !isInsideAnchor(node)) {
+          const token = tokenMatch[1]
+          if (URL_TOKEN_RE.test(token)) {
+            e.preventDefault()
+            const tokenStart = offset - token.length
+            const after = text.substring(offset)
+            node.nodeValue = text.substring(0, tokenStart)
+
+            const anchor = document.createElement("a")
+            anchor.href = normalizeUrl(token)
+            anchor.target = "_blank"
+            anchor.rel = "noopener noreferrer"
+            anchor.className = "text-primary hover:underline font-semibold"
+            anchor.textContent = token
+
+            const parent = node.parentNode
+            if (parent) {
+              parent.insertBefore(anchor, node.nextSibling)
+              const spaceNode = document.createTextNode(" ")
+              parent.insertBefore(spaceNode, anchor.nextSibling)
+              if (after) {
+                parent.insertBefore(document.createTextNode(after), spaceNode.nextSibling)
+              }
+              const r = document.createRange()
+              r.setStart(spaceNode, 1)
+              r.collapse(true)
+              selection.removeAllRanges()
+              selection.addRange(r)
+            }
+            handleInput()
+            return
+          }
+        }
 
         // Slash command for headings: "/h1".."/h3" — behaves like the toolbar button,
         // so the heading applies to the text typed next on this same line.
@@ -363,14 +421,17 @@ function EditorSurface({
 
         <span className="mx-1 h-4 w-px bg-border" />
 
-        <Popover open={linkOpen} onOpenChange={setLinkOpen}>
+        <Popover
+          open={linkOpen}
+          onOpenChange={(o) => {
+            if (o) prepareLinkPopover()
+            setLinkOpen(o)
+          }}
+        >
           <PopoverTrigger asChild>
             <button
               type="button"
-              onMouseDown={(e) => {
-                e.preventDefault()
-                openLinkPopover()
-              }}
+              onMouseDown={(e) => e.preventDefault()}
               className={toolbarButton}
               title="Insert link"
               aria-label="Insert link"
