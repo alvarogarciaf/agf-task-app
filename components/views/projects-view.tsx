@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ArrowLeft, FolderKanban, FileText, ListChecks, Circle, Dot, Plus, Settings2, Trash2 } from "lucide-react"
+import { ArrowLeft, FolderKanban, FileText, ListChecks, Circle, Dot, Plus, Trash2, StickyNote, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { FilteredTasks } from "@/components/filtered-tasks"
 import { TaskDetailDialog } from "@/components/task-detail-dialog"
@@ -30,15 +30,17 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { MoreVertical, Edit2 } from "lucide-react"
 import { ICON_OPTIONS, ICONS, COLOR_PALETTE } from "@/lib/constants"
-import type { Context, Person, Project, Task, UrgencyLevel, ProjectStatus } from "@/lib/types"
+import type { Context, Person, Project, Tag, Task, UrgencyLevel, ProjectStatus } from "@/lib/types"
 
 const DEFAULT_PROJECT_ICON = "Layers"
 
 interface ProjectsViewProps {
   projects: Project[]
   tasks: Task[]
+  notes?: Task[]
   persons: Person[]
   contexts: Context[]
+  tags?: Tag[]
   urgencies: UrgencyLevel[]
   onToggleProcessed: (id: string) => void
   onToggleStatus: (id: string) => void
@@ -46,6 +48,13 @@ interface ProjectsViewProps {
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
   onCreate?: (input: {
+    description: string
+    contextIds: string[]
+    projectId: string | null
+    personId: string | null
+    processed: boolean
+  }) => Promise<string | void>
+  onCreateNote?: (input: {
     description: string
     contextIds: string[]
     projectId: string | null
@@ -60,8 +69,10 @@ interface ProjectsViewProps {
 export function ProjectsView({
   projects,
   tasks,
+  notes = [],
   persons,
   contexts,
+  tags = [],
   urgencies,
   onToggleProcessed,
   onToggleStatus,
@@ -69,6 +80,7 @@ export function ProjectsView({
   onArchiveTask,
   onDeleteTask,
   onCreate,
+  onCreateNote,
   onAddProject,
   onUpdateProject,
   onDeleteProject,
@@ -109,8 +121,10 @@ export function ProjectsView({
               project={project}
               projects={projects}
               tasks={tasks}
+              notes={notes}
               persons={persons}
               contexts={contexts}
+              tags={tags}
               onBack={() => setSelected(null)}
               onToggleProcessed={onToggleProcessed}
               onToggleStatus={onToggleStatus}
@@ -119,6 +133,7 @@ export function ProjectsView({
               onDeleteTask={onDeleteTask}
               urgencies={urgencies}
               onCreate={onCreate}
+              onCreateNote={onCreateNote}
               onUpdateProject={onUpdateProject}
               onDeleteProject={(id) => {
                 setSelected(null)
@@ -285,8 +300,10 @@ function ProjectDetail({
   project,
   projects,
   tasks,
+  notes,
   persons,
   contexts,
+  tags,
   onBack,
   onToggleProcessed,
   onToggleStatus,
@@ -298,12 +315,15 @@ function ProjectDetail({
   onDeleteProject,
   onEdit,
   onCreate,
+  onCreateNote,
 }: {
   project: Project
   projects: Project[]
   tasks: Task[]
+  notes: Task[]
   persons: Person[]
   contexts: Context[]
+  tags: Tag[]
   urgencies: UrgencyLevel[]
   onBack: () => void
   onToggleProcessed: (id: string) => void
@@ -318,61 +338,64 @@ function ProjectDetail({
     personId: string | null
     processed: boolean
   }) => Promise<string | void>
+  onCreateNote?: (input: {
+    description: string
+    contextIds: string[]
+    projectId: string | null
+    personId: string | null
+    processed: boolean
+  }) => Promise<string | void>
   onUpdateProject: (project: Project) => void
   onDeleteProject: (id: string) => void
   onEdit: () => void
 }) {
-  const [tab, setTab] = useState<"tasks" | "description">("tasks")
+  const [tab, setTab] = useState<"tasks" | "notes" | "description">("tasks")
   const projTasks = tasks.filter((t) => t.project_id === project.id && t.processed)
+  const projNotes = notes.filter((n) => n.project_id === project.id)
   const open = projTasks.filter((t) => t.status === "Open")
   const done = projTasks.filter((t) => t.status === "Done")
+  const ProjIcon = project.icon ? ICONS[project.icon] ?? FolderKanban : FolderKanban
+  const linkedPerson = project.linked_person_id
+    ? persons.find((per) => per.id === project.linked_person_id)
+    : null
 
   return (
-    <div className="px-6 pt-6 pb-24 md:py-6">
+    <div className="px-4 pt-3 pb-24 md:px-6 md:pt-4 md:pb-6">
       <button
         type="button"
         onClick={onBack}
-        className="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+        className="mb-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-3 w-3" />
         All projects
       </button>
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          {(() => {
-            const ProjIcon = project.icon ? ICONS[project.icon] ?? FolderKanban : FolderKanban
-            return project.color ? (
-              <div
-                className="flex h-10 w-10 items-center justify-center rounded-md"
-                style={{
-                  backgroundColor: `color-mix(in oklch, ${project.color} 15%, transparent)`,
-                  color: project.color,
-                  boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${project.color} 30%, transparent)`,
-                }}
-              >
-                <ProjIcon className="h-5 w-5" />
-              </div>
-            ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/15 text-primary">
-                <ProjIcon className="h-5 w-5" />
-              </div>
-            )
-          })()}
-          <div>
-            <h2 className="text-xl font-semibold tracking-tight">{project.name}</h2>
-            <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-              {project.linked_person_id && (() => {
-                const lp = persons.find(per => per.id === project.linked_person_id)
-                return lp ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 text-[10px] font-medium text-blue-500 font-mono">
-                    Shared with {lp.name}
-                  </span>
-                ) : null
-              })()}
+      {/* Compact header: icon + title + status on one line, meta on a tight second line */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div
+            className={cn(
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-md",
+              !project.color && "bg-primary/15 text-primary",
+            )}
+            style={
+              project.color
+                ? {
+                    backgroundColor: `color-mix(in oklch, ${project.color} 15%, transparent)`,
+                    color: project.color,
+                    boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${project.color} 30%, transparent)`,
+                  }
+                : undefined
+            }
+          >
+            <ProjIcon className="h-4.5 w-4.5" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h2 className="truncate text-lg font-semibold tracking-tight">{project.name}</h2>
               <span
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider",
+                  "hidden shrink-0 items-center gap-0.5 rounded-full border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider sm:inline-flex",
                   project.status === "Ongoing"
                     ? "border-primary/30 bg-primary/10 text-primary"
                     : "border-border bg-muted/40 text-muted-foreground",
@@ -381,20 +404,28 @@ function ProjectDetail({
                 <Dot className="h-3 w-3" />
                 {project.status}
               </span>
-              <span>{open.length} open</span>
-              <span>{done.length} done</span>
+            </div>
+            <div className="mt-0.5 flex items-center gap-2.5 text-xs text-muted-foreground">
+              {linkedPerson && (
+                <span className="inline-flex items-center gap-1 truncate font-mono text-[10px] font-medium text-blue-500">
+                  Shared · {linkedPerson.name}
+                </span>
+              )}
+              <span className="whitespace-nowrap">{open.length} open</span>
+              <span className="whitespace-nowrap">{done.length} done</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={onEdit}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
             title="Edit project"
           >
-            <Settings2 className="h-4 w-4" />
+            <Pencil className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Edit</span>
           </button>
           <button
             type="button"
@@ -406,22 +437,28 @@ function ProjectDetail({
               })
             }}
             className={cn(
-              "rounded-md border px-3 py-1.5 text-xs transition-colors h-8 flex items-center",
+              "flex h-8 items-center rounded-md border px-2.5 text-xs transition-colors",
               project.status === "Ongoing"
                 ? "border-border bg-card hover:bg-muted"
                 : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20",
             )}
           >
-            {project.status === "Ongoing" ? "Close project" : "Reopen project"}
+            {project.status === "Ongoing" ? "Close" : "Reopen"}
           </button>
         </div>
       </div>
 
-      <div className="mt-5 flex items-center gap-1 border-b border-border">
+      <div className="mt-3 flex items-center gap-1 border-b border-border">
         <TabButton active={tab === "tasks"} onClick={() => setTab("tasks")} icon={ListChecks}>
           Tasks
           <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
             {projTasks.length}
+          </span>
+        </TabButton>
+        <TabButton active={tab === "notes"} onClick={() => setTab("notes")} icon={StickyNote}>
+          Notes
+          <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+            {projNotes.length}
           </span>
         </TabButton>
         <TabButton
@@ -433,8 +470,8 @@ function ProjectDetail({
         </TabButton>
       </div>
 
-      {tab === "tasks" ? (
-        <div className="mt-5 h-auto md:h-[500px] -mx-6">
+      {tab === "tasks" && (
+        <div className="mt-4 h-auto md:h-[500px] -mx-4 md:-mx-6">
           <FilteredTasks
             tasks={projTasks}
             projects={projects}
@@ -454,14 +491,41 @@ function ProjectDetail({
             initialProjectId={project.id}
           />
         </div>
-      ) : (
-        <div className="mt-5 rounded-lg border border-border bg-card p-6">
+      )}
+
+      {tab === "notes" && (
+        <div className="mt-4 h-auto md:h-[500px] -mx-4 md:-mx-6">
+          <FilteredTasks
+            tasks={projNotes}
+            projects={projects}
+            persons={persons}
+            contexts={[]}
+            tags={tags}
+            urgencies={urgencies}
+            notesMode
+            itemNoun="note"
+            onToggleProcessed={onToggleProcessed}
+            onToggleStatus={onToggleStatus}
+            onUpdate={onUpdate}
+            onArchiveTask={onArchiveTask}
+            onDeleteTask={onDeleteTask}
+            hideFilters={["project"]}
+            storageKey={`velocity:project-${project.id}:notes-columns`}
+            initialSortKey="date_created"
+            initialSortDirection="desc"
+            emptyTitle={`No notes for ${project.name}`}
+            emptyHint="Notes assigned to this project will appear here."
+            onCreate={onCreateNote}
+            initialProjectId={project.id}
+          />
+        </div>
+      )}
+
+      {tab === "description" && (
+        <div className="mt-4 rounded-lg border border-border bg-card p-5">
           <p className="text-sm leading-relaxed text-foreground/90">
             {project.details ?? "No description yet. Click to add details with Markdown."}
           </p>
-          <div className="mt-6 border-t border-border pt-4 font-mono text-[11px] text-muted-foreground">
-            Stored locally in IndexedDB · synced via Cloud Firestore
-          </div>
         </div>
       )}
 

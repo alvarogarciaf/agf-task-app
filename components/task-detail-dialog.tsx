@@ -275,7 +275,7 @@ export function TaskDetailDialog({
               </div>
 
               {/* Properties Grid - Only renders assigned attributes */}
-              {((draft.project_id) || (draft.person_id) || (!isNote && draft.show_on) || (!isNote && draft.action_date) || (!isNote && draft.context_ids && draft.context_ids.length > 0) || (isNote && draft.tag_ids && draft.tag_ids.length > 0)) && (
+              {((draft.project_id) || (draft.person_id) || (!isNote && draft.show_on) || (draft.action_date) || (!isNote && draft.context_ids && draft.context_ids.length > 0) || (isNote && draft.tag_ids && draft.tag_ids.length > 0)) && (
                 <div className="grid grid-cols-[120px_1fr] gap-y-3 gap-x-4 rounded-xl border border-border/40 bg-muted/10 p-4 items-center">
                   {/* Project */}
                   {selectedProject && (
@@ -320,10 +320,10 @@ export function TaskDetailDialog({
                     </>
                   )}
 
-                  {/* Action date */}
-                  {!isNote && draft.action_date && (
+                  {/* Action date (tasks) / Date Override (notes) */}
+                  {draft.action_date && (
                     <>
-                      <Label icon={<Calendar className="h-3 w-3" />}>Action date</Label>
+                      <Label icon={<Calendar className="h-3 w-3" />}>{isNote ? "Date Override" : "Action date"}</Label>
                       <div className="text-xs font-semibold text-foreground bg-background border border-border/30 rounded-lg px-2.5 py-1.5 inline-block font-mono justify-self-start">
                         {new Date(draft.action_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
                       </div>
@@ -512,7 +512,7 @@ export function TaskDetailDialog({
                   ref={descriptionRef}
                   value={draft.description}
                   onChange={(e) => update("description", e.target.value)}
-                  placeholder="What needs to happen?"
+                  placeholder="Enter a title or description"
                   className="mt-1.5 min-h-[60px] resize-none border-border bg-background text-base font-medium leading-snug"
                   rows={2}
                 />
@@ -686,6 +686,19 @@ export function TaskDetailDialog({
 
                     <div className="flex-1 min-w-[200px]">
                       <Label icon={<Calendar className="h-3 w-3" />}>Action date</Label>
+                      <FormDateField
+                        value={draft.action_date}
+                        onChange={(iso) => update("action_date", iso)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Date Override (notes only) — reuses the action_date field */}
+                {isNote && (
+                  <div className="flex flex-wrap gap-4">
+                    <div className="flex-1 min-w-[200px]">
+                      <Label icon={<Calendar className="h-3 w-3" />}>Date Override</Label>
                       <FormDateField
                         value={draft.action_date}
                         onChange={(iso) => update("action_date", iso)}

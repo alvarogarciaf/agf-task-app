@@ -622,6 +622,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         return (
           <ProjectsView 
             {...activeViewProps} 
+            notes={notes}
+            tags={tags}
+            onCreateNote={handleCreateNote}
             onAddProject={handleAddProject}
             onUpdateProject={handleUpdateProject}
             onDeleteProject={handleDeleteProject}
