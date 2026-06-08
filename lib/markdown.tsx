@@ -7,6 +7,9 @@ function isBlockLine(trimmed: string): boolean {
   return (
     trimmed === "" ||
     TASK_RE.test(trimmed) ||
+    trimmed === "#" ||
+    trimmed === "##" ||
+    trimmed === "###" ||
     trimmed.startsWith("# ") ||
     trimmed.startsWith("## ") ||
     trimmed.startsWith("### ") ||
@@ -50,17 +53,17 @@ export function markdownToHtml(md: string): string {
     const trimmed = raw.trim();
     const taskMatch = trimmed.match(TASK_RE);
 
-    if (trimmed.startsWith("# ")) {
+    if (trimmed === "#" || trimmed.startsWith("# ")) {
       flushList();
-      html += `<h1 class="text-base font-bold text-foreground mt-3 mb-1.5 font-sans border-b border-border/10 pb-0.5">${parseInline(trimmed.substring(2))}</h1>`;
+      html += `<h1 class="text-base font-bold text-foreground mt-3 mb-1.5 font-sans border-b border-border/10 pb-0.5">${parseInline(trimmed === "#" ? "" : trimmed.substring(2))}</h1>`;
       i++;
-    } else if (trimmed.startsWith("## ")) {
+    } else if (trimmed === "##" || trimmed.startsWith("## ")) {
       flushList();
-      html += `<h2 class="text-sm font-semibold text-foreground mt-3 mb-1.5 font-sans">${parseInline(trimmed.substring(3))}</h2>`;
+      html += `<h2 class="text-sm font-semibold text-foreground mt-3 mb-1.5 font-sans">${parseInline(trimmed === "##" ? "" : trimmed.substring(3))}</h2>`;
       i++;
-    } else if (trimmed.startsWith("### ")) {
+    } else if (trimmed === "###" || trimmed.startsWith("### ")) {
       flushList();
-      html += `<h3 class="text-xs font-semibold text-foreground mt-2 mb-1 font-sans uppercase tracking-wider text-muted-foreground">${parseInline(trimmed.substring(4))}</h3>`;
+      html += `<h3 class="text-xs font-semibold text-foreground mt-2 mb-1 font-sans uppercase tracking-wider text-muted-foreground">${parseInline(trimmed === "###" ? "" : trimmed.substring(4))}</h3>`;
       i++;
     } else if (taskMatch) {
       flushList();
@@ -155,11 +158,11 @@ function nodeToMarkdown(node: Node): string {
 
     switch (tagName) {
       case "h1":
-        return `# ${childContent}\n`;
+        return `# ${childContent.replace(/\u00A0/g, " ").trim()}\n`;
       case "h2":
-        return `## ${childContent}\n`;
+        return `## ${childContent.replace(/\u00A0/g, " ").trim()}\n`;
       case "h3":
-        return `### ${childContent}\n`;
+        return `### ${childContent.replace(/\u00A0/g, " ").trim()}\n`;
       case "li":
         return `* ${childContent}\n`;
       case "ul":

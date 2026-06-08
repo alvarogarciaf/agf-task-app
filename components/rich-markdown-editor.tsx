@@ -51,6 +51,89 @@ function normalizeUrl(token: string): string {
   return /^https?:\/\//i.test(token) ? token : `https://${token}`
 }
 
+function isPointBeforeRange(node: Node, offset: number, range: Range): boolean {
+  const point = document.createRange()
+  point.setStart(node, offset)
+  point.collapse(true)
+  return point.compareBoundaryPoints(Range.START_TO_START, range) < 0
+}
+
+function getLineStartRange(block: HTMLElement, range: Range): Range {
+  const lineStart = document.createRange()
+  lineStart.setStart(block, 0)
+  lineStart.collapse(true)
+
+  const checkbox = block.querySelector("input.md-task-box")
+  if (checkbox) {
+    lineStart.setStartAfter(checkbox)
+    lineStart.collapse(true)
+  }
+
+  block.querySelectorAll("br").forEach((br) => {
+    if (isPointBeforeRange(br, 0, range)) {
+      lineStart.setStartAfter(br)
+      lineStart.collapse(true)
+    }
+  })
+
+  return lineStart
+}
+
+function getLineTextBeforeCursor(block: HTMLElement, range: Range): string {
+  const lineStart = getLineStartRange(block, range)
+  const lineRange = document.createRange()
+  lineRange.setStart(lineStart.startContainer, lineStart.startOffset)
+  lineRange.setEnd(range.startContainer, range.startOffset)
+  return lineRange.toString().replace(/\u00A0/g, " ")
+}
+
+function getLineTextAfterCursor(block: HTMLElement, range: Range): string {
+  const lineEnd = document.createRange()
+  lineEnd.setStart(range.startContainer, range.startOffset)
+
+  const nextBr = Array.from(block.querySelectorAll("br")).find(
+    (br) => !isPointBeforeRange(br, 0, range),
+  )
+
+  if (nextBr) {
+    lineEnd.setEndBefore(nextBr)
+  } else {
+    lineEnd.setEnd(block, block.childNodes.length)
+  }
+
+  return lineEnd.toString().replace(/\u00A0/g, " ")
+}
+
+function isCursorAfterLineBreak(block: HTMLElement, range: Range): boolean {
+  return Array.from(block.querySelectorAll("br")).some((br) =>
+    isPointBeforeRange(br, 0, range),
+  )
+}
+
+function detachLineToParagraph(block: HTMLElement, range: Range): HTMLParagraphElement {
+  const lineStart = getLineStartRange(block, range)
+  const tailRange = document.createRange()
+  tailRange.setStart(lineStart.startContainer, lineStart.startOffset)
+  tailRange.setEnd(block, block.childNodes.length)
+
+  const lineFragment = tailRange.extractContents()
+  while (block.lastChild?.nodeName === "BR") {
+    block.removeChild(block.lastChild)
+  }
+
+  const paragraph = document.createElement("p")
+  paragraph.appendChild(lineFragment)
+  while (paragraph.firstChild?.nodeName === "BR") {
+    paragraph.removeChild(paragraph.firstChild)
+  }
+  if (!paragraph.textContent && !paragraph.querySelector("br")) {
+    paragraph.appendChild(document.createElement("br"))
+  }
+
+  block.after(paragraph)
+  return paragraph
+}
+
 interface EditorSurfaceProps {
   value: string
   onChange: (val: string) => void
@@ -58,6 +141,13 @@ interface EditorSurfaceProps {
   className?: string
   autoFocus?: boolean
   trailingTool?: React.ReactNode
+}
+
+interface CursorTextContext {
+  block: HTMLElement
+  range: Range
+  textBefore: string
+  textAfter: string
 }
 
 function EditorSurface({
@@ -70,6 +160,8 @@ function EditorSurface({
 }: EditorSurfaceProps) {
   const editorRef = useRef<HTMLDivElement>(null)
   const isFirstRender = useRef(true)
+  const isFocusedRef = useRef(false)
+  const isComposingRef = useRef(false)
   const savedRange = useRef<Range | null>(null)
 
   const [linkOpen, setLinkOpen] = useState(false)
@@ -77,14 +169,14 @@ function EditorSurface({
   const [linkText, setLinkText] = useState("")
 
   useEffect(() => {
-    if (editorRef.current) {
-      const currentHtml = editorRef.current.innerHTML
-      const targetHtml = markdownToHtml(value)
+    if (!editorRef.current || isFocusedRef.current) return
 
-      if (isFirstRender.current || htmlToMarkdown(currentHtml) !== htmlToMarkdown(targetHtml)) {
-        editorRef.current.innerHTML = targetHtml || "<p><br></p>"
-        isFirstRender.current = false
-      }
+    const currentHtml = editorRef.current.innerHTML
+    const targetHtml = markdownToHtml(value)
+
+    if (isFirstRender.current || htmlToMarkdown(currentHtml) !== htmlToMarkdown(targetHtml)) {
+      editorRef.current.innerHTML = targetHtml || "<p><br></p>"
+      isFirstRender.current = false
     }
   }, [value])
 
@@ -100,16 +192,54 @@ function EditorSurface({
     }
   }, [autoFocus])
 
-  const handleInput = () => {
+  const syncMarkdown = () => {
     if (editorRef.current) {
       onChange(htmlToMarkdown(editorRef.current.innerHTML))
     }
   }
 
+  const handleInput = () => {
+    if (!editorRef.current || isComposingRef.current) return
+    if (fixupHeadingAfterInput()) {
+      syncMarkdown()
+      return
+    }
+    if (fixupCheckboxAfterInput()) {
+      syncMarkdown()
+      return
+    }
+    syncMarkdown()
+  }
+
   const exec = (command: string, arg?: string) => {
     editorRef.current?.focus()
     document.execCommand(command, false, arg)
-    handleInput()
+    syncMarkdown()
+  }
+
+  const toggleInlineFormat = (command: "bold" | "italic") => {
+    editorRef.current?.focus()
+    const sel = window.getSelection()
+    if (!sel || sel.rangeCount === 0) return
+
+    const range = sel.getRangeAt(0)
+    const block = getCurrentBlock()
+    if (block && !range.collapsed) {
+      const blockRange = document.createRange()
+      blockRange.selectNodeContents(block)
+      const trimmed = range.cloneRange()
+      if (trimmed.compareBoundaryPoints(Range.START_TO_START, blockRange) < 0) {
+        trimmed.setStart(blockRange.startContainer, blockRange.startOffset)
+      }
+      if (trimmed.compareBoundaryPoints(Range.END_TO_END, blockRange) > 0) {
+        trimmed.setEnd(blockRange.endContainer, blockRange.endOffset)
+      }
+      sel.removeAllRanges()
+      sel.addRange(trimmed)
+    }
+
+    document.execCommand(command, false)
+    syncMarkdown()
   }
 
   const toggleBlock = (tag: "h1" | "h2" | "h3") => {
@@ -158,7 +288,7 @@ function EditorSurface({
 
   const getCurrentBlock = (): HTMLElement | null => {
     const sel = window.getSelection()
-    if (!sel || sel.rangeCount === 0) return null
+    if (!sel || sel.rangeCount === 0 || !editorRef.current) return null
     let n: Node | null = sel.getRangeAt(0).startContainer
     while (n && n !== editorRef.current) {
       if (n.nodeType === Node.ELEMENT_NODE && /^(P|DIV|H1|H2|H3|LI)$/.test((n as HTMLElement).tagName)) {
@@ -167,6 +297,233 @@ function EditorSurface({
       n = n.parentNode
     }
     return null
+  }
+
+  const getCursorTextContext = (): CursorTextContext | null => {
+    const sel = window.getSelection()
+    if (!sel || sel.rangeCount === 0) return null
+    const range = sel.getRangeAt(0)
+    const block = getCurrentBlock()
+    if (!block) return null
+
+    const preRange = document.createRange()
+    preRange.selectNodeContents(block)
+    preRange.setEnd(range.startContainer, range.startOffset)
+
+    const postRange = document.createRange()
+    postRange.selectNodeContents(block)
+    postRange.setStart(range.startContainer, range.startOffset)
+
+    return {
+      block,
+      range,
+      textBefore: preRange.toString().replace(/\u00A0/g, " "),
+      textAfter: postRange.toString().replace(/\u00A0/g, " "),
+    }
+  }
+
+  const locateTextPosition = (
+    block: HTMLElement,
+    charIndex: number,
+  ): { node: Text; offset: number } | null => {
+    const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT)
+    let remaining = charIndex
+
+    while (walker.nextNode()) {
+      const textNode = walker.currentNode as Text
+      const len = textNode.nodeValue?.length ?? 0
+      if (remaining <= len) {
+        return { node: textNode, offset: remaining }
+      }
+      remaining -= len
+    }
+
+    return null
+  }
+
+  const removeBlockTextRange = (block: HTMLElement, start: number, end: number) => {
+    if (start >= end) return
+    const startPos = locateTextPosition(block, start)
+    const endPos = locateTextPosition(block, end)
+    if (!startPos || !endPos) return
+
+    const r = document.createRange()
+    r.setStart(startPos.node, startPos.offset)
+    r.setEnd(endPos.node, endPos.offset)
+    r.deleteContents()
+  }
+
+  const removeBlockPrefix = (block: HTMLElement, prefixLength: number) => {
+    removeBlockTextRange(block, 0, prefixLength)
+  }
+
+  const HEADING_CLASSES: Record<"h1" | "h2" | "h3", string> = {
+    h1: "text-base font-bold text-foreground mt-3 mb-1.5 font-sans border-b border-border/10 pb-0.5",
+    h2: "text-sm font-semibold text-foreground mt-3 mb-1.5 font-sans",
+    h3: "text-xs font-semibold text-foreground mt-2 mb-1 font-sans uppercase tracking-wider text-muted-foreground",
+  }
+
+  const convertBlockToHeading = (
+    block: HTMLElement,
+    tag: "h1" | "h2" | "h3",
+    markerLength: number,
+    textAfter: string,
+  ) => {
+    removeBlockPrefix(block, markerLength)
+
+    const suffix = textAfter.replace(/^\s+/, "")
+    const remaining = (block.textContent || "").replace(/\u00A0/g, " ").trim()
+    const heading = document.createElement(tag)
+    heading.className = HEADING_CLASSES[tag]
+
+    const content = suffix || remaining
+    heading.appendChild(document.createTextNode(content))
+
+    block.replaceWith(heading)
+    placeCaretAtEnd(heading)
+  }
+
+  const applyHeadingShortcut = (
+    block: HTMLElement,
+    range: Range,
+    tag: "h1" | "h2" | "h3",
+    markerLength: number,
+    textAfter: string,
+  ) => {
+    let target = block
+    if (block.querySelector("input.md-task-box") || isCursorAfterLineBreak(block, range)) {
+      target = detachLineToParagraph(block, range)
+    }
+    convertBlockToHeading(target, tag, markerLength, textAfter)
+  }
+
+  const fixupHeadingAfterInput = (): boolean => {
+    const ctx = getCursorTextContext()
+    if (!ctx) return false
+
+    const tag = ctx.block.tagName.toLowerCase()
+    if (tag === "h1" || tag === "h2" || tag === "h3") return false
+
+    const lineText =
+      getLineTextBeforeCursor(ctx.block, ctx.range) +
+      getLineTextAfterCursor(ctx.block, ctx.range)
+    const match = lineText.match(/^\/(h[123])\s(.*)$/i)
+    if (!match) return false
+
+    const headingTag = match[1].toLowerCase() as "h1" | "h2" | "h3"
+    applyHeadingShortcut(ctx.block, ctx.range, headingTag, match[1].length + 2, match[2])
+    return true
+  }
+
+  const convertBlockToCheckbox = (block: HTMLElement, markerLength: number, textAfter: string) => {
+    removeBlockPrefix(block, markerLength)
+    block.classList.add("md-task")
+
+    const input = document.createElement("input")
+    input.type = "checkbox"
+    input.className = "md-task-box"
+    input.setAttribute("contenteditable", "false")
+
+    const suffix = textAfter.replace(/^\s+/, "")
+    block.replaceChildren(input, document.createTextNode("\u00A0" + suffix))
+    placeCaretAtEnd(block)
+  }
+
+  const fixupCheckboxAfterInput = (): boolean => {
+    const ctx = getCursorTextContext()
+    if (!ctx || ctx.block.querySelector("input.md-task-box")) return false
+
+    const text = (ctx.block.textContent || "").replace(/\u00A0/g, " ")
+    const match = text.match(/^(\[\]|\[ \])\s(.*)$/)
+    if (!match) return false
+
+    convertBlockToCheckbox(ctx.block, match[1].length + 1, match[2])
+    return true
+  }
+
+  const applySpaceShortcuts = (): boolean => {
+    if (isComposingRef.current) return false
+
+    const ctx = getCursorTextContext()
+    if (!ctx) return false
+
+    const { block, range, textBefore, textAfter } = ctx
+
+    const tokenMatch = textBefore.match(/(\S+)$/)
+    if (tokenMatch && !isInsideAnchor(range.startContainer)) {
+      const token = tokenMatch[1]
+      if (URL_TOKEN_RE.test(token)) {
+        const tokenStart = textBefore.length - token.length
+        const startPos = locateTextPosition(block, tokenStart)
+        if (!startPos) return false
+
+        const deleteRange = document.createRange()
+        deleteRange.setStart(startPos.node, startPos.offset)
+        deleteRange.setEnd(range.startContainer, range.startOffset)
+        deleteRange.deleteContents()
+
+        const anchor = document.createElement("a")
+        anchor.href = normalizeUrl(token)
+        anchor.target = "_blank"
+        anchor.rel = "noopener noreferrer"
+        anchor.className = "text-primary hover:underline font-semibold"
+        anchor.textContent = token
+
+        deleteRange.insertNode(anchor)
+        const spaceNode = document.createTextNode(" ")
+        anchor.after(spaceNode)
+        if (textAfter) {
+          spaceNode.after(document.createTextNode(textAfter))
+        }
+
+        const sel = window.getSelection()
+        if (sel) {
+          const caret = document.createRange()
+          caret.setStart(spaceNode, 1)
+          caret.collapse(true)
+          sel.removeAllRanges()
+          sel.addRange(caret)
+        }
+        syncMarkdown()
+        return true
+      }
+    }
+
+    const lineBefore = getLineTextBeforeCursor(block, range)
+    const lineAfter = getLineTextAfterCursor(block, range)
+
+    const slash = lineBefore.match(/^\/(h[123])$/i)
+    if (slash) {
+      const headingTag = slash[1].toLowerCase() as "h1" | "h2" | "h3"
+      applyHeadingShortcut(block, range, headingTag, lineBefore.length, lineAfter)
+      syncMarkdown()
+      return true
+    }
+
+    if (lineBefore === "[]" || lineBefore === "[ ]") {
+      let target = block
+      if (block.querySelector("input.md-task-box") || isCursorAfterLineBreak(block, range)) {
+        target = detachLineToParagraph(block, range)
+      }
+      convertBlockToCheckbox(target, lineBefore.length, lineAfter)
+      syncMarkdown()
+      return true
+    }
+
+    if (lineBefore === "*" || lineBefore === "-" || lineBefore === "•") {
+      let target = block
+      if (block.querySelector("input.md-task-box") || isCursorAfterLineBreak(block, range)) {
+        target = detachLineToParagraph(block, range)
+      }
+      removeBlockPrefix(target, lineBefore.length)
+      if (!target.firstChild) target.appendChild(document.createElement("br"))
+      placeCaretAtStart(target)
+      document.execCommand("insertUnorderedList", false)
+      syncMarkdown()
+      return true
+    }
+
+    return false
   }
 
   const isInsideAnchor = (n: Node | null): boolean => {
@@ -200,25 +557,6 @@ function EditorSurface({
     sel.addRange(r)
   }
 
-  const stripLeadingChars = (el: HTMLElement, count: number) => {
-    let remaining = count
-    while (remaining > 0 && el.firstChild) {
-      const fc = el.firstChild
-      if (fc.nodeType === Node.TEXT_NODE) {
-        const v = fc.nodeValue || ""
-        if (v.length > remaining) {
-          fc.nodeValue = v.slice(remaining)
-          remaining = 0
-        } else {
-          remaining -= v.length
-          el.removeChild(fc)
-        }
-      } else {
-        break
-      }
-    }
-  }
-
   const buildCheckboxLine = (): HTMLParagraphElement => {
     const p = document.createElement("p")
     p.className = "md-task"
@@ -241,12 +579,40 @@ function EditorSurface({
         return
       }
 
+      const sel = window.getSelection()
+      const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null
+      const block = getCurrentBlock()
+
+      if (block && range) {
+        const lineBefore = getLineTextBeforeCursor(block, range)
+        const slash = lineBefore.match(/^\/(h[123])$/i)
+        if (slash) {
+          e.preventDefault()
+          applyHeadingShortcut(
+            block,
+            range,
+            slash[1].toLowerCase() as "h1" | "h2" | "h3",
+            lineBefore.length,
+            "",
+          )
+          syncMarkdown()
+          return
+        }
+      }
+
       // Inside a checkbox line, Enter continues the checklist like bullets do:
       // a fresh checkbox on the next line, or exit to a plain paragraph when empty.
-      const block = getCurrentBlock()
-      if (block && block.querySelector("input.md-task-box")) {
+      if (block && block.querySelector("input.md-task-box") && range) {
+        if (isCursorAfterLineBreak(block, range)) {
+          e.preventDefault()
+          const paragraph = detachLineToParagraph(block, range)
+          placeCaretAtStart(paragraph)
+          syncMarkdown()
+          return
+        }
+
         e.preventDefault()
-        const lineText = (block.textContent || "").replace(/\u00A0/g, "").trim()
+        const lineText = getLineTextBeforeCursor(block, range).replace(/\u00A0/g, "").trim()
         if (lineText === "") {
           const p = document.createElement("p")
           p.appendChild(document.createElement("br"))
@@ -257,104 +623,23 @@ function EditorSurface({
           block.after(next)
           placeCaretAtEnd(next)
         }
-        handleInput()
+        syncMarkdown()
+        return
       }
       // Otherwise let the browser create a new paragraph block.
       return
     }
 
-    if (e.key === " ") {
-      const selection = window.getSelection()
-      if (!selection || selection.rangeCount === 0) return
+    if (e.key === " " && applySpaceShortcuts()) {
+      e.preventDefault()
+    }
+  }
 
-      const range = selection.getRangeAt(0)
-      const node = range.startContainer
-
-      if (node.nodeType === Node.TEXT_NODE) {
-        const text = node.nodeValue || ""
-        const offset = range.startOffset
-        const textBeforeCursor = text.substring(0, offset)
-
-        // Auto-link: if the token right before the cursor is a URL, wrap it in a
-        // link (then insert the triggering space after the link).
-        const tokenMatch = textBeforeCursor.match(/(\S+)$/)
-        if (tokenMatch && !isInsideAnchor(node)) {
-          const token = tokenMatch[1]
-          if (URL_TOKEN_RE.test(token)) {
-            e.preventDefault()
-            const tokenStart = offset - token.length
-            const after = text.substring(offset)
-            node.nodeValue = text.substring(0, tokenStart)
-
-            const anchor = document.createElement("a")
-            anchor.href = normalizeUrl(token)
-            anchor.target = "_blank"
-            anchor.rel = "noopener noreferrer"
-            anchor.className = "text-primary hover:underline font-semibold"
-            anchor.textContent = token
-
-            const parent = node.parentNode
-            if (parent) {
-              parent.insertBefore(anchor, node.nextSibling)
-              const spaceNode = document.createTextNode(" ")
-              parent.insertBefore(spaceNode, anchor.nextSibling)
-              if (after) {
-                parent.insertBefore(document.createTextNode(after), spaceNode.nextSibling)
-              }
-              const r = document.createRange()
-              r.setStart(spaceNode, 1)
-              r.collapse(true)
-              selection.removeAllRanges()
-              selection.addRange(r)
-            }
-            handleInput()
-            return
-          }
-        }
-
-        // Slash command for headings: "/h1".."/h3" — behaves like the toolbar button,
-        // so the heading applies to the text typed next on this same line.
-        const slash = textBeforeCursor.match(/^\/(h[123])$/i)
-        if (slash) {
-          e.preventDefault()
-          document.execCommand("formatBlock", false, slash[1].toLowerCase())
-          const block = getCurrentBlock()
-          if (block) {
-            stripLeadingChars(block, offset)
-            if (!block.firstChild) block.appendChild(document.createElement("br"))
-            placeCaretAtStart(block)
-          }
-          handleInput()
-          return
-        }
-
-        // Checkbox: "[]" or "[ ]"
-        if (textBeforeCursor === "[]" || textBeforeCursor === "[ ]") {
-          e.preventDefault()
-          const block = getCurrentBlock()
-          if (block) {
-            stripLeadingChars(block, offset)
-            block.classList.add("md-task")
-            const input = document.createElement("input")
-            input.type = "checkbox"
-            input.className = "md-task-box"
-            input.setAttribute("contenteditable", "false")
-            block.insertBefore(document.createTextNode("\u00A0"), block.firstChild)
-            block.insertBefore(input, block.firstChild)
-            placeCaretAtEnd(block)
-          }
-          handleInput()
-          return
-        }
-
-        // Bullet list: "*", "-", or "•"
-        if (textBeforeCursor === "*" || textBeforeCursor === "-" || textBeforeCursor === "•") {
-          e.preventDefault()
-          node.nodeValue = text.substring(offset)
-          document.execCommand("insertUnorderedList", false)
-          handleInput()
-        }
-      }
+  const handleBeforeInput = (e: React.FormEvent<HTMLDivElement>) => {
+    const inputEvent = e.nativeEvent as InputEvent
+    if (inputEvent.inputType !== "insertText" || inputEvent.data !== " ") return
+    if (applySpaceShortcuts()) {
+      e.preventDefault()
     }
   }
 
@@ -409,10 +694,10 @@ function EditorSurface({
 
         <span className="mx-1 h-4 w-px bg-border" />
 
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("bold")} className={toolbarButton} title="Bold" aria-label="Bold">
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleInlineFormat("bold")} className={toolbarButton} title="Bold" aria-label="Bold">
           <Bold className="h-4 w-4" />
         </button>
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("italic")} className={toolbarButton} title="Italic" aria-label="Italic">
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleInlineFormat("italic")} className={toolbarButton} title="Italic" aria-label="Italic">
           <Italic className="h-4 w-4" />
         </button>
         <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("insertUnorderedList")} className={toolbarButton} title="Bullet list" aria-label="Bullet list">
@@ -491,8 +776,22 @@ function EditorSurface({
       <div
         ref={editorRef}
         contentEditable
+        onFocus={() => {
+          isFocusedRef.current = true
+        }}
+        onBlur={() => {
+          isFocusedRef.current = false
+          handleInput()
+        }}
+        onCompositionStart={() => {
+          isComposingRef.current = true
+        }}
+        onCompositionEnd={() => {
+          isComposingRef.current = false
+          handleInput()
+        }}
         onInput={handleInput}
-        onBlur={handleInput}
+        onBeforeInput={handleBeforeInput}
         onKeyDown={handleKeyDown}
         onClick={handleClick}
         onPaste={handlePaste}
