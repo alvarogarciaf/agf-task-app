@@ -697,7 +697,7 @@ export function FilteredTasks({
               <button
                 type="button"
                 onClick={() => handleAddNewTask()}
-                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                className="hidden items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 md:inline-flex"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span className="hidden md:inline">{notesMode ? "Add note" : "Add task"}</span>
