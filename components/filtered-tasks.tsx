@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
-import { CalendarClock, Filter, X, Check, ChevronDown, LayoutList, Columns3, Plus, RotateCcw, Star } from "lucide-react"
+import { CalendarClock, Filter, X, Check, LayoutList, Columns3, Plus, RotateCcw, Star } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { TasksTable, TASK_COLUMNS, COLUMN_MAP } from "@/components/tasks-table"
@@ -143,12 +143,14 @@ export function FilteredTasks({
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   
-  const activeFiltersCount = 
-    (!notesMode && showStatus !== "all" ? 1 : 0) + 
-    (!notesMode && contextIds.length > 0 ? 1 : 0) + 
-    (notesMode && tagIds.length > 0 ? 1 : 0) + 
-    (projectId ? 1 : 0) + 
-    (personId ? 1 : 0)
+  const activeFiltersCount =
+    (!notesMode && showStatus !== "open" ? 1 : 0) +
+    (!notesMode && contextIds.length > 0 ? 1 : 0) +
+    (notesMode && tagIds.length > 0 ? 1 : 0) +
+    (projectId ? 1 : 0) +
+    (personId ? 1 : 0) +
+    (showHiddenByShowOn ? 1 : 0) +
+    (isGroupedByProject ? 1 : 0)
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null)
@@ -493,7 +495,7 @@ export function FilteredTasks({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [handleAddNewTask, selectedIds, handleBulkDelete])
 
-  const hasFilter = contextIds.length > 0 || tagIds.length > 0 || personId || projectId
+  const hasFilter = activeFiltersCount > 0
 
   const tableEmptyTitle = showHiddenByShowOn
     ? "No tasks hidden by Show on"
@@ -519,27 +521,31 @@ export function FilteredTasks({
           
           {/* Desktop Filter Bar (hidden on mobile, flex on desktop) */}
           <div className="hidden md:flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1.5 px-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            <div
+              className={cn(
+                "flex items-center gap-1.5 px-1 font-mono text-[10px] uppercase tracking-wider",
+                activeFiltersCount > 0 ? "text-primary" : "text-muted-foreground",
+              )}
+            >
               <Filter className="h-3 w-3" />
+              {activeFiltersCount > 0 && (
+                <span className="rounded-full bg-primary/15 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-primary">
+                  {activeFiltersCount}
+                </span>
+              )}
             </div>
 
             {!notesMode && !hideFilters.includes("status") && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted md:py-1"
-                  >
-                    {showStatus === "all" ? "All" : showStatus === "open" ? "Open" : "Done"}
-                    <ChevronDown className="h-3 w-3" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-32">
-                  <DropdownMenuItem onClick={() => setShowStatus("all")}>All</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowStatus("open")}>Open</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowStatus("done")}>Done</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Segmented
+                value={showStatus}
+                onChange={setShowStatus}
+                defaultValue="open"
+                options={[
+                  { value: "all", label: "All" },
+                  { value: "open", label: "Open" },
+                  { value: "done", label: "Done" },
+                ]}
+              />
             )}
 
             {!notesMode && !hideFilters.includes("context") && (
@@ -599,7 +605,7 @@ export function FilteredTasks({
             )}
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
             <span className="hidden lg:inline font-mono text-[10px] uppercase tracking-wider text-muted-foreground mr-2">
               {filtered.length} {filtered.length === 1 ? itemNoun : `${itemNoun}s`}
             </span>
@@ -609,15 +615,14 @@ export function FilteredTasks({
                 type="button"
                 onClick={() => setIsGroupedByProject(!isGroupedByProject)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
-                  isGroupedByProject
-                    ? "border-primary bg-primary/15 text-primary"
-                    : "border-border bg-background text-muted-foreground hover:bg-muted"
+                  toolbarBtnBase,
+                  "px-2.5 py-1 text-xs font-medium",
+                  isGroupedByProject ? toolbarBtnActive : toolbarBtnRest,
                 )}
                 title="Group tasks by project"
               >
-                <LayoutList className="h-3.5 w-3.5" />
-                <span className="hidden md:inline">Group by project</span>
+                <LayoutList className="h-3.5 w-3.5 shrink-0" />
+                <span>Group by project</span>
               </button>
             )}
 
@@ -634,7 +639,7 @@ export function FilteredTasks({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="hidden md:inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                  className={cn(toolbarBtnBase, toolbarBtnRest, "hidden md:inline-flex px-2.5 py-1 text-xs font-medium")}
                 >
                   <Columns3 className="h-3.5 w-3.5" />
                   <span className="hidden lg:inline">Columns</span>
@@ -677,7 +682,11 @@ export function FilteredTasks({
               <button
                 type="button"
                 onClick={() => setIsSaveDialogOpen(true)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:text-primary md:h-7 md:w-7"
+                className={cn(
+                  toolbarBtnBase,
+                  toolbarBtnRest,
+                  "h-8 w-8 justify-center md:h-7 md:w-7 hover:text-primary",
+                )}
                 title="Save current view"
               >
                 <Star className="h-3.5 w-3.5" />
@@ -703,10 +712,11 @@ export function FilteredTasks({
                   setTagIds([])
                   setPersonId(null)
                   setProjectId(null)
+                  setShowStatus("open")
                   setShowHiddenByShowOn(false)
                   setIsGroupedByProject(false)
                 }}
-                className="inline-flex items-center gap-1 rounded px-3 py-2 text-sm text-muted-foreground hover:text-foreground md:px-2 md:py-1 md:text-xs"
+                className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10 md:px-2 md:py-1 md:text-xs"
               >
                 <X className="h-3.5 w-3.5" />
                 <span className="hidden md:inline">Clear all</span>
@@ -1030,6 +1040,14 @@ export function FilteredTasks({
   )
 }
 
+const toolbarBtnBase =
+  "inline-flex items-center gap-1.5 rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+
+const toolbarBtnRest =
+  "border-border bg-background text-foreground/80 shadow-sm hover:bg-muted hover:text-foreground hover:border-foreground/20"
+
+const toolbarBtnActive = "border-primary bg-primary/10 text-primary shadow-sm"
+
 function ShowOnVisibilityToggle({
   active,
   onToggle,
@@ -1042,10 +1060,9 @@ function ShowOnVisibilityToggle({
       type="button"
       onClick={onToggle}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
-        active
-          ? "border-primary bg-primary/15 text-primary"
-          : "border-border bg-background text-muted-foreground hover:bg-muted",
+        toolbarBtnBase,
+        "px-2.5 py-1 text-xs font-medium",
+        active ? toolbarBtnActive : toolbarBtnRest,
       )}
       aria-pressed={active}
       title={
@@ -1055,7 +1072,7 @@ function ShowOnVisibilityToggle({
       }
     >
       <CalendarClock className="h-3.5 w-3.5 shrink-0" />
-      <span className="hidden md:inline">{active ? "Due tasks" : "Hidden by date"}</span>
+      <span>{active ? "Due tasks" : "Hidden by date"}</span>
     </button>
   )
 }
@@ -1064,23 +1081,31 @@ function Segmented<T extends string>({
   value,
   onChange,
   options,
+  defaultValue,
 }: {
   value: T
   onChange: (v: T) => void
   options: { value: T; label: string }[]
+  defaultValue?: T
 }) {
+  const isFiltering = defaultValue !== undefined && value !== defaultValue
   return (
-    <div className="flex items-center gap-0.5 rounded-md border border-border bg-background p-0.5">
+    <div
+      className={cn(
+        "flex items-center gap-0.5 rounded-md border p-0.5 shadow-sm",
+        isFiltering ? "border-primary bg-primary/5" : "border-border bg-background",
+      )}
+    >
       {options.map((o) => (
         <button
           key={o.value}
           type="button"
           onClick={() => onChange(o.value)}
           className={cn(
-            "rounded px-3 py-2 text-sm transition-colors md:px-2.5 md:py-1 md:text-xs",
+            "rounded px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:px-2.5 md:py-1 md:text-xs",
             value === o.value
-              ? "bg-primary/15 text-primary"
-              : "text-muted-foreground hover:text-foreground",
+              ? "bg-primary/10 text-primary"
+              : "text-foreground/80 hover:bg-muted hover:text-foreground",
           )}
         >
           {o.label}
@@ -1116,10 +1141,9 @@ function FilterPill({
           role="button"
           tabIndex={0}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm transition-colors md:px-2.5 md:py-1 md:text-xs cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            value
-              ? "border-primary/40 bg-primary/10 text-primary"
-              : "border-border bg-background text-muted-foreground hover:bg-muted",
+            toolbarBtnBase,
+            "px-3 py-2 text-sm md:px-2.5 md:py-1 md:text-xs cursor-pointer select-none",
+            value ? toolbarBtnActive : toolbarBtnRest,
           )}
         >
           <span className="font-mono text-[10px] uppercase tracking-wider">{label}</span>

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Check, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useIsMobile } from "@/hooks/use-mobile"
 import {
   Popover,
   PopoverContent,
@@ -28,6 +29,7 @@ export function FormMultiSelect({
   onChange,
   placeholder = "Select…",
 }: FormMultiSelectProps) {
+  const isMobile = useIsMobile()
   const [open, setOpen] = useState(false)
 
   const selected = options.filter((o) => selectedIds.includes(o.id))
@@ -47,7 +49,8 @@ export function FormMultiSelect({
         : `${selected.length} selected`
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    // modal={false} keeps touch scrolling working when this popover opens inside a dialog.
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -68,8 +71,18 @@ export function FormMultiSelect({
           <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-1">
-        <div className="max-h-64 overflow-auto">
+      <PopoverContent
+        align="start"
+        side="bottom"
+        collisionPadding={16}
+        className={cn(
+          "z-[100] w-[var(--radix-popover-trigger-width)] p-1",
+          isMobile && "max-h-[70vh] overflow-y-auto overscroll-contain touch-pan-y",
+        )}
+        style={isMobile ? { WebkitOverflowScrolling: "touch" } : undefined}
+        onTouchMove={isMobile ? (e) => e.stopPropagation() : undefined}
+      >
+        <div className={cn(!isMobile && "max-h-64 overflow-y-auto")}>
           {options.length === 0 ? (
             <p className="px-3 py-2 text-sm text-muted-foreground">No options</p>
           ) : (
@@ -80,7 +93,7 @@ export function FormMultiSelect({
                   key={opt.id}
                   type="button"
                   onClick={() => toggle(opt.id)}
-                  className="flex w-full items-center gap-3 rounded px-4 py-3.5 text-left text-lg hover:bg-muted md:px-2 md:py-1.5 md:text-sm"
+                  className="flex w-full items-center gap-3 rounded px-4 py-3 text-left text-base hover:bg-muted md:px-2 md:py-1.5 md:text-sm"
                 >
                   {opt.color ? (
                     <span
