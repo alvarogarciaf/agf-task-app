@@ -554,7 +554,7 @@ export function RichMarkdownEditor({
             "flex flex-col gap-0 overflow-hidden p-0",
             isMobile
               ? "fixed inset-0 z-50 h-full w-full max-w-none translate-x-0 translate-y-0 rounded-none border-none"
-              : "h-[85vh] w-[90vw] max-w-4xl sm:rounded-lg"
+              : "h-[88vh] w-[90vw] max-w-none sm:max-w-3xl sm:rounded-lg"
           )}
         >
           <div className="flex items-center justify-between border-b border-border bg-card px-4 py-2.5">
