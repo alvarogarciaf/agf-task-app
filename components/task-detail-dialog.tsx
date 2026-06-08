@@ -45,6 +45,8 @@ interface TaskDetailDialogProps {
   mode?: "view" | "edit"
   onModeChange?: (mode: "view" | "edit") => void
   portalContainer?: HTMLElement | null
+  /** Desktop: expand into the active tab's full-screen editor (e.g. from search modal). */
+  onExpandFullScreen?: (taskId: string, mode: "view" | "edit") => void
 }
 
 export function TaskDetailDialog({
@@ -60,9 +62,12 @@ export function TaskDetailDialog({
   mode = "view",
   onModeChange,
   portalContainer,
+  onExpandFullScreen,
 }: TaskDetailDialogProps) {
   const isMobile = useIsMobile()
   const tabObject = useOpenObjectFullScreen()
+  const expandFullScreen =
+    onExpandFullScreen ?? tabObject?.openObjectFullScreen
 
   const {
     draft,
@@ -121,10 +126,10 @@ export function TaskDetailDialog({
 
   if (!draft) return null
 
-  const canExpand = !isMobile && !!tabObject && !!task
+  const canExpand = !isMobile && !!expandFullScreen && !!task
   function expand() {
-    if (!task || !tabObject) return
-    tabObject.openObjectFullScreen(task.id, "edit")
+    if (!task || !expandFullScreen) return
+    expandFullScreen(task.id, "edit")
     onOpenChange(false)
   }
 

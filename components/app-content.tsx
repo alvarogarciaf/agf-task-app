@@ -970,6 +970,12 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             !isMobile && !activeTab.ui.objectId ? tabToolbar : undefined
           }
           tabPortalContainer={!isMobile ? activePortalContainer : null}
+          onExpandFullScreen={
+            !isMobile
+              ? (taskId, objectMode) =>
+                  updateTabUi(activeTabId, { objectId: taskId, objectMode })
+              : undefined
+          }
         />
 
         <main

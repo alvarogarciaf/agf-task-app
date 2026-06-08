@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/drawer"
 import type { TabKey } from "./views/settings-view"
 import { cn } from "@/lib/utils"
+import { markdownToPlainText } from "@/lib/markdown"
 
 const TITLES: Record<ViewKey, string> = {
   home: "Inbox",
@@ -53,6 +54,7 @@ interface AppHeaderProps {
   tabBar?: React.ReactNode
   tabToolbar?: TabToolbarState
   tabPortalContainer?: HTMLElement | null
+  onExpandFullScreen?: (taskId: string, mode: "view" | "edit") => void
 }
 
 export function AppHeader({
@@ -74,6 +76,7 @@ export function AppHeader({
   tabBar,
   tabToolbar,
   tabPortalContainer = null,
+  onExpandFullScreen,
 }: AppHeaderProps) {
   const title = view === "saved-view" ? savedViewName || "Saved View" : TITLES[view]
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -372,6 +375,9 @@ export function AppHeader({
                   const noteTags = tags.filter((tg) => (t.tag_ids || []).includes(tg.id))
                   const isDone = t.status === "Done"
                   const isHighlighted = idx === highlightedIdx
+                  const detailsPreview = t.details
+                    ? markdownToPlainText(t.details)
+                    : ""
 
                   return (
                     <div
@@ -405,9 +411,9 @@ export function AppHeader({
                         </div>
 
                         {/* Details snippet */}
-                        {t.details && (
+                        {detailsPreview && (
                           <div className="mt-0.5 text-xs text-muted-foreground/80 line-clamp-1 truncate">
-                            {t.details}
+                            {detailsPreview}
                           </div>
                         )}
 
@@ -486,6 +492,7 @@ export function AppHeader({
         mode={detailMode}
         onModeChange={setDetailMode}
         portalContainer={tabPortalContainer}
+        onExpandFullScreen={onExpandFullScreen}
       />
     </header>
   )

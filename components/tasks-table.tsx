@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react"
 import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock, Eye, Pencil, FileText, ArrowLeftRight } from "lucide-react"
+import { ProjectChip, ProjectOptionIcon } from "@/components/project-select"
 import { toast } from "sonner"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
@@ -74,14 +75,22 @@ const COLUMN_HEADER_CLASSES: Partial<Record<TaskColumnKey, string>> = {
   urgency: "w-16",
   description: "min-w-[280px]",
   details: "min-w-[260px]",
+  person: "text-center",
+  tags: "text-center",
   show_on: "w-28",
   action_date: "w-28",
   date_created: "w-24",
 }
 
+const COLUMN_HEADER_INNER_CLASSES: Partial<Record<TaskColumnKey, string>> = {
+  person: "justify-center",
+  tags: "justify-center",
+}
+
 const COLUMN_CELL_CLASSES: Partial<Record<TaskColumnKey, string>> = {
   description: "max-w-[420px]",
   details: "max-w-[360px]",
+  project: "text-left",
 }
 
 const EDITABLE_COLUMNS = new Set<TaskColumnKey>([
@@ -455,10 +464,12 @@ export function TasksTable({
             )}
             {tasks.map((task) => {
               const urgency = urgencies?.find((u) => u.id === task.urgency_id)
+              const project = projects.find((p) => p.id === task.project_id)
               return (
                 <MobileTaskRow
                   key={task.id}
                   task={task}
+                  project={project}
                   urgency={urgency}
                   onToggleProcessed={onToggleProcessed}
                   onToggleStatus={onToggleStatus}
@@ -529,7 +540,8 @@ export function TasksTable({
                         onDragStart={(e) => handleDragStart(e, key)}
                         onDragEnd={handleDragEnd}
                         className={cn(
-                          "flex w-full items-center justify-start gap-1",
+                          "flex w-full items-center gap-1",
+                          COLUMN_HEADER_INNER_CLASSES[key] ?? "justify-start",
                           isDragging && "cursor-grabbing",
                         )}
                         title="Click to sort, drag to reorder"
@@ -941,11 +953,11 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
 
     case "project":
       return project ? (
-        <span className="inline-flex max-w-full items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-muted-foreground">
-          <span className="truncate">{project.name}</span>
-        </span>
+        <div className="flex justify-start">
+          <ProjectChip project={project} />
+        </div>
       ) : (
-        <Empty />
+        <Empty align="left" />
       )
 
     case "person": {
@@ -1115,12 +1127,22 @@ function InlineCellEditor({ task, column, projects, persons, contexts, tags, urg
   }
 }
 
-function Empty() {
-  return <div className="w-full text-center font-mono text-[11px] text-muted-foreground/40">—</div>
+function Empty({ align = "center" }: { align?: "left" | "center" }) {
+  return (
+    <div
+      className={cn(
+        "w-full font-mono text-[11px] text-muted-foreground/40",
+        align === "left" ? "text-left" : "text-center",
+      )}
+    >
+      —
+    </div>
+  )
 }
 
 function MobileTaskRow({
   task,
+  project,
   urgency,
   onToggleProcessed,
   onToggleStatus,
@@ -1135,6 +1157,7 @@ function MobileTaskRow({
   notesMode = false,
 }: {
   task: Task
+  project?: Project
   urgency?: UrgencyLevel
   onToggleProcessed: (id: string) => void
   onToggleStatus: (id: string) => void
@@ -1205,8 +1228,16 @@ function MobileTaskRow({
 
       {/* Note icon or checkbox status toggle (Left) */}
       {notesMode ? (
-        <span className="shrink-0 text-muted-foreground">
-          <FileText className="h-4.5 w-4.5" />
+        <span className="shrink-0">
+          {project ? (
+            <ProjectOptionIcon
+              icon={project.icon}
+              color={project.color}
+              size="sm"
+            />
+          ) : (
+            <FileText className="h-4.5 w-4.5 text-muted-foreground" />
+          )}
         </span>
       ) : (
         <button

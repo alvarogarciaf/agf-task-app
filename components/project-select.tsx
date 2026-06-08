@@ -17,14 +17,20 @@ export function ProjectOptionIcon({
   icon,
   color,
   size = "sm",
+  plain = false,
 }: {
   icon?: string | null
   color?: string | null
   size?: "sm" | "md"
+  plain?: boolean
 }) {
   const Icon = icon ? ICONS[icon] ?? FolderKanban : FolderKanban
   const box = size === "sm" ? "h-5 w-5 rounded" : "h-6 w-6 rounded-md"
   const glyph = size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5"
+
+  if (plain) {
+    return <Icon className={cn("shrink-0", glyph)} />
+  }
 
   return (
     <div
@@ -41,6 +47,41 @@ export function ProjectOptionIcon({
     >
       <Icon className={cn(glyph, !color && "text-primary")} />
     </div>
+  )
+}
+
+export function ProjectChip({
+  project,
+  className,
+}: {
+  project: Pick<Project, "name" | "icon" | "color">
+  className?: string
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-0.5 text-[11px]",
+        !project.color && "border-border bg-background text-muted-foreground",
+        className,
+      )}
+      style={
+        project.color
+          ? {
+              backgroundColor: `color-mix(in oklch, ${project.color} 12%, transparent)`,
+              color: project.color,
+              borderColor: `color-mix(in oklch, ${project.color} 30%, transparent)`,
+            }
+          : undefined
+      }
+    >
+      <ProjectOptionIcon
+        icon={project.icon ?? DEFAULT_PROJECT_ICON}
+        color={project.color}
+        size="sm"
+        plain
+      />
+      <span className="truncate font-medium">{project.name}</span>
+    </span>
   )
 }
 

@@ -98,6 +98,31 @@ export function markdownToHtml(md: string): string {
   return html;
 }
 
+/** Strip markdown syntax for one-line previews (search, snippets). */
+export function markdownToPlainText(md: string): string {
+  if (!md) return ""
+
+  const stripInline = (text: string) =>
+    text
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .replace(/(\*\*|__)(.*?)\1/g, "$2")
+      .replace(/(\*|_)(.*?)\1/g, "$2")
+      .replace(/`([^`]+)`/g, "$1")
+
+  const lines = md.split("\n").map((raw) => {
+    let line = raw.trim()
+    if (!line) return ""
+
+    line = line.replace(/^#{1,3}\s+/, "")
+    line = line.replace(TASK_RE, "$2")
+    line = line.replace(/^[-*•]\s+/, "")
+
+    return stripInline(line)
+  })
+
+  return lines.filter(Boolean).join(" ").replace(/\s+/g, " ").trim()
+}
+
 export function htmlToMarkdown(html: string): string {
   if (typeof window === "undefined" || !html) return "";
   const parser = new DOMParser();
