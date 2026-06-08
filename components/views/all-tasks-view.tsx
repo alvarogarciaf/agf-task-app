@@ -32,6 +32,7 @@ interface AllTasksViewProps {
     personId: string | null
     processed: boolean
   }) => Promise<string | void>
+  hideDesktopAdd?: boolean
 }
 
 export function AllTasksView(props: AllTasksViewProps) {

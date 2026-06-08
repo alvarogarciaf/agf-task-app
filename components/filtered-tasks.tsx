@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
+import { useRegisterTabAdd } from "@/components/tab-toolbar-context"
 import { CalendarClock, Filter, X, Check, LayoutList, Columns3, Plus, RotateCcw, Star } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -8,6 +9,7 @@ import { TasksTable, TASK_COLUMNS, COLUMN_MAP } from "@/components/tasks-table"
 import type { TaskColumnKey } from "@/components/tasks-table"
 import { useTableColumns } from "@/hooks/use-table-columns"
 import { FormMultiSelect } from "@/components/form-multi-select"
+import { ProjectSelect } from "@/components/project-select"
 import {
   Select,
   SelectContent,
@@ -80,6 +82,7 @@ interface FilteredTasksProps {
   hideFilterBar?: boolean
   fullWidthOnMobile?: boolean
   allowUnprocessed?: boolean
+  hideDesktopAdd?: boolean
 }
 
 export function FilteredTasks({
@@ -116,6 +119,7 @@ export function FilteredTasks({
   hideFilterBar = false,
   fullWidthOnMobile = false,
   allowUnprocessed = false,
+  hideDesktopAdd = false,
 }: FilteredTasksProps) {
   const [contextIds, setContextIds] = useState<string[]>(() => {
     if (initialContextIds) return initialContextIds
@@ -346,6 +350,12 @@ export function FilteredTasks({
     }
     setIsCreating(true)
   }
+
+  useRegisterTabAdd(
+    onCreate ? () => void handleAddNewTask() : null,
+    notesMode ? "Add note" : "Add task",
+    !!onCreate && hideDesktopAdd,
+  )
 
   const handleToggleSelection = (id: string, shiftKey?: boolean) => {
     setSelectedIds((prev) => {
@@ -585,12 +595,14 @@ export function FilteredTasks({
             )}
 
             {!hideFilters.includes("project") && (
-              <FilterPill
-                label="Project"
-                value={projectId ? projects.find((p) => p.id === projectId)?.name : undefined}
-                options={projects.map((p) => ({ id: p.id, label: p.name }))}
-                onSelect={(id) => setProjectId((p) => (p === id ? null : id))}
-                onClear={() => setProjectId(null)}
+              <ProjectSelect
+                variant="pill"
+                pillLabel="Project"
+                projects={projects}
+                value={projectId}
+                noneLabel="All projects"
+                placeholder="All projects"
+                onChange={setProjectId}
               />
             )}
 
@@ -697,7 +709,10 @@ export function FilteredTasks({
               <button
                 type="button"
                 onClick={() => handleAddNewTask()}
-                className="hidden items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 md:inline-flex"
+                className={cn(
+                  "hidden items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 md:inline-flex",
+                  hideDesktopAdd && "md:hidden",
+                )}
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span className="hidden md:inline">{notesMode ? "Add note" : "Add task"}</span>
@@ -952,22 +967,14 @@ export function FilteredTasks({
                 <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
                   Project
                 </label>
-                <Select
-                  value={projectId ?? "__none__"}
-                  onValueChange={(v) => setProjectId(v === "__none__" ? null : v)}
-                >
-                  <SelectTrigger className="w-full border-border bg-background h-11 md:h-9">
-                    <SelectValue placeholder="All projects" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">
-                      <span className="text-muted-foreground">All projects</span>
-                    </SelectItem>
-                    {projects.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <ProjectSelect
+                  projects={projects}
+                  value={projectId}
+                  noneLabel="All projects"
+                  placeholder="All projects"
+                  className="mt-0"
+                  onChange={setProjectId}
+                />
               </div>
             )}
 

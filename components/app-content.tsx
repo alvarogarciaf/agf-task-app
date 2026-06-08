@@ -1,6 +1,6 @@
-"use client"
+﻿"use client"
 
-import { useEffect, useState, Suspense, useRef } from "react"
+import { useEffect, useState, Suspense, useRef, useCallback, useMemo } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useDatabase, useSyncStatus } from "@/components/db-provider"
 import { toast } from "sonner"
@@ -8,16 +8,26 @@ import { cn } from "@/lib/utils"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppHeader } from "@/components/app-header"
 import { MobileNav } from "@/components/mobile-nav"
-import { HomeView } from "@/components/views/home-view"
-import { InboxView } from "@/components/views/inbox-view"
-import { AllTasksView } from "@/components/views/all-tasks-view"
-import { ProjectsView } from "@/components/views/projects-view"
-import { ContextsView } from "@/components/views/contexts-view"
-import { TagsView } from "@/components/views/tags-view"
-import { NotesView } from "@/components/views/notes-view"
-import { SettingsView, type TabKey } from "@/components/views/settings-view"
-import { PersonsView } from "@/components/views/persons-view"
+import { WorkspaceViewContent } from "@/components/workspace-view-content"
+import { WorkspaceTabBar } from "@/components/workspace-tab-bar"
+import { ObjectFullScreenView } from "@/components/object-full-screen-view"
+import { TabPortalProvider } from "@/components/tab-portal-context"
+import { TabToolbarProvider, type TabToolbarState } from "@/components/tab-toolbar-context"
+import { TabObjectProvider } from "@/components/tab-object-context"
+import { useIsMobile } from "@/hooks/use-mobile"
+import type { TabKey } from "@/components/views/settings-view"
 import type { Context, Person, Project, Task, Tag, UrgencyLevel, ViewKey, SavedView } from "@/lib/types"
+import {
+  createEmptyTab,
+  createTabFromRoute,
+  getSidebarActive,
+  routeFromSearchParams,
+  syncUrlToRoute,
+  VIEW_TITLES,
+  type TabRoute,
+  type TabUiState,
+  type WorkspaceTab,
+} from "@/lib/workspace-tabs"
 import { syncCalendarToStorage } from "@/lib/calendar-sync-client"
 import { createGoogleEvent, updateGoogleEvent, deleteGoogleEvent } from "@/lib/google-calendar"
 import { useGoogleCalendar } from "@/components/google-calendar-provider"
@@ -63,7 +73,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [initialPersonId, setInitialPersonId] = useState<string | undefined>()
   const [initialTagId, setInitialTagId] = useState<string | undefined>()
 
-  // Data state — split tasks into two efficient streams
+  // Data state â€” split tasks into two efficient streams
   const [inboxTasks, setInboxTasks] = useState<Task[]>([])
   const [activeTasks, setActiveTasks] = useState<Task[]>([])
   const [notes, setNotes] = useState<Task[]>([])
@@ -116,7 +126,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     return () => window.removeEventListener("popstate", handlePopState)
   }, [])
 
-  // Subscriptions — targeted queries so IndexedDB does the heavy filtering.
+  // Subscriptions â€” targeted queries so IndexedDB does the heavy filtering.
   // A unified object is a note when `type === 'note'`; everything else (including
   // legacy docs with a missing type) is treated as a task.
   useEffect(() => {
@@ -143,27 +153,6 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     ]
     return () => subs.forEach((s) => s.unsubscribe())
   }, [db])
-
-  // Handle slot resolution (View 1, View 2, View 3 from PWA manifest)
-  useEffect(() => {
-    const viewParam = searchParams.get("view")
-    if (viewParam?.startsWith("slot-") && savedViews.length > 0) {
-      const slotIndex = parseInt(viewParam.split("-")[1], 10) - 1
-      if (slotIndex >= 0) {
-        // Resolve by creation order as requested
-        const sorted = [...savedViews].sort((a, b) => 
-          new Date(a.date_created).getTime() - new Date(b.date_created).getTime()
-        )
-        const targetView = sorted[slotIndex]
-        if (targetView) {
-          handleNavigate("saved-view", targetView.id)
-        } else {
-          // If slot empty, go home
-          handleNavigate("home")
-        }
-      }
-    }
-  }, [searchParams, savedViews.length]) // Trigger when search params or savedViews count change
 
   // Handlers
   const handleCreateTask = async (input: {
@@ -337,8 +326,43 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     if (doc) await doc.remove()
   }
 
+  const isMobile = useIsMobile()
+
+  const [tabs, setTabs] = useState<WorkspaceTab[]>(() => {
+    if (typeof window === "undefined") {
+      return [createTabFromRoute({ kind: "view", view: "home" })]
+    }
+    return [createTabFromRoute(routeFromSearchParams(window.location.search))]
+  })
+  const [activeTabId, setActiveTabId] = useState(() => tabs[0]?.id ?? "")
+  const [tabToolbar, setTabToolbar] = useState<TabToolbarState>({
+    canAdd: false,
+    addLabel: "",
+    onAdd: null,
+  })
+  const [activePortalContainer, setActivePortalContainer] =
+    useState<HTMLElement | null>(null)
+
+  const handleActivePortalContainer = useCallback(
+    (el: HTMLElement | null) => setActivePortalContainer(el),
+    [],
+  )
+
+  const activeTab = useMemo(
+    () => tabs.find((t) => t.id === activeTabId) ?? tabs[0],
+    [tabs, activeTabId],
+  )
+
+  const tabsRef = useRef(tabs)
+  tabsRef.current = tabs
+  const activeTabIdRef = useRef(activeTabId)
+  activeTabIdRef.current = activeTabId
+
+  const resetToolbar = useCallback(() => {
+    setTabToolbar({ canAdd: false, addLabel: "", onAdd: null })
+  }, [])
+
   const handleNavigate = (view: ViewKey, savedViewId?: string, settingsTab?: TabKey) => {
-    // Clear drill-down filters when navigating via sidebar/header
     setInitialContextId(undefined)
     setInitialPersonId(undefined)
     setInitialTagId(undefined)
@@ -353,20 +377,135 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       else params.delete("savedViewId")
       if (settingsTab) params.set("tab", settingsTab)
       else params.delete("tab")
-      
+
       const newUrl = `${window.location.pathname}?${params.toString()}`
       window.history.pushState(null, "", newUrl)
     }
   }
+
+  const navigateTab = useCallback(
+    (
+      tabId: string,
+      view: ViewKey,
+      savedViewId?: string,
+      settingsTab?: TabKey,
+      clearUi = true,
+    ) => {
+      setTabs((prev) =>
+        prev.map((t) => {
+          if (t.id !== tabId) return t
+          return {
+            ...t,
+            route: {
+              kind: "view",
+              view,
+              savedViewId: savedViewId ?? null,
+              settingsTab,
+            },
+            ui: clearUi ? {} : t.ui,
+          }
+        }),
+      )
+    },
+    [],
+  )
+
+  const navigateActiveTab = useCallback(
+    (view: ViewKey, savedViewId?: string, settingsTab?: TabKey) => {
+      navigateTab(activeTabId, view, savedViewId, settingsTab, true)
+      syncUrlToRoute({
+        kind: "view",
+        view,
+        savedViewId: savedViewId ?? null,
+        settingsTab,
+      })
+    },
+    [activeTabId, navigateTab],
+  )
+
+  const updateTabUi = useCallback((tabId: string, patch: Partial<TabUiState>) => {
+    setTabs((prev) =>
+      prev.map((t) =>
+        t.id === tabId ? { ...t, ui: { ...t.ui, ...patch } } : t,
+      ),
+    )
+  }, [])
+
+  const addTab = useCallback(() => {
+    const tab = createEmptyTab()
+    setTabs((prev) => [...prev, tab])
+    setActiveTabId(tab.id)
+    resetToolbar()
+    syncUrlToRoute({ kind: "empty" })
+  }, [resetToolbar])
+
+  const closeTab = useCallback(
+    (tabId: string) => {
+      const prev = tabsRef.current
+      const idx = prev.findIndex((t) => t.id === tabId)
+      const wasActive = activeTabIdRef.current === tabId
+
+      if (prev.length <= 1) {
+        const empty = createEmptyTab()
+        setTabs([empty])
+        setActiveTabId(empty.id)
+        resetToolbar()
+        syncUrlToRoute({ kind: "empty" })
+        return
+      }
+
+      const next = prev.filter((t) => t.id !== tabId)
+      setTabs(next)
+      if (wasActive) {
+        const newActive = next[Math.max(0, idx - 1)]
+        setActiveTabId(newActive.id)
+        resetToolbar()
+        syncUrlToRoute(newActive.route)
+      }
+    },
+    [resetToolbar],
+  )
+
+  const selectTab = useCallback(
+    (tabId: string) => {
+      const tab = tabsRef.current.find((t) => t.id === tabId)
+      setActiveTabId(tabId)
+      resetToolbar()
+      if (tab) syncUrlToRoute(tab.route)
+    },
+    [resetToolbar],
+  )
 
   const handleDeleteSavedView = async (id: string) => {
     if (confirm("Are you sure you want to delete this saved view?")) {
       const doc = await db.saved_views.findOne(id).exec()
       if (doc) {
         await doc.remove()
-        if (activeSavedViewId === id) {
+        if (
+          !isMobile &&
+          activeTab.route.kind === "view" &&
+          activeTab.route.savedViewId === id
+        ) {
+          navigateActiveTab("home")
+        } else if (isMobile && activeSavedViewId === id) {
           handleNavigate("home")
         }
+        setTabs((prev) =>
+          prev.map((t) => {
+            if (
+              t.route.kind === "view" &&
+              t.route.view === "saved-view" &&
+              t.route.savedViewId === id
+            ) {
+              return {
+                ...t,
+                route: { kind: "view", view: "home" as ViewKey },
+                ui: {},
+              }
+            }
+            return t
+          }),
+        )
       }
     }
   }
@@ -401,7 +540,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     return () => window.removeEventListener('online', handleOnline)
   }, [])
 
-  // Auto-sync calendar to Google Calendar (uses activeTasks — already excludes archived)
+  // Auto-sync calendar to Google Calendar (uses activeTasks â€” already excludes archived)
   useEffect(() => {
     if (!user.uid || activeTasks.length === 0 || !contextToken) return
     
@@ -497,33 +636,130 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     return () => clearTimeout(timeoutId)
   }, [activeTasks, user.uid, db, contextToken, selectedCalendarId, refreshToken, syncTrigger])
 
+  const handleSyncCalendar = useCallback(
+    async (token: string) => {
+      const actionTasks = activeTasks.filter(
+        (t) => t.action_date && t.status !== "Done",
+      )
+      let successCount = 0
+      let errorCount = 0
+
+      for (const task of actionTasks) {
+        await new Promise((resolve) => setTimeout(resolve, 250))
+
+        try {
+          const hash = `${task.description}|${task.action_date}`
+          if (!task.google_event_id) {
+            const eventId = await createGoogleEvent(
+              task,
+              token,
+              selectedCalendarId,
+            )
+            const doc = await db.tasks.findOne(task.id).exec()
+            if (doc) await doc.patch({ google_event_id: eventId })
+            syncedHashesRef.current.set(task.id, hash)
+            successCount++
+          } else {
+            try {
+              await updateGoogleEvent(task, token, selectedCalendarId)
+              syncedHashesRef.current.set(task.id, hash)
+              successCount++
+            } catch (err: unknown) {
+              const message = err instanceof Error ? err.message : String(err)
+              if (
+                message.includes("Not Found") ||
+                message.includes("404")
+              ) {
+                const eventId = await createGoogleEvent(
+                  task,
+                  token,
+                  selectedCalendarId,
+                )
+                const doc = await db.tasks.findOne(task.id).exec()
+                if (doc) await doc.patch({ google_event_id: eventId })
+                syncedHashesRef.current.set(task.id, hash)
+                successCount++
+              } else {
+                throw err
+              }
+            }
+          }
+        } catch (err) {
+          console.error(`Manual sync failed for task ${task.id}:`, err)
+          errorCount++
+        }
+      }
+
+      if (errorCount > 0) {
+        toast.warning(
+          `Sync completed with some errors: ${successCount} successfully synced, ${errorCount} failed.`,
+        )
+      } else {
+        toast.success(
+          `All ${successCount} tasks successfully pushed and synced!`,
+        )
+      }
+    },
+    [activeTasks, selectedCalendarId, db],
+  )
+
   // Keyboard shortcuts
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
-        (e.target instanceof HTMLElement && (e.target.isContentEditable || e.target.closest("[contenteditable]")))
+        (e.target instanceof HTMLElement &&
+          (e.target.isContentEditable || e.target.closest("[contenteditable]")))
       ) {
         return
       }
-      // Ignore shortcuts if a modifier key is pressed (e.g. Ctrl+C should not navigate to Contexts)
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "t" && !isMobile) {
+        e.preventDefault()
+        addTab()
+        return
+      }
+
       if (e.ctrlKey || e.metaKey || e.altKey) return
-      
+
+      const navigate = isMobile ? handleNavigate : navigateActiveTab
       const key = e.key.toUpperCase()
-      if (key === "I") handleNavigate("home")
-      if (key === "A") handleNavigate("all")
-      if (key === "P") handleNavigate("projects")
-      if (key === "C") handleNavigate("contexts")
-      if (key === "U") handleNavigate("persons")
-      if (key === "S") handleNavigate("settings")
-      if (key === "N") handleNavigate("notes")
+      if (key === "I") navigate("home")
+      if (key === "A") navigate("all")
+      if (key === "P") navigate("projects")
+      if (key === "C") navigate("contexts")
+      if (key === "U") navigate("persons")
+      if (key === "S") navigate("settings")
+      if (key === "N") navigate("notes")
     }
     window.addEventListener("keydown", handleKey)
     return () => window.removeEventListener("keydown", handleKey)
-  }, [])
+  }, [isMobile, addTab, navigateActiveTab])
 
-  // Counts derived directly from pre-filtered streams — no re-filtering needed
+  useEffect(() => {
+    const viewParam = searchParams.get("view")
+    if (viewParam?.startsWith("slot-") && savedViews.length > 0) {
+      const slotIndex = parseInt(viewParam.split("-")[1], 10) - 1
+      if (slotIndex >= 0) {
+        const sorted = [...savedViews].sort(
+          (a, b) =>
+            new Date(a.date_created).getTime() -
+            new Date(b.date_created).getTime(),
+        )
+        const targetView = sorted[slotIndex]
+        if (targetView) {
+          if (!isMobile) navigateActiveTab("saved-view", targetView.id)
+          else handleNavigate("saved-view", targetView.id)
+        } else {
+          if (!isMobile) navigateActiveTab("home")
+          else handleNavigate("home")
+        }
+      }
+    }
+  }, [searchParams, savedViews.length, isMobile, navigateActiveTab])
+
+  // Counts derived directly from pre-filtered streams â€” no re-filtering needed
   const inboxCount = inboxTasks.length
   const totalCount = activeTasks.length
 
@@ -534,317 +770,148 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     return taskDateStr === todayStr
   }).length
 
-  // Shared props for views that use activeTasks (All Tasks, Saved Views, Projects)
-  const activeViewProps = {
-    tasks: activeTasks,
+  const workspaceContentProps = {
+    inboxTasks,
+    activeTasks,
+    notes,
     projects,
     persons,
     contexts,
+    tags,
     urgencies,
-    onUpdate: handleUpdateTask,
+    savedViews,
+    syncStatus,
+    userUid: user.uid,
+    onSyncCalendar: handleSyncCalendar,
+    onCreateTask: handleCreateTask,
+    onCreateNote: handleCreateNote,
+    onUpdateTask: handleUpdateTask,
     onToggleProcessed: handleToggleProcessed,
     onToggleStatus: handleToggleStatus,
     onArchiveTask: handleArchiveTask,
     onDeleteTask: handleDeleteTask,
-    onCreate: handleCreateTask,
-    onAddPerson: async (p: Omit<Person, "id">) => {
+    onAddProject: handleAddProject,
+    onUpdateProject: handleUpdateProject,
+    onDeleteProject: handleDeleteProject,
+    onAddTag: handleAddTag,
+    onUpdateTag: handleUpdateTag,
+    onDeleteTag: handleDeleteTag,
+    onDeleteAllTasks: handleDeleteAllTasks,
+    onResetDatabase: async () => {
+      await db.remove()
+      window.location.reload()
+    },
+    onInsertPerson: async (p: Omit<Person, "id">) => {
       await db.persons.insert({ id: crypto.randomUUID(), ...p })
-    }
+    },
+    onPatchPerson: async (p: Person) => {
+      const doc = await db.persons.findOne(p.id).exec()
+      if (doc) await doc.patch(p)
+    },
+    onRemovePerson: async (id: string) => {
+      const doc = await db.persons.findOne(id).exec()
+      if (doc) await doc.remove()
+    },
+    onInsertContext: async (c: Omit<Context, "id">) => {
+      await db.contexts.insert({ id: crypto.randomUUID(), ...c })
+    },
+    onPatchContext: async (c: Context) => {
+      const doc = await db.contexts.findOne(c.id).exec()
+      if (doc) await doc.patch(c)
+    },
+    onRemoveContext: async (id: string) => {
+      const doc = await db.contexts.findOne(id).exec()
+      if (doc) await doc.remove()
+    },
+    onInsertUrgency: async (u: Omit<UrgencyLevel, "id">) => {
+      await db.urgencies.insert({ id: crypto.randomUUID(), ...u })
+    },
+    onPatchUrgency: async (u: UrgencyLevel) => {
+      const doc = await db.urgencies.findOne(u.id).exec()
+      if (doc) await doc.patch(u)
+    },
+    onRemoveUrgency: async (id: string) => {
+      const doc = await db.urgencies.findOne(id).exec()
+      if (doc) await doc.remove()
+    },
   }
 
-  const renderView = () => {
-    switch (activeView) {
-      case "home":
-        return <HomeView {...activeViewProps} tasks={inboxTasks} />
-      case "inbox":
-        return (
-          <InboxView 
-            {...activeViewProps} 
-            tasks={inboxTasks} 
-            onAddPerson={async (p) => {
-              await db.persons.insert({ id: crypto.randomUUID(), ...p })
-            }}
-          />
-        )
-      case "saved-view": {
-        const sv = savedViews.find(v => v.id === activeSavedViewId)
-        if (!sv) return <HomeView {...activeViewProps} tasks={inboxTasks} />
-        return (
-          <AllTasksView
-            {...activeViewProps}
-            initialContextIds={sv.context_ids}
-            initialPersonId={sv.person_id}
-            initialProjectId={sv.project_id}
-            initialShowStatus={sv.show_status}
-            initialIsGroupedByProject={sv.is_grouped_by_project}
-            initialShowHiddenByShowOn={sv.show_hidden_by_show_on}
-            initialSortKey={sv.sort_key}
-            initialSortDirection={sv.sort_direction}
-            fullWidthOnMobile={true}
-          />
-        )
-      }
-      case "today": {
-        const todayStr = new Date().toLocaleDateString("en-CA")
-        const todayTasks = activeTasks.filter(t => {
-          if (t.status === "Done" || !t.action_date) return false
-          const taskDateStr = t.action_date.slice(0, 10)
-          return taskDateStr === todayStr
-        })
+  const renderMobileView = () => (
+    <WorkspaceViewContent
+      {...workspaceContentProps}
+      route={{
+        kind: "view",
+        view: activeView,
+        savedViewId: activeSavedViewId,
+        settingsTab: activeSettingsTab,
+      }}
+      ui={{
+        initialContextId,
+        initialPersonId,
+        initialTagId,
+      }}
+      onNavigate={handleNavigate}
+      onUpdateUi={(patch) => {
+        if (patch.initialContextId !== undefined) {
+          setInitialContextId(patch.initialContextId)
+        }
+        if (patch.initialPersonId !== undefined) {
+          setInitialPersonId(patch.initialPersonId)
+        }
+        if (patch.initialTagId !== undefined) {
+          setInitialTagId(patch.initialTagId)
+        }
+      }}
+    />
+  )
 
-        return (
-          <AllTasksView
-            {...activeViewProps}
-            tasks={todayTasks}
-            allowUnprocessed={true}
-            fullWidthOnMobile={true}
-            onCreate={async (input) => {
-              const todayIsoString = new Date().toISOString()
-              return await handleCreateTask({
-                ...input,
-                actionDate: todayIsoString,
-                showOn: null
-              })
-            }}
-          />
-        )
-      }
-      case "all":
-        return (
-          <AllTasksView 
-            {...activeViewProps} 
-            initialContextId={initialContextId}
-            initialPersonId={initialPersonId}
-            fullWidthOnMobile={true}
-          />
-        )
-      case "projects":
-        return (
-          <ProjectsView 
-            {...activeViewProps} 
-            notes={notes}
-            tags={tags}
-            onCreateNote={handleCreateNote}
-            onAddProject={handleAddProject}
-            onUpdateProject={handleUpdateProject}
-            onDeleteProject={handleDeleteProject}
-          />
-        )
-      case "contexts":
-        return (
-          <ContextsView 
-            tasks={activeTasks}
-            contexts={contexts}
-            onSelect={(id) => {
-              setInitialContextId(id)
-              setInitialPersonId(undefined)
-              setActiveView("all")
-              if (typeof window !== "undefined") {
-                const params = new URLSearchParams(window.location.search)
-                params.set("view", "all")
-                params.delete("savedViewId")
-                params.delete("tab")
-                const newUrl = `${window.location.pathname}?${params.toString()}`
-                window.history.pushState(null, "", newUrl)
-              }
-            }}
-            onUpdateContext={async (c) => {
-              const doc = await db.contexts.findOne(c.id).exec()
-              if (doc) await doc.patch(c)
-            }}
-            onDeleteContext={async (id) => {
-              const doc = await db.contexts.findOne(id).exec()
-              if (doc) await doc.remove()
-            }}
-            onAddContext={async (c) => {
-              await db.contexts.insert({ id: crypto.randomUUID(), ...c })
-            }}
-          />
-        )
-      case "notes":
-        return (
-          <NotesView
-            tasks={notes}
-            projects={projects}
-            persons={persons}
-            tags={tags}
-            urgencies={urgencies}
-            onUpdate={handleUpdateTask}
-            onToggleProcessed={handleToggleProcessed}
-            onToggleStatus={handleToggleStatus}
-            onArchiveTask={handleArchiveTask}
-            onDeleteTask={handleDeleteTask}
-            onCreate={handleCreateNote}
-            initialTagId={initialTagId}
-            fullWidthOnMobile={true}
-          />
-        )
-      case "tags":
-        return (
-          <TagsView
-            tags={tags}
-            notes={notes}
-            onSelect={(id) => {
-              setInitialTagId(id)
-              setActiveView("notes")
-              if (typeof window !== "undefined") {
-                const params = new URLSearchParams(window.location.search)
-                params.set("view", "notes")
-                params.delete("savedViewId")
-                params.delete("tab")
-                const newUrl = `${window.location.pathname}?${params.toString()}`
-                window.history.pushState(null, "", newUrl)
-              }
-            }}
-            onUpdateTag={handleUpdateTag}
-            onDeleteTag={handleDeleteTag}
-            onAddTag={handleAddTag}
-          />
-        )
-      case "persons":
-        return (
-          <PersonsView 
-            tasks={activeTasks}
-            persons={persons}
+  const findObjectById = useCallback(
+    (id: string): Task | null =>
+      activeTasks.find((t) => t.id === id) ??
+      notes.find((t) => t.id === id) ??
+      inboxTasks.find((t) => t.id === id) ??
+      null,
+    [activeTasks, notes, inboxTasks],
+  )
 
-            onSelect={(id) => {
-              setInitialPersonId(id)
-              setInitialContextId(undefined)
-              setActiveView("all")
-              if (typeof window !== "undefined") {
-                const params = new URLSearchParams(window.location.search)
-                params.set("view", "all")
-                params.delete("savedViewId")
-                params.delete("tab")
-                const newUrl = `${window.location.pathname}?${params.toString()}`
-                window.history.pushState(null, "", newUrl)
-              }
-            }}
-            onUpdatePerson={async (p) => {
-              const doc = await db.persons.findOne(p.id).exec()
-              if (doc) await doc.patch(p)
-            }}
-            onDeletePerson={async (id) => {
-              const doc = await db.persons.findOne(id).exec()
-              if (doc) await doc.remove()
-            }}
-            onAddPerson={async (p) => {
-              await db.persons.insert({ id: crypto.randomUUID(), ...p })
-            }}
-          />
-        )
-      case "settings":
-        return (
-          <SettingsView 
-            activeTab={activeSettingsTab}
-            onTabChange={(tab) => handleNavigate("settings", undefined, tab)}
-            persons={persons}
-            contexts={contexts}
-            tags={tags}
-            urgencies={urgencies}
-            onAddPerson={async (p) => {
-              await db.persons.insert({ id: crypto.randomUUID(), ...p })
-            }}
-            onUpdatePerson={async (p) => {
-              const doc = await db.persons.findOne(p.id).exec()
-              if (doc) await doc.patch(p)
-            }}
-            onDeletePerson={async (id) => {
-              const doc = await db.persons.findOne(id).exec()
-              if (doc) await doc.remove()
-            }}
-            onAddContext={async (c) => {
-              await db.contexts.insert({ id: crypto.randomUUID(), ...c })
-            }}
-            onUpdateContext={async (c) => {
-              const doc = await db.contexts.findOne(c.id).exec()
-              if (doc) await doc.patch(c)
-            }}
-            onDeleteContext={async (id) => {
-              const doc = await db.contexts.findOne(id).exec()
-              if (doc) await doc.remove()
-            }}
-            onAddTag={handleAddTag}
-            onUpdateTag={handleUpdateTag}
-            onDeleteTag={handleDeleteTag}
-            onAddUrgency={async (u) => {
-              await db.urgencies.insert({ id: crypto.randomUUID(), ...u })
-            }}
-            onUpdateUrgency={async (u) => {
-              const doc = await db.urgencies.findOne(u.id).exec()
-              if (doc) await doc.patch(u)
-            }}
-            onDeleteUrgency={async (id) => {
-              const doc = await db.urgencies.findOne(id).exec()
-              if (doc) await doc.remove()
-            }}
-            onDeleteAllTasks={handleDeleteAllTasks}
-            onResetDatabase={async () => {
-              await db.remove()
-              window.location.reload()
-            }}
-            syncStatus={syncStatus}
-            userUid={user.uid}
-            onSyncCalendar={async (token) => {
-              const actionTasks = activeTasks.filter(t => t.action_date && t.status !== "Done");
-              let successCount = 0;
-              let errorCount = 0;
-              
-              for (const task of actionTasks) {
-                // Add a small sleep to avoid rate limits
-                await new Promise((resolve) => setTimeout(resolve, 250));
-                
-                try {
-                  const hash = `${task.description}|${task.action_date}`;
-                  if (!task.google_event_id) {
-                    const eventId = await createGoogleEvent(task, token, selectedCalendarId);
-                    const doc = await db.tasks.findOne(task.id).exec();
-                    if (doc) await doc.patch({ google_event_id: eventId });
-                    syncedHashesRef.current.set(task.id, hash);
-                    successCount++;
-                  } else {
-                    try {
-                      await updateGoogleEvent(task, token, selectedCalendarId);
-                      syncedHashesRef.current.set(task.id, hash);
-                      successCount++;
-                    } catch (err: any) {
-                      if (err.message?.includes("Not Found") || err.message?.includes("404")) {
-                        console.warn(`Event ${task.google_event_id} not found during manual sync. Recreating...`);
-                        const eventId = await createGoogleEvent(task, token, selectedCalendarId);
-                        const doc = await db.tasks.findOne(task.id).exec();
-                        if (doc) await doc.patch({ google_event_id: eventId });
-                        syncedHashesRef.current.set(task.id, hash);
-                        successCount++;
-                      } else {
-                        throw err;
-                      }
-                    }
-                  }
-                } catch (err: any) {
-                  console.error(`Manual sync failed for task ${task.id}:`, err);
-                  errorCount++;
-                }
-              }
-              
-              if (errorCount > 0) {
-                toast.warning(`Sync completed with some errors: ${successCount} successfully synced, ${errorCount} failed.`);
-              } else {
-                toast.success(`All ${successCount} tasks successfully pushed and synced!`);
-              }
-            }}
-          />
-        )
-      default:
-        return <HomeView {...activeViewProps} tasks={inboxTasks} />
-    }
-  }
+  const routeLabel = useCallback(
+    (route: TabRoute): string => {
+      if (route.kind !== "view") return "previous"
+      if (route.view === "saved-view") {
+        return savedViews.find((v) => v.id === route.savedViewId)?.name || "Saved View"
+      }
+      return VIEW_TITLES[route.view]
+    },
+    [savedViews],
+  )
+
+  const sidebarActive = isMobile
+    ? { view: activeView, savedViewId: activeSavedViewId }
+    : getSidebarActive(activeTab.route)
+
+  const desktopSavedViewId =
+    activeTab.route.kind === "view" && activeTab.route.view === "saved-view"
+      ? activeTab.route.savedViewId
+      : null
+  const desktopSavedViewName = desktopSavedViewId
+    ? savedViews.find((v) => v.id === desktopSavedViewId)?.name
+    : undefined
+
+  const desktopMainPadding = (route: TabRoute) =>
+    route.kind === "view" &&
+    (route.view === "all" ||
+      route.view === "saved-view" ||
+      route.view === "notes")
+      ? "px-0 md:px-6 pt-0 pb-28 md:py-6"
+      : "px-4 md:px-6 pt-6 pb-28 md:py-6"
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
-      <AppSidebar 
-        active={activeView} 
-        activeSavedViewId={activeSavedViewId}
-        onChange={handleNavigate} 
+      <AppSidebar
+        active={sidebarActive.view ?? "home"}
+        activeSavedViewId={sidebarActive.savedViewId}
+        sidebarSelectionActive={sidebarActive.view !== null}
+        onChange={isMobile ? handleNavigate : navigateActiveTab}
         onEditSavedView={setEditingView}
         onDeleteSavedView={handleDeleteSavedView}
         inboxCount={inboxCount}
@@ -855,15 +922,28 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         workspaceInitial={workspaceInitial}
         savedViews={savedViews}
         onReorderSavedViews={handleReorderSavedViews}
+        user={user}
+        onSignOut={onSignOut}
+        showUserMenu={!isMobile}
       />
-      
-      <div className="flex flex-1 flex-col min-w-0 h-full overflow-hidden">
-        <AppHeader 
-          view={activeView} 
-          savedViewName={savedViews.find(v => v.id === activeSavedViewId)?.name}
-          onNavigate={handleNavigate} 
-          user={user} 
-          onSignOut={onSignOut} 
+
+      <div className="flex min-w-0 h-full flex-1 flex-col overflow-hidden">
+        <AppHeader
+          view={
+            isMobile
+              ? activeView
+              : activeTab.route.kind === "view"
+                ? activeTab.route.view
+                : "home"
+          }
+          savedViewName={
+            isMobile
+              ? savedViews.find((v) => v.id === activeSavedViewId)?.name
+              : desktopSavedViewName
+          }
+          onNavigate={isMobile ? handleNavigate : navigateActiveTab}
+          user={user}
+          onSignOut={onSignOut}
           syncStatus={syncStatus}
           tasks={activeTasks}
           notes={notes}
@@ -873,28 +953,132 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           tags={tags}
           urgencies={urgencies}
           onUpdateTask={handleUpdateTask}
+          desktopTabs={!isMobile}
+          tabBar={
+            !isMobile ? (
+              <WorkspaceTabBar
+                tabs={tabs}
+                activeTabId={activeTabId}
+                savedViews={savedViews}
+                onSelect={selectTab}
+                onClose={closeTab}
+                onAdd={addTab}
+              />
+            ) : undefined
+          }
+          tabToolbar={
+            !isMobile && !activeTab.ui.objectId ? tabToolbar : undefined
+          }
+          tabPortalContainer={!isMobile ? activePortalContainer : null}
         />
-        
-        <main className={cn(
-          "flex-1 overflow-y-auto",
-          (activeView === "all" || activeView === "saved-view" || activeView === "notes")
-            ? "px-0 md:px-6 pt-0 pb-28 md:py-6" 
-            : "px-4 md:px-6 pt-6 pb-28 md:py-6"
-        )}>
-          <div className="w-full min-h-full">
-            {renderView()}
-          </div>
+
+        <main
+          className={cn(
+            "flex min-h-0 flex-1 flex-col overflow-hidden",
+            isMobile && "overflow-y-auto",
+            isMobile &&
+              (activeView === "all" ||
+                activeView === "saved-view" ||
+                activeView === "notes")
+              ? "px-0 md:px-6 pt-0 pb-28 md:py-6"
+              : isMobile
+                ? "px-4 md:px-6 pt-6 pb-28 md:py-6"
+                : "",
+          )}
+        >
+          {isMobile ? (
+            <div className="min-h-full w-full">{renderMobileView()}</div>
+          ) : (
+            tabs.map((tab) => {
+              const isActive = tab.id === activeTabId
+              return (
+                <TabPortalProvider
+                  key={tab.id}
+                  hidden={!isActive}
+                  isActive={isActive}
+                  onContainer={handleActivePortalContainer}
+                >
+                  <TabToolbarProvider
+                    isActive={isActive}
+                    onChange={setTabToolbar}
+                  >
+                    <TabObjectProvider
+                      value={{
+                        openObjectFullScreen: (taskId, objectMode) =>
+                          updateTabUi(tab.id, { objectId: taskId, objectMode }),
+                      }}
+                    >
+                      {tab.ui.objectId ? (
+                        <ObjectFullScreenView
+                          task={findObjectById(tab.ui.objectId)}
+                          previousLabel={routeLabel(tab.route)}
+                          onBack={() =>
+                            updateTabUi(tab.id, {
+                              objectId: undefined,
+                              objectMode: undefined,
+                            })
+                          }
+                          projects={projects}
+                          persons={persons}
+                          contexts={contexts}
+                          tags={tags}
+                          urgencies={urgencies}
+                          onUpdate={handleUpdateTask}
+                        />
+                      ) : (
+                        <div
+                          className={cn(
+                            "flex min-h-0 flex-1 flex-col overflow-y-auto",
+                            desktopMainPadding(tab.route),
+                          )}
+                        >
+                          <div className="min-h-full w-full">
+                            <WorkspaceViewContent
+                              {...workspaceContentProps}
+                              hideDesktopAdd
+                              route={tab.route}
+                              ui={tab.ui}
+                              onNavigate={(view, savedViewId, settingsTab) => {
+                                navigateTab(
+                                  tab.id,
+                                  view,
+                                  savedViewId,
+                                  settingsTab,
+                                  false,
+                                )
+                                if (isActive) {
+                                  syncUrlToRoute({
+                                    kind: "view",
+                                    view,
+                                    savedViewId: savedViewId ?? null,
+                                    settingsTab,
+                                  })
+                                }
+                              }}
+                              onUpdateUi={(patch) => updateTabUi(tab.id, patch)}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </TabObjectProvider>
+                  </TabToolbarProvider>
+                </TabPortalProvider>
+              )
+            })
+          )}
         </main>
       </div>
 
-      <MobileNav 
-        active={activeView} 
-        activeSavedViewId={activeSavedViewId}
-        onChange={handleNavigate} 
-        inboxCount={inboxCount} 
-        todayCount={todayCount}
-        savedViews={savedViews}
-      />
+      {isMobile && (
+        <MobileNav
+          active={activeView}
+          activeSavedViewId={activeSavedViewId}
+          onChange={handleNavigate}
+          inboxCount={inboxCount}
+          todayCount={todayCount}
+          savedViews={savedViews}
+        />
+      )}
 
       <SaveViewDialog
         open={!!editingView}

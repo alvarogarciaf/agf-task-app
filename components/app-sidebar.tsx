@@ -26,6 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { UserMenu } from "@/components/user-menu"
 
 interface NavItem {
   key: ViewKey
@@ -38,6 +39,8 @@ interface NavItem {
 interface AppSidebarProps {
   active: ViewKey
   activeSavedViewId?: string | null
+  /** When false (e.g. blank desktop tab), no nav item is highlighted. */
+  sidebarSelectionActive?: boolean
   onChange: (key: ViewKey, savedViewId?: string) => void
   onEditSavedView?: (view: SavedView) => void
   onDeleteSavedView?: (id: string) => void
@@ -49,11 +52,19 @@ interface AppSidebarProps {
   workspaceLabel: string
   workspaceInitial: string
   savedViews: SavedView[]
+  user?: {
+    displayName: string | null
+    email: string | null
+    photoURL?: string | null
+  } | null
+  onSignOut?: () => void
+  showUserMenu?: boolean
 }
 
 export function AppSidebar({
   active,
   activeSavedViewId,
+  sidebarSelectionActive = true,
   onChange,
   onEditSavedView,
   onDeleteSavedView,
@@ -65,7 +76,11 @@ export function AppSidebar({
   workspaceLabel,
   workspaceInitial,
   savedViews,
+  user,
+  onSignOut,
+  showUserMenu = false,
 }: AppSidebarProps) {
+  const showActive = sidebarSelectionActive
   const items: NavItem[] = [
     { key: "home", label: "Inbox", icon: Home, shortcut: "I" },
     { key: "all", label: "All Tasks", icon: ListChecks, badge: totalCount, shortcut: "A" },
@@ -126,7 +141,7 @@ export function AppSidebar({
             <NavLink
               key={item.key}
               item={item}
-              active={active === item.key}
+              active={showActive && active === item.key}
               onClick={() => onChange(item.key)}
             />
           ))}
@@ -137,7 +152,7 @@ export function AppSidebar({
             <NavLink
               key={item.key}
               item={item}
-              active={active === item.key}
+              active={showActive && active === item.key}
               onClick={() => onChange(item.key)}
             />
           ))}
@@ -148,7 +163,7 @@ export function AppSidebar({
             <NavLink
               key={item.key}
               item={item}
-              active={active === item.key}
+              active={showActive && active === item.key}
               onClick={() => onChange(item.key)}
             />
           ))}
@@ -167,7 +182,7 @@ export function AppSidebar({
                     icon: Icon,
                   }}
                   color={sv.color}
-                  active={active === "saved-view" && activeSavedViewId === sv.id}
+                  active={showActive && active === "saved-view" && activeSavedViewId === sv.id}
                   onClick={() => onChange("saved-view", sv.id)}
                   onEdit={() => onEditSavedView?.(sv)}
                   onDelete={() => onDeleteSavedView?.(sv.id)}
@@ -189,7 +204,7 @@ export function AppSidebar({
           onClick={() => onChange("settings")}
           className={cn(
             "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-            active === "settings"
+            showActive && active === "settings"
               ? "bg-sidebar-accent text-sidebar-accent-foreground"
               : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
           )}
@@ -198,6 +213,14 @@ export function AppSidebar({
           <span className="flex-1 text-left">Settings</span>
         </button>
         <SyncStatusRow syncStatus={syncStatus} />
+        {showUserMenu && (
+          <UserMenu
+            user={user}
+            onSignOut={onSignOut}
+            syncStatus={syncStatus}
+            variant="sidebar"
+          />
+        )}
       </div>
     </aside>
   )

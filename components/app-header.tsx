@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useRef, useEffect, useMemo } from "react"
-import { Search, Command, Settings, LogOut, ChevronDown, Menu, Users, Tags, Tag as TagIcon, AlertCircle, Calendar, Trash2, Info, Bell, Circle, CheckCircle2, FolderKanban, ListChecks, FileText } from "lucide-react"
+import { Search, Command, Settings, Menu, Users, Tags, Tag as TagIcon, AlertCircle, Calendar, Trash2, Info, Bell, Circle, CheckCircle2, FolderKanban, ListChecks, FileText, Plus } from "lucide-react"
+import { UserMenu } from "@/components/user-menu"
+import type { TabToolbarState } from "@/components/tab-toolbar-context"
 import type { ViewKey, Task, Project, Person, Context, Tag, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "./db-provider"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
@@ -16,6 +18,7 @@ import {
   DrawerClose 
 } from "@/components/ui/drawer"
 import type { TabKey } from "./views/settings-view"
+import { cn } from "@/lib/utils"
 
 const TITLES: Record<ViewKey, string> = {
   home: "Inbox",
@@ -46,6 +49,10 @@ interface AppHeaderProps {
   tags?: Tag[]
   urgencies?: UrgencyLevel[]
   onUpdateTask?: (task: Task) => void
+  desktopTabs?: boolean
+  tabBar?: React.ReactNode
+  tabToolbar?: TabToolbarState
+  tabPortalContainer?: HTMLElement | null
 }
 
 export function AppHeader({
@@ -63,19 +70,23 @@ export function AppHeader({
   tags = [],
   urgencies = [],
   onUpdateTask,
+  desktopTabs = false,
+  tabBar,
+  tabToolbar,
+  tabPortalContainer = null,
 }: AppHeaderProps) {
   const title = view === "saved-view" ? savedViewName || "Saved View" : TITLES[view]
-  const [avatarOpen, setAvatarOpen] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
 
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchScope, setSearchScope] = useState<"tasks" | "notes" | "all">("tasks")
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [detailMode, setDetailMode] = useState<"view" | "edit">("view")
+  const [highlightedIdx, setHighlightedIdx] = useState(0)
 
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const resultRefs = useRef<(HTMLDivElement | null)[]>([])
 
   // Listen for global keyboard shortcut (Cmd+K / Ctrl+K)
   useEffect(() => {
@@ -117,32 +128,25 @@ export function AppHeader({
     })
   }, [searchQuery, searchScope, tasks, notes])
 
+  useEffect(() => {
+    setHighlightedIdx(0)
+  }, [searchQuery, searchScope, filteredResults.length])
+
+  useEffect(() => {
+    resultRefs.current[highlightedIdx]?.scrollIntoView({ block: "nearest" })
+  }, [highlightedIdx])
+
+  function openSearchResult(task: Task) {
+    setActiveTask(task)
+    setDetailMode("view")
+    setSearchOpen(false)
+  }
+
   const scopeOptions: { key: "tasks" | "notes" | "all"; label: string }[] = [
     { key: "tasks", label: "Tasks" },
     { key: "notes", label: "Notes" },
     { key: "all", label: "All" },
   ]
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    if (!avatarOpen) return
-    function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setAvatarOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClick)
-    return () => document.removeEventListener("mousedown", handleClick)
-  }, [avatarOpen])
-
-  // User initials from display name or email
-  const initials = user
-    ? (user.displayName || user.email || "U")
-        .split(/[\s@]+/)
-        .slice(0, 2)
-        .map((w) => w[0]?.toUpperCase() || "")
-        .join("")
-    : "?"
 
   const settingsOptions: { key: TabKey; label: string; icon: any }[] = [
     { key: "contexts", label: "Contexts", icon: Tags },
@@ -165,8 +169,19 @@ export function AppHeader({
 
   return (
     <header className="pt-safe border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-14 items-center justify-between gap-3 px-3 md:px-6">
-        <div className="flex items-center gap-2">
+      <div
+        className={cn(
+          "flex items-center gap-3 px-3 md:px-4",
+          desktopTabs ? "h-12" : "h-14 justify-between md:px-6",
+        )}
+      >
+        {desktopTabs && tabBar ? (
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            {tabBar}
+          </div>
+        ) : null}
+
+        <div className={cn("flex items-center gap-2", !desktopTabs && "min-w-0")}>
           {/* Mobile: Hamburger Drawer */}
           <div className="md:hidden">
             <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} direction="left">
@@ -224,13 +239,14 @@ export function AppHeader({
             </Drawer>
           </div>
 
-          {/* Section title */}
-          <h1 className="text-lg font-semibold tracking-tight md:text-xl">{title}</h1>
+          {/* Section title (mobile only; desktop uses tab labels) */}
+          {!desktopTabs && (
+            <h1 className="text-lg font-semibold tracking-tight md:text-xl">{title}</h1>
+          )}
         </div>
 
         {/* Right side controls */}
-        <div className="flex items-center gap-2">
-          {/* Search */}
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
@@ -243,83 +259,30 @@ export function AppHeader({
             </span>
           </button>
 
-
-
-          {/* Avatar dropdown */}
-          <div className="relative" ref={dropdownRef}>
+          {desktopTabs && tabToolbar?.canAdd && tabToolbar.onAdd && (
             <button
               type="button"
-              onClick={() => setAvatarOpen((o) => !o)}
-              className="flex h-10 items-center gap-1.5 rounded-full pl-1 pr-2 transition-colors hover:bg-muted md:h-8"
-              aria-label="Account menu"
+              onClick={tabToolbar.onAdd}
+              className="hidden items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 md:inline-flex"
             >
-              {user?.photoURL ? (
-                <img
-                  src={user.photoURL}
-                  alt=""
-                  className="h-8 w-8 rounded-full md:h-6 md:w-6"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary md:h-6 md:w-6 md:text-[10px]">
-                  {initials}
-                </span>
-              )}
-              <ChevronDown className="h-3 w-3 text-muted-foreground" />
-              
-              {/* Sync Status Dot overlay on avatar */}
-              {syncStatus && (
-                <div className="absolute -right-0.5 -top-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-background p-0.5">
-                  {syncStatus.replicationError ? (
-                    <div className="h-full w-full rounded-full bg-destructive" title={syncStatus.replicationError} />
-                  ) : !syncStatus.browserOnline ? (
-                    <div className="h-full w-full rounded-full bg-muted-foreground" title="Offline" />
-                  ) : syncStatus.replicationActive ? (
-                    <div className="h-full w-full rounded-full bg-primary" title="Sync active">
-                       <span className="absolute inset-0 animate-ping rounded-full bg-primary opacity-40" />
-                    </div>
-                  ) : (
-                    <div className="h-full w-full rounded-full bg-orange-400" title="Sync idle" />
-                  )}
-                </div>
-              )}
+              <Plus className="h-3.5 w-3.5" />
+              {tabToolbar.addLabel}
             </button>
+          )}
 
-            {avatarOpen && (
-              <div className="absolute right-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-lg border border-border bg-popover shadow-lg animate-in fade-in zoom-in-95 duration-100">
-                {/* User info */}
-                <div className="border-b border-border px-4 py-3">
-                  <div className="text-sm font-medium truncate">
-                    {user?.displayName || "User"}
-                  </div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {user?.email || ""}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="p-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAvatarOpen(false)
-                      onSignOut?.()
-                    }}
-                    className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:py-1.5"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Sign out
-                  </button>
-                </div>
-              </div>
-            )}
+          {/* Avatar (mobile only; desktop uses sidebar) */}
+          <div className="md:hidden">
+            <UserMenu user={user} onSignOut={onSignOut} syncStatus={syncStatus} />
           </div>
         </div>
       </div>
 
       {/* Search Modal */}
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
-        <DialogContent className="max-w-xl gap-0 overflow-hidden p-0 bg-card sm:rounded-xl border border-border shadow-2xl">
+        <DialogContent
+          disableTabPortal
+          className="max-w-xl gap-0 overflow-hidden p-0 bg-card sm:rounded-xl border border-border shadow-2xl"
+        >
           <DialogTitle className="sr-only">Search Tasks</DialogTitle>
           
           {/* Search Input Box */}
@@ -330,6 +293,22 @@ export function AppHeader({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (filteredResults.length === 0) return
+                if (e.key === "ArrowDown") {
+                  e.preventDefault()
+                  setHighlightedIdx((i) => Math.min(i + 1, filteredResults.length - 1))
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault()
+                  setHighlightedIdx((i) => Math.max(i - 1, 0))
+                }
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  const hit = filteredResults[highlightedIdx]
+                  if (hit) openSearchResult(hit)
+                }
+              }}
               placeholder="Search tasks by description or details..."
               className="h-10 w-full bg-transparent text-base focus:outline-none placeholder:text-muted-foreground md:h-9 md:text-sm"
             />
@@ -386,22 +365,26 @@ export function AppHeader({
               </div>
             ) : (
               <div className="space-y-1">
-                {filteredResults.map((t) => {
+                {filteredResults.map((t, idx) => {
                   const isNote = t.type === "note"
                   const project = projects.find((p) => p.id === t.project_id)
                   const taskContexts = contexts.filter((c) => t.context_ids.includes(c.id))
                   const noteTags = tags.filter((tg) => (t.tag_ids || []).includes(tg.id))
                   const isDone = t.status === "Done"
+                  const isHighlighted = idx === highlightedIdx
 
                   return (
                     <div
                       key={t.id}
-                      onClick={() => {
-                        setActiveTask(t)
-                        setDetailMode("view")
-                        setSearchOpen(false)
+                      ref={(el) => {
+                        resultRefs.current[idx] = el
                       }}
-                      className="group flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors hover:bg-muted/70 active:bg-muted/90"
+                      onMouseEnter={() => setHighlightedIdx(idx)}
+                      onClick={() => openSearchResult(t)}
+                      className={cn(
+                        "group flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors hover:bg-muted/70 active:bg-muted/90",
+                        isHighlighted && "bg-muted ring-1 ring-inset ring-primary/30",
+                      )}
                     >
                       {/* Leading icon */}
                       <div className="mt-0.5 shrink-0">
@@ -502,6 +485,7 @@ export function AppHeader({
         onUpdate={onUpdateTask || (() => {})}
         mode={detailMode}
         onModeChange={setDetailMode}
+        portalContainer={tabPortalContainer}
       />
     </header>
   )

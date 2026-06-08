@@ -23,6 +23,7 @@ interface NotesViewProps {
     personId: string | null
     processed: boolean
   }) => Promise<string | void>
+  hideDesktopAdd?: boolean
 }
 
 export function NotesView(props: NotesViewProps) {

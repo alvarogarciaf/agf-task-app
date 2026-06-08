@@ -1,8 +1,7 @@
 "use client"
 
-import React, { useEffect, useState, useRef } from "react"
+import React, { useEffect, useRef } from "react"
 import {
-  AlertCircle,
   ArrowLeftRight,
   Calendar,
   Check,
@@ -10,14 +9,12 @@ import {
   Circle,
   FileText,
   FolderKanban,
-  Lock,
+  Maximize2,
   Tag,
   User,
   X,
-  Zap,
   Pencil,
 } from "lucide-react"
-import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
 import {
@@ -25,19 +22,15 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { RichMarkdownEditor } from "@/components/rich-markdown-editor"
-import { renderMarkdown, toggleMarkdownTask } from "@/lib/markdown"
-import { FormMultiSelect } from "@/components/form-multi-select"
-import { FormDateField } from "@/components/form-date-field"
+import { renderMarkdown } from "@/lib/markdown"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import type { Context, ObjectType, Person, Project, Tag as TagType, Task, UrgencyLevel } from "@/lib/types"
+  Label,
+  ObjectEditFields,
+  ObjectDetailsEditor,
+  useObjectDraft,
+} from "@/components/object-editor-shared"
+import { useOpenObjectFullScreen } from "@/components/tab-object-context"
+import type { Context, Person, Project, Tag as TagType, Task, UrgencyLevel } from "@/lib/types"
 
 interface TaskDetailDialogProps {
   task: Task | null
@@ -51,6 +44,7 @@ interface TaskDetailDialogProps {
   onUpdate: (task: Task) => void
   mode?: "view" | "edit"
   onModeChange?: (mode: "view" | "edit") => void
+  portalContainer?: HTMLElement | null
 }
 
 export function TaskDetailDialog({
@@ -65,28 +59,30 @@ export function TaskDetailDialog({
   onUpdate,
   mode = "view",
   onModeChange,
+  portalContainer,
 }: TaskDetailDialogProps) {
   const isMobile = useIsMobile()
-  function getFullPlainTask(t: Task | null): Task | null {
-    if (!t) return null
-    return typeof (t as any).toJSON === "function" ? (t as any).toJSON() : t
-  }
+  const tabObject = useOpenObjectFullScreen()
 
-  const [draft, setDraft] = useState<Task | null>(getFullPlainTask(task))
-  const [autoProcess, setAutoProcess] = useState(false)
-
-  // Sync draft when a different task is opened
-  useEffect(() => {
-    const fullPlain = getFullPlainTask(task);
-    if (fullPlain && fullPlain.project_id) {
-      const proj = projects.find(p => p.id === fullPlain.project_id);
-      if (proj && proj.linked_person_id) {
-        fullPlain.person_id = proj.linked_person_id;
-      }
-    }
-    setDraft(fullPlain)
-    setAutoProcess(task && !task.processed ? true : false)
-  }, [task, projects])
+  const {
+    draft,
+    setDraft,
+    update,
+    dirty,
+    autoProcess,
+    setAutoProcess,
+    sortedUrgencies,
+    save,
+    cancel,
+    convertType,
+    handleToggleTask,
+  } = useObjectDraft({
+    task,
+    projects,
+    urgencies,
+    onUpdate,
+    onClose: () => onOpenChange(false),
+  })
 
   const descriptionRef = useRef<HTMLTextAreaElement>(null)
 
@@ -99,87 +95,41 @@ export function TaskDetailDialog({
     }
   }, [open, draft?.description])
 
+  // Press E in view mode to jump into edit (e.g. after opening from search).
+  useEffect(() => {
+    const switchToEdit = onModeChange
+    if (!open || mode !== "view" || !switchToEdit) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key.toLowerCase() !== "e") return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const target = e.target as HTMLElement
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        target.isContentEditable ||
+        target.closest("[contenteditable]")
+      ) {
+        return
+      }
+      e.preventDefault()
+      if (switchToEdit) switchToEdit("edit")
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [open, mode, onModeChange])
+
   if (!draft) return null
 
-  // Safely extract primitive properties for comparison to avoid RxDB circular reference errors
-  function toPlain(t: Task | null) {
-    if (!t) return null
-    // If it's an RxDocument it usually has a toJSON method
-    const data = typeof (t as any).toJSON === "function" ? (t as any).toJSON() : t
-    return {
-      id: data.id,
-      type: data.type,
-      description: data.description,
-      details: data.details,
-      urgency_id: data.urgency_id,
-      project_id: data.project_id,
-      person_id: data.person_id,
-      show_on: data.show_on,
-      action_date: data.action_date,
-      processed: data.processed,
-      status: data.status,
-      context_ids: [...(data.context_ids || [])].sort(),
-      tag_ids: [...(data.tag_ids || [])].sort(),
-    }
-  }
-
-  const isAutoProcessing = task && !task.processed && autoProcess && !draft.processed;
-  const dirty = !!task && (JSON.stringify(toPlain(draft)) !== JSON.stringify(toPlain(task)) || isAutoProcessing)
-
-  function update<K extends keyof Task>(key: K, value: Task[K]) {
-    setDraft((prev) => (prev ? { ...prev, [key]: value } : prev))
-  }
-
-  // Toggling a checkbox in the read-only details view persists immediately so
-  // it works without entering edit mode.
-  function handleToggleTask(taskIndex: number, checked: boolean) {
-    if (!draft?.details) return
-    const nextDetails = toggleMarkdownTask(draft.details, taskIndex, checked)
-    const updated = { ...draft, details: nextDetails }
-    setDraft(updated)
-    onUpdate(updated)
-  }
-
-  function save() {
-    if (!draft) return
-    const finalDraft = { ...draft }
-    if (isAutoProcessing) {
-      finalDraft.processed = true
-    }
-    onUpdate(finalDraft)
-    onOpenChange(false)
-  }
-
-  function cancel() {
-    setDraft(getFullPlainTask(task))
-    onOpenChange(false)
-  }
-
-  function convertType() {
-    if (!draft) return
-    const nextType: ObjectType = draft.type === "note" ? "task" : "note"
-    const converted: Task = { ...draft, type: nextType }
-    if (isAutoProcessing) {
-      converted.processed = true
-    }
-    if (nextType === "task") {
-      // A note may predate task invariants; ensure the object renders cleanly
-      // in task views without clearing any retained note data.
-      if (!converted.urgency_id) {
-        converted.urgency_id = sortedUrgencies[0]?.id ?? urgencies[0]?.id
-      }
-      if (converted.status !== "Open" && converted.status !== "Done") {
-        converted.status = "Open"
-      }
-    }
-    onUpdate(converted)
-    toast.success(nextType === "note" ? "Converted to Note" : "Converted to Task")
+  const canExpand = !isMobile && !!tabObject && !!task
+  function expand() {
+    if (!task || !tabObject) return
+    tabObject.openObjectFullScreen(task.id, "edit")
     onOpenChange(false)
   }
 
   const isNote = draft.type === "note"
   const urgency = urgencies.find(u => u.id === draft.urgency_id) || urgencies[0]
-  const sortedUrgencies = [...urgencies].sort((a, b) => a.order - b.order)
   const created = new Date(draft.date_created)
 
   const selectedProject = draft.project_id ? projects.find(p => p.id === draft.project_id) : null;
@@ -189,12 +139,16 @@ export function TaskDetailDialog({
     <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(o) : cancel())}>
       <DialogContent
         showCloseButton={false}
+        portalContainer={isMobile ? null : portalContainer}
+        disableTabPortal={!!portalContainer}
         overlayClassName={isMobile ? "hidden" : ""}
         className={cn(
           "gap-0 overflow-hidden p-0",
           isMobile 
             ? "fixed inset-0 z-50 flex h-full w-full max-w-none translate-x-0 translate-y-0 flex-col rounded-none border-none duration-200 shadow-none" 
-            : "max-w-2xl sm:rounded-lg"
+            : portalContainer
+              ? "max-h-[calc(100%-2rem)] max-w-2xl sm:rounded-lg"
+              : "max-w-2xl sm:rounded-lg"
         )}
       >
         <DialogTitle className="sr-only">
@@ -247,12 +201,24 @@ export function TaskDetailDialog({
                 Created {created.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
               </span>
 
+              {canExpand && (
+                <button
+                  type="button"
+                  onClick={expand}
+                  className="ml-2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label="Expand to full screen"
+                  title="Expand to full screen"
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={cancel}
                 className={cn(
                   "rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-                  !isMobile && "ml-2"
+                  !isMobile && !canExpand && "ml-2"
                 )}
                 aria-label="Close"
               >
@@ -493,6 +459,17 @@ export function TaskDetailDialog({
               <span className="ml-auto font-mono text-[10px] text-muted-foreground hidden sm:inline-block">
                 Created {created.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
               </span>
+              {canExpand && (
+                <button
+                  type="button"
+                  onClick={expand}
+                  className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label="Expand to full screen"
+                  title="Expand to full screen"
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={cancel}
@@ -505,218 +482,24 @@ export function TaskDetailDialog({
 
             {/* Edit Mode Body */}
             <div className={cn("overflow-y-auto px-5 py-5", isMobile ? "flex-1" : "max-h-[70vh]")}>
-              {/* Description */}
-              <div>
-                <Label icon={<Zap className="h-3 w-3" />}>Description</Label>
-                <Textarea
-                  ref={descriptionRef}
-                  value={draft.description}
-                  onChange={(e) => update("description", e.target.value)}
-                  placeholder="Enter a title or description"
-                  className="mt-1.5 min-h-[60px] resize-none border-border bg-background text-base font-medium leading-snug"
-                  rows={2}
-                />
-              </div>
+              <ObjectEditFields
+                draft={draft}
+                setDraft={setDraft}
+                update={update}
+                isNote={isNote}
+                projects={projects}
+                persons={persons}
+                contexts={contexts}
+                tags={tags}
+                sortedUrgencies={sortedUrgencies}
+                isProjectShared={isProjectShared}
+                descriptionRef={descriptionRef}
+              />
 
-              {/* Single-column grid */}
-              <div className="mt-5 grid gap-5">
-                {/* Urgency (tasks only) */}
-                {!isNote && (
-                  <div>
-                    <Label icon={<AlertCircle className="h-3 w-3" />}>Urgency</Label>
-                    <Select
-                      value={draft.urgency_id}
-                      onValueChange={(v) => update("urgency_id", v)}
-                    >
-                      <SelectTrigger className="mt-1.5 w-full border-border bg-background h-11 md:h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sortedUrgencies.map((u) => {
-                          return (
-                            <SelectItem key={u.id} value={u.id}>
-                              <span className="flex items-center gap-2">
-                                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: u.color }} />
-                                {u.name}
-                              </span>
-                            </SelectItem>
-                          )
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* Contexts (tasks only) */}
-                {!isNote && (
-                  <div>
-                    <Label icon={<Tag className="h-3 w-3" />}>
-                      Contexts
-                      <span className="ml-1.5 font-mono text-[10px] text-muted-foreground/70">
-                        {(draft.context_ids || []).length} selected
-                      </span>
-                    </Label>
-                    <FormMultiSelect
-                      options={contexts.map((c) => ({
-                        id: c.id,
-                        label: c.name,
-                        color: c.color,
-                      }))}
-                      selectedIds={draft.context_ids || []}
-                      onChange={(ids) => update("context_ids", ids)}
-                      placeholder="Select contexts"
-                    />
-                  </div>
-                )}
-
-                {/* Tags (notes only) */}
-                {isNote && (
-                  <div>
-                    <Label icon={<Tag className="h-3 w-3" />}>
-                      Tags
-                      <span className="ml-1.5 font-mono text-[10px] text-muted-foreground/70">
-                        {(draft.tag_ids || []).length} selected
-                      </span>
-                    </Label>
-                    <FormMultiSelect
-                      options={tags.map((tg) => ({
-                        id: tg.id,
-                        label: tg.name,
-                        color: tg.color,
-                      }))}
-                      selectedIds={draft.tag_ids || []}
-                      onChange={(ids) => update("tag_ids", ids)}
-                      placeholder="Select tags"
-                    />
-                  </div>
-                )}
-
-                {/* Project & Person Row */}
-                <div className="flex flex-wrap gap-4">
-                  <div className="flex-1 min-w-[200px]">
-                    <Label icon={<FolderKanban className="h-3 w-3" />}>Project</Label>
-                    <Select
-                      value={draft.project_id ?? "__none__"}
-                      onValueChange={(v) => {
-                        const projId = v === "__none__" ? null : v;
-                        const proj = projId ? projects.find(p => p.id === projId) : null;
-                        if (proj && proj.linked_person_id) {
-                          setDraft(prev => prev ? { ...prev, project_id: projId, person_id: proj.linked_person_id } : null);
-                        } else {
-                          setDraft(prev => prev ? { ...prev, project_id: projId } : null);
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="mt-1.5 w-full border-border bg-background h-11 md:h-9">
-                        <SelectValue placeholder="No project" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem
-                          value="__none__"
-                          className="py-3.5 text-base md:py-1.5 md:text-sm"
-                        >
-                          <span className="text-muted-foreground">No project</span>
-                        </SelectItem>
-                        {projects.map((p) => (
-                          <SelectItem
-                            key={p.id}
-                            value={p.id}
-                            className="py-3.5 text-base md:py-1.5 md:text-sm"
-                          >
-                            {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex-1 min-w-[200px]">
-                    <div className="flex items-center justify-between">
-                      <Label icon={<User className="h-3 w-3" />}>Person</Label>
-                      {isProjectShared && (
-                        <span className="flex items-center gap-1 text-[10px] font-medium text-blue-500 font-mono animate-fade-in">
-                          <Lock className="h-2.5 w-2.5" /> Locked
-                        </span>
-                      )}
-                    </div>
-                    <Select
-                      disabled={isProjectShared}
-                      value={draft.person_id ?? "__none__"}
-                      onValueChange={(v) =>
-                        update("person_id", v === "__none__" ? null : v)
-                      }
-                    >
-                      <SelectTrigger className={cn("mt-1.5 w-full border-border bg-background h-11 md:h-9", isProjectShared && "opacity-80 cursor-not-allowed bg-muted/20")}>
-                        <SelectValue placeholder="No one" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">
-                          <span className="text-muted-foreground">No one</span>
-                        </SelectItem>
-                        {persons.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            <span className="flex items-center gap-2">
-                              <span
-                                className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-semibold"
-                                style={{
-                                  backgroundColor: `color-mix(in oklch, ${p.color} 30%, transparent)`,
-                                }}
-                              >
-                                {p.initials}
-                              </span>
-                              {p.name}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Show on & Action date Row (tasks only) */}
-                {!isNote && (
-                  <div className="flex flex-wrap gap-4">
-                    <div className="flex-1 min-w-[200px]">
-                      <Label icon={<Calendar className="h-3 w-3" />}>Show on</Label>
-                      <FormDateField
-                        value={draft.show_on}
-                        onChange={(iso) => update("show_on", iso)}
-                      />
-                    </div>
-
-                    <div className="flex-1 min-w-[200px]">
-                      <Label icon={<Calendar className="h-3 w-3" />}>Action date</Label>
-                      <FormDateField
-                        value={draft.action_date}
-                        onChange={(iso) => update("action_date", iso)}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Date Override (notes only) — reuses the action_date field */}
-                {isNote && (
-                  <div className="flex flex-wrap gap-4">
-                    <div className="flex-1 min-w-[200px]">
-                      <Label icon={<Calendar className="h-3 w-3" />}>Date Override</Label>
-                      <FormDateField
-                        value={draft.action_date}
-                        onChange={(iso) => update("action_date", iso)}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Details */}
               <div className="mt-5">
-                <Label icon={<FileText className="h-3 w-3" />}>Details</Label>
-                <RichMarkdownEditor
+                <ObjectDetailsEditor
                   value={draft.details ?? ""}
-                  onChange={(val) =>
-                    update("details", val === "" ? undefined : val)
-                  }
-                  placeholder="Add notes, links, or context. Markdown supported."
+                  onChange={(val) => update("details", val)}
                 />
               </div>
             </div>
@@ -775,20 +558,5 @@ export function TaskDetailDialog({
         )}
       </DialogContent>
     </Dialog>
-  )
-}
-
-function Label({
-  icon,
-  children,
-}: {
-  icon?: React.ReactNode
-  children: React.ReactNode
-}) {
-  return (
-    <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-      {icon}
-      {children}
-    </label>
   )
 }

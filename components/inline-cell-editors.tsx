@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react"
 import { createPortal } from "react-dom"
 import { Check, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ProjectOptionIcon } from "@/components/project-select"
 import { isoToDateInputValue, dateInputToIso } from "@/lib/date-field"
 
 interface EditorProps {
@@ -53,7 +54,7 @@ export function InlineTextEditor({
   )
 }
 
-interface Option { id: string; label: string; color?: string }
+interface Option { id: string; label: string; color?: string; icon?: string }
 
 /** Dropdown list rendered via a portal (fixed position) to escape overflow clipping */
 function DropdownPortal({
@@ -180,7 +181,11 @@ export function InlineSelectEditor({
                 idx === highlightedIdx && "bg-muted ring-1 ring-inset ring-primary/40",
               )}
             >
-              {o.color && <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: o.color }} />}
+              {o.icon ? (
+                <ProjectOptionIcon icon={o.icon} color={o.color} size="sm" />
+              ) : o.color ? (
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: o.color }} />
+              ) : null}
               {o.label}
               {o.id === currentId && <Check className="ml-auto h-3 w-3 text-primary" />}
             </button>
