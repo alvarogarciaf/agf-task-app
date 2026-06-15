@@ -14,12 +14,32 @@ export default function GlobalError({
   useEffect(() => {
     // Log the error securely for diagnostics
     console.error("[GlobalError] Intercepted client exception:", error)
+
+    // Auto-recover from Next.js ChunkLoadError (caused by stale service worker cache after deployments)
+    if (error.name === "ChunkLoadError" || error.message?.includes("ChunkLoadError")) {
+      console.warn("[GlobalError] ChunkLoadError detected. Clearing caches and reloading...")
+      const clearAndReload = () => window.location.reload()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cacheApi = (window as any).caches as CacheStorage | undefined
+      if (cacheApi) {
+        cacheApi.keys().then((names) => Promise.all(names.map((n) => cacheApi.delete(n)))).finally(clearAndReload)
+      } else {
+        clearAndReload()
+      }
+    }
   }, [error])
 
   const handleResetAppData = async () => {
     setIsResetting(true)
     try {
       if (typeof window !== "undefined") {
+        // Clear Service Worker Caches
+        if ("caches" in window) {
+          const cacheNames = await caches.keys()
+          await Promise.all(cacheNames.map((name) => caches.delete(name)))
+          console.log("[GlobalError] Cleared service worker caches")
+        }
+
         // Find and delete RxDB and tasker IndexedDB instances
         const dbs = await window.indexedDB.databases()
         dbs.forEach((db) => {
@@ -28,8 +48,18 @@ export default function GlobalError({
             window.indexedDB.deleteDatabase(db.name)
           }
         })
+        
         // Clear application settings and preferences
         localStorage.clear()
+        
+        // Unregister service workers
+        if ("serviceWorker" in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations()
+          for (const registration of registrations) {
+            await registration.unregister()
+          }
+        }
+
         // Force refresh to start with clean state
         window.location.reload()
       }

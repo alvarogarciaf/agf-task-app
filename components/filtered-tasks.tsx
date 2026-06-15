@@ -938,7 +938,7 @@ export function FilteredTasks({
                   Contexts
                 </label>
                 <FormMultiSelect
-                  options={contexts.map((c) => ({ id: c.id, label: c.name, color: c.color }))}
+                  options={contexts.map((c) => ({ id: c.id, label: c.name, color: c.color, icon: c.icon }))}
                   selectedIds={contextIds}
                   onChange={setContextIds}
                   placeholder="All contexts"
@@ -992,14 +992,14 @@ export function FilteredTasks({
                     <SelectValue placeholder="All people" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">
+                    <SelectItem value="__none__" className="py-3 md:py-1.5">
                       <span className="text-muted-foreground">All people</span>
                     </SelectItem>
                     {persons.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
+                      <SelectItem key={p.id} value={p.id} className="py-3 md:py-1.5">
                         <span className="flex items-center gap-2">
                           <span
-                            className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-semibold"
+                            className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold shrink-0"
                             style={{ backgroundColor: `color-mix(in oklch, ${p.color} 30%, transparent)` }}
                           >
                             {p.initials}

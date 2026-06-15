@@ -482,7 +482,9 @@ export function TasksTable({
                     if (selectedIds.size > 0) {
                       onToggleSelection?.(t.id)
                     } else {
-                      setDetailMode(defaultOpenMode)
+                      // On mobile, tasks open directly in edit mode; notes keep view mode first.
+                      const mobileMode = (isMobile && t.type !== "note") ? "edit" : defaultOpenMode
+                      setDetailMode(mobileMode)
                       setActiveTaskId(t.id)
                     }
                   }}

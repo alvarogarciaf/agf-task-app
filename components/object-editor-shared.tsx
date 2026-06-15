@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react"
 import {
-  AlertCircle,
   Calendar,
   FileText,
   FolderKanban,
@@ -11,6 +10,7 @@ import {
   User,
   Zap,
 } from "lucide-react"
+import * as SliderPrimitive from "@radix-ui/react-slider"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { Textarea } from "@/components/ui/textarea"
@@ -35,6 +35,104 @@ import type {
   Task,
   UrgencyLevel,
 } from "@/lib/types"
+
+/**
+ * Step-slider for urgency levels. Displays:
+ * - Urgency name + color dot above the track
+ * - Numbered ticks (1 = lowest on left, N = highest on right)
+ * - Track fill and thumb tinted to the urgency's brand color
+ */
+function UrgencySlider({
+  urgencies,
+  value,
+  onChange,
+}: {
+  urgencies: UrgencyLevel[]
+  value: string
+  onChange: (id: string) => void
+}) {
+  const n = urgencies.length
+  if (n === 0) return null
+
+  // Reverse for display: most urgent ends up at the right (highest number).
+  // The original `urgencies` array is not mutated.
+  const display = [...urgencies].reverse()
+
+  const currentIdx = display.findIndex((u) => u.id === value)
+  const safeIdx = currentIdx === -1 ? 0 : currentIdx
+  const current = display[safeIdx]
+
+  // Slider value: 1-based so ticks read 1…N, with N = most urgent (right)
+  const sliderVal = safeIdx + 1
+
+  function handleChange([val]: number[]) {
+    const u = display[val - 1]
+    if (u) onChange(u.id)
+  }
+
+  return (
+    <div className="mt-1.5 select-none">
+      {/* Name row */}
+      <div className="mb-3 flex items-center gap-1.5">
+        <span
+          className="h-2 w-2 shrink-0 rounded-full transition-colors duration-200"
+          style={{ backgroundColor: current.color }}
+        />
+        <span className="text-sm font-semibold text-foreground transition-all duration-200">
+          {current.name}
+        </span>
+        <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          {sliderVal} / {n}
+        </span>
+      </div>
+
+      {/* Slider + ticks */}
+      <div className="relative px-2">
+        <SliderPrimitive.Root
+          min={1}
+          max={n}
+          step={1}
+          value={[sliderVal]}
+          onValueChange={handleChange}
+          className="relative flex h-5 w-full touch-none items-center select-none"
+          aria-label="Urgency"
+        >
+          <SliderPrimitive.Track className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-muted">
+            <SliderPrimitive.Range
+              className="absolute h-full rounded-full transition-colors duration-200"
+              style={{ backgroundColor: current.color }}
+            />
+          </SliderPrimitive.Track>
+          <SliderPrimitive.Thumb
+            className="block h-5 w-5 rounded-full border-2 bg-background shadow-md ring-0 transition-all duration-200 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            style={{ borderColor: current.color }}
+          />
+        </SliderPrimitive.Root>
+
+        {/* Tick numbers below the track */}
+        <div className="mt-1.5 flex items-center justify-between">
+          {display.map((u, i) => (
+            <button
+              key={u.id}
+              type="button"
+              onClick={() => onChange(u.id)}
+              className={cn(
+                "flex h-5 w-5 items-center justify-center rounded-full font-mono text-[11px] font-medium transition-all duration-150",
+                i === safeIdx
+                  ? "scale-110 text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              style={i === safeIdx ? { color: current.color } : undefined}
+              aria-label={u.name}
+            >
+              {i + 1}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function Label({
   icon,
@@ -228,28 +326,12 @@ export function ObjectEditFields({
       <div className="mt-5 grid gap-5">
         {!isNote && (
           <div>
-            <Label icon={<AlertCircle className="h-3 w-3" />}>Urgency</Label>
-            <Select
+            <Label icon={<Zap className="h-3 w-3" />}>Urgency</Label>
+            <UrgencySlider
+              urgencies={sortedUrgencies}
               value={draft.urgency_id}
-              onValueChange={(v) => update("urgency_id", v)}
-            >
-              <SelectTrigger className="mt-1.5 w-full border-border bg-background h-11 md:h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {sortedUrgencies.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="h-1.5 w-1.5 rounded-full"
-                        style={{ backgroundColor: u.color }}
-                      />
-                      {u.name}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              onChange={(id) => update("urgency_id", id)}
+            />
           </div>
         )}
 
@@ -266,6 +348,7 @@ export function ObjectEditFields({
                 id: c.id,
                 label: c.name,
                 color: c.color,
+                icon: c.icon,
               }))}
               selectedIds={draft.context_ids || []}
               onChange={(ids) => update("context_ids", ids)}
@@ -354,14 +437,14 @@ export function ObjectEditFields({
                 <SelectValue placeholder="No one" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">
+                <SelectItem value="__none__" className="py-3 md:py-1.5">
                   <span className="text-muted-foreground">No one</span>
                 </SelectItem>
                 {persons.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
+                  <SelectItem key={p.id} value={p.id} className="py-3 md:py-1.5">
                     <span className="flex items-center gap-2">
                       <span
-                        className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-semibold"
+                        className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold shrink-0"
                         style={{
                           backgroundColor: `color-mix(in oklch, ${p.color} 30%, transparent)`,
                         }}
@@ -378,8 +461,8 @@ export function ObjectEditFields({
         </div>
 
         {!isNote && (
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px]">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <Label icon={<Calendar className="h-3 w-3" />}>Show on</Label>
               <FormDateField
                 value={draft.show_on}
@@ -387,7 +470,7 @@ export function ObjectEditFields({
               />
             </div>
 
-            <div className="flex-1 min-w-[200px]">
+            <div>
               <Label icon={<Calendar className="h-3 w-3" />}>Action date</Label>
               <FormDateField
                 value={draft.action_date}

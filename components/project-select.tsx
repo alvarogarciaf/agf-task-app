@@ -301,7 +301,7 @@ export function ProjectSelect({
                   onMouseEnter={() => setHighlightedIdx(idx)}
                   onClick={() => select(item.id)}
                   className={cn(
-                    "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
+                    "flex w-full items-center gap-2.5 rounded-md px-2.5 py-3 text-left text-base md:py-2 md:text-sm transition-colors",
                     isHighlighted && "bg-muted ring-1 ring-inset ring-primary/40",
                     !isHighlighted && "hover:bg-muted",
                     item.id === null && "text-muted-foreground",
