@@ -90,6 +90,7 @@ export function TaskDetailDialog({
   })
 
   const descriptionRef = useRef<HTMLTextAreaElement>(null)
+  const detailsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (open && draft?.description === "New task") {
@@ -499,12 +500,14 @@ export function TaskDetailDialog({
                 sortedUrgencies={sortedUrgencies}
                 isProjectShared={isProjectShared}
                 descriptionRef={descriptionRef}
+                detailsRef={detailsRef}
               />
 
               <div className="mt-5">
                 <ObjectDetailsEditor
                   value={draft.details ?? ""}
                   onChange={(val) => update("details", val)}
+                  containerRef={detailsRef}
                 />
               </div>
             </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import {
   ArrowLeft,
   ArrowLeftRight,
@@ -79,6 +79,8 @@ export function ObjectFullScreenView({
     ? projects.find((p) => p.id === draft.project_id)
     : null
   const isProjectShared = !!(selectedProject && selectedProject.linked_person_id)
+
+  const detailsRef = useRef<HTMLDivElement>(null)
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -214,6 +216,7 @@ export function ObjectFullScreenView({
             tags={tags}
             sortedUrgencies={sortedUrgencies}
             isProjectShared={isProjectShared}
+            detailsRef={detailsRef}
           />
         </div>
 
@@ -224,6 +227,7 @@ export function ObjectFullScreenView({
               value={draft.details ?? ""}
               onChange={(val) => update("details", val)}
               fillHeight
+              containerRef={detailsRef}
             />
           </div>
         </div>

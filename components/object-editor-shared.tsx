@@ -296,6 +296,7 @@ export function ObjectEditFields({
   sortedUrgencies,
   isProjectShared,
   descriptionRef,
+  detailsRef,
 }: {
   draft: Task
   setDraft: React.Dispatch<React.SetStateAction<Task | null>>
@@ -308,7 +309,13 @@ export function ObjectEditFields({
   sortedUrgencies: UrgencyLevel[]
   isProjectShared: boolean
   descriptionRef?: React.Ref<HTMLTextAreaElement>
+  detailsRef?: React.RefObject<HTMLDivElement | null>
 }) {
+  function focusDetails() {
+    const el = detailsRef?.current?.querySelector<HTMLElement>('[contenteditable]')
+    el?.focus()
+  }
+
   return (
     <>
       <div>
@@ -316,10 +323,20 @@ export function ObjectEditFields({
         <Textarea
           ref={descriptionRef}
           value={draft.description}
-          onChange={(e) => update("description", e.target.value)}
+          onChange={(e) => {
+            // Strip newlines so the field stays single-line
+            const cleaned = e.target.value.replace(/[\r\n]/g, "")
+            update("description", cleaned)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === "Tab") {
+              e.preventDefault()
+              focusDetails()
+            }
+          }}
           placeholder="Enter a title or description"
-          className="mt-1.5 min-h-[60px] resize-none border-border bg-background text-base font-medium leading-snug"
-          rows={2}
+          className="mt-1.5 resize-none border-border bg-background text-base font-medium leading-snug"
+          rows={1}
         />
       </div>
 
@@ -505,15 +522,17 @@ export function ObjectDetailsEditor({
   className,
   editorClassName,
   fillHeight = false,
+  containerRef,
 }: {
   value: string
   onChange: (val: string | undefined) => void
   className?: string
   editorClassName?: string
   fillHeight?: boolean
+  containerRef?: React.RefObject<HTMLDivElement | null>
 }) {
   return (
-    <div className={cn(fillHeight && "flex min-h-0 flex-1 flex-col", className)}>
+    <div ref={containerRef} className={cn(fillHeight && "flex min-h-0 flex-1 flex-col", className)}>
       <Label icon={<FileText className="h-3 w-3" />}>Details</Label>
       <RichMarkdownEditor
         value={value}
