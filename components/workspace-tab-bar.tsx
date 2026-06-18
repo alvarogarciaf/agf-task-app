@@ -65,7 +65,7 @@ export function WorkspaceTabBar({
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
 
   return (
-    <div className="flex min-w-0 flex-1 items-stretch gap-0 overflow-x-auto">
+    <div className="flex min-w-0 flex-1 items-stretch gap-0 overflow-x-auto no-scrollbar">
       {tabs.map((tab) => {
         const isActive = tab.id === activeTabId
         const objectTitle = tab.ui.objectId ? resolveObjectTitle?.(tab.ui.objectId) : undefined
