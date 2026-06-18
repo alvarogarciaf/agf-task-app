@@ -120,7 +120,7 @@ export function WorkspaceTabBar({
 
             {/* Active underline indicator */}
             {isActive && (
-              <span className="absolute inset-x-0 -bottom-px h-px bg-primary" />
+              <span className="absolute inset-x-0 bottom-0 h-[2px] bg-primary" />
             )}
 
             <button
