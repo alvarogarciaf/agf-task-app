@@ -11,7 +11,11 @@ import {
   List,
   Maximize2,
   Minimize2,
+  Indent,
+  Outdent,
+  Copy,
 } from "lucide-react"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { markdownToHtml, htmlToMarkdown } from "@/lib/markdown"
 import {
@@ -53,7 +57,15 @@ function normalizeUrl(token: string): string {
 
 function isPointBeforeRange(node: Node, offset: number, range: Range): boolean {
   const point = document.createRange()
-  point.setStart(node, offset)
+  if (node.nodeName === "BR" || node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === "BR") {
+    point.setStartBefore(node)
+  } else {
+    try {
+      point.setStart(node, offset)
+    } catch (e) {
+      point.setStartBefore(node)
+    }
+  }
   point.collapse(true)
   return point.compareBoundaryPoints(Range.START_TO_START, range) < 0
 }
@@ -110,28 +122,67 @@ function isCursorAfterLineBreak(block: HTMLElement, range: Range): boolean {
   )
 }
 
-function detachLineToParagraph(block: HTMLElement, range: Range): HTMLParagraphElement {
+function isolateLineToParagraph(block: HTMLElement, range: Range): HTMLParagraphElement {
   const lineStart = getLineStartRange(block, range)
+  
+  // Extract everything from the start of the line to the end of the block
   const tailRange = document.createRange()
   tailRange.setStart(lineStart.startContainer, lineStart.startOffset)
   tailRange.setEnd(block, block.childNodes.length)
 
-  const lineFragment = tailRange.extractContents()
+  const tailFragment = tailRange.extractContents()
+  
+  // Clean up trailing BRs in the original block
   while (block.lastChild?.nodeName === "BR") {
     block.removeChild(block.lastChild)
   }
-
-  const paragraph = document.createElement("p")
-  paragraph.appendChild(lineFragment)
-  while (paragraph.firstChild?.nodeName === "BR") {
-    paragraph.removeChild(paragraph.firstChild)
-  }
-  if (!paragraph.textContent && !paragraph.querySelector("br")) {
-    paragraph.appendChild(document.createElement("br"))
+  if (!block.textContent && !block.querySelector("br")) {
+    block.appendChild(document.createElement("br"))
   }
 
-  block.after(paragraph)
-  return paragraph
+  // Process the tailFragment which starts with our target line
+  const targetParagraph = document.createElement("p")
+  const restParagraph = document.createElement("p")
+  
+  const tempDiv = document.createElement("div")
+  tempDiv.appendChild(tailFragment)
+  
+  // Find the first BR in the tail fragment (marks the end of our target line)
+  const firstBr = tempDiv.querySelector("br")
+  if (firstBr) {
+    const firstLineRange = document.createRange()
+    firstLineRange.setStart(tempDiv, 0)
+    firstLineRange.setEndBefore(firstBr)
+    targetParagraph.appendChild(firstLineRange.extractContents())
+    
+    firstBr.remove() // remove the separating BR
+    
+    // Everything else goes to restParagraph
+    restParagraph.append(...Array.from(tempDiv.childNodes))
+  } else {
+    targetParagraph.append(...Array.from(tempDiv.childNodes))
+  }
+
+  if (!targetParagraph.textContent && !targetParagraph.querySelector("br")) {
+    targetParagraph.appendChild(document.createElement("br"))
+  }
+  
+  // Insert the new blocks into the document
+  block.after(targetParagraph)
+  
+  if (restParagraph.childNodes.length > 0 && (restParagraph.textContent || restParagraph.querySelector("br"))) {
+    if (!restParagraph.textContent && !restParagraph.querySelector("br")) {
+      restParagraph.appendChild(document.createElement("br"))
+    }
+    targetParagraph.after(restParagraph)
+  }
+
+  // Clean up original block if it's completely empty and we just split from it
+  if (block.textContent === "" && block.childNodes.length <= 1) {
+    block.remove()
+  }
+
+  return targetParagraph
 }
 
 interface EditorSurfaceProps {
@@ -367,20 +418,28 @@ function EditorSurface({
     block: HTMLElement,
     tag: "h1" | "h2" | "h3",
     markerLength: number,
-    textAfter: string,
   ) => {
     removeBlockPrefix(block, markerLength)
 
-    const suffix = textAfter.replace(/^\s+/, "")
-    const remaining = (block.textContent || "").replace(/\u00A0/g, " ").trim()
-    const heading = document.createElement(tag)
-    heading.className = HEADING_CLASSES[tag]
+    if (!block.textContent && !block.querySelector("br")) {
+      block.appendChild(document.createElement("br"))
+    }
 
-    const content = suffix || remaining
-    heading.appendChild(document.createTextNode(content))
+    // Place caret in the block and use the browser's native formatBlock command
+    // This correctly handles breaking out of lists and splitting blocks.
+    placeCaretAtStart(block)
+    document.execCommand("formatBlock", false, tag)
 
-    block.replaceWith(heading)
-    placeCaretAtEnd(heading)
+    // The browser replaced the block, find the new one
+    const newBlock = getCurrentBlock()
+    if (newBlock) {
+      newBlock.className = HEADING_CLASSES[tag]
+      // If the heading is completely empty, it needs a <br> to be focusable
+      if (!newBlock.textContent && !newBlock.querySelector("br")) {
+        newBlock.appendChild(document.createElement("br"))
+      }
+      placeCaretAtEnd(newBlock)
+    }
   }
 
   const applyHeadingShortcut = (
@@ -388,13 +447,14 @@ function EditorSurface({
     range: Range,
     tag: "h1" | "h2" | "h3",
     markerLength: number,
-    textAfter: string,
   ) => {
     let target = block
-    if (block.querySelector("input.md-task-box") || isCursorAfterLineBreak(block, range)) {
-      target = detachLineToParagraph(block, range)
+    // We unconditionally isolate the line so that if there are line breaks AFTER
+    // the cursor, they don't get pulled into the heading.
+    if (block.querySelector("input.md-task-box") || block.querySelector("br")) {
+      target = isolateLineToParagraph(block, range)
     }
-    convertBlockToHeading(target, tag, markerLength, textAfter)
+    convertBlockToHeading(target, tag, markerLength)
   }
 
   const fixupHeadingAfterInput = (): boolean => {
@@ -407,11 +467,11 @@ function EditorSurface({
     const lineText =
       getLineTextBeforeCursor(ctx.block, ctx.range) +
       getLineTextAfterCursor(ctx.block, ctx.range)
-    const match = lineText.match(/^\/(h[123])\s(.*)$/i)
+    const match = lineText.match(/^\/(h[123])\s/i)
     if (!match) return false
 
     const headingTag = match[1].toLowerCase() as "h1" | "h2" | "h3"
-    applyHeadingShortcut(ctx.block, ctx.range, headingTag, match[1].length + 2, match[2])
+    applyHeadingShortcut(ctx.block, ctx.range, headingTag, match[1].length + 2)
     return true
   }
 
@@ -495,15 +555,15 @@ function EditorSurface({
     const slash = lineBefore.match(/^\/(h[123])$/i)
     if (slash) {
       const headingTag = slash[1].toLowerCase() as "h1" | "h2" | "h3"
-      applyHeadingShortcut(block, range, headingTag, lineBefore.length, lineAfter)
+      applyHeadingShortcut(block, range, headingTag, lineBefore.length)
       syncMarkdown()
       return true
     }
 
     if (lineBefore === "[]" || lineBefore === "[ ]") {
       let target = block
-      if (block.querySelector("input.md-task-box") || isCursorAfterLineBreak(block, range)) {
-        target = detachLineToParagraph(block, range)
+      if (block.querySelector("input.md-task-box") || block.querySelector("br")) {
+        target = isolateLineToParagraph(block, range)
       }
       convertBlockToCheckbox(target, lineBefore.length, lineAfter)
       syncMarkdown()
@@ -512,11 +572,13 @@ function EditorSurface({
 
     if (lineBefore === "*" || lineBefore === "-" || lineBefore === "•") {
       let target = block
-      if (block.querySelector("input.md-task-box") || isCursorAfterLineBreak(block, range)) {
-        target = detachLineToParagraph(block, range)
+      if (block.querySelector("input.md-task-box") || block.querySelector("br")) {
+        target = isolateLineToParagraph(block, range)
       }
       removeBlockPrefix(target, lineBefore.length)
-      if (!target.firstChild) target.appendChild(document.createElement("br"))
+      if (!target.textContent && !target.querySelector("br")) {
+        target.appendChild(document.createElement("br"))
+      }
       placeCaretAtStart(target)
       document.execCommand("insertUnorderedList", false)
       syncMarkdown()
@@ -592,8 +654,7 @@ function EditorSurface({
             block,
             range,
             slash[1].toLowerCase() as "h1" | "h2" | "h3",
-            lineBefore.length,
-            "",
+            lineBefore.length
           )
           syncMarkdown()
           return
@@ -605,7 +666,7 @@ function EditorSurface({
       if (block && block.querySelector("input.md-task-box") && range) {
         if (isCursorAfterLineBreak(block, range)) {
           e.preventDefault()
-          const paragraph = detachLineToParagraph(block, range)
+          const paragraph = isolateLineToParagraph(block, range)
           placeCaretAtStart(paragraph)
           syncMarkdown()
           return
@@ -627,6 +688,20 @@ function EditorSurface({
         return
       }
       // Otherwise let the browser create a new paragraph block.
+      return
+    }
+
+    if (e.key === "Tab") {
+      const block = getCurrentBlock()
+      if (block && block.tagName.toLowerCase() === "li") {
+        e.preventDefault()
+        if (e.shiftKey) {
+          document.execCommand("outdent", false)
+        } else {
+          document.execCommand("indent", false)
+        }
+        syncMarkdown()
+      }
       return
     }
 
@@ -677,6 +752,17 @@ function EditorSurface({
     document.execCommand("insertHTML", false, htmlToInsert)
   }
 
+  const handleCopyMarkdown = async () => {
+    if (!editorRef.current) return
+    const text = htmlToMarkdown(editorRef.current.innerHTML)
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success("Markdown copied to clipboard")
+    } catch (err) {
+      toast.error("Failed to copy markdown")
+    }
+  }
+
   const toolbarButton = "inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 
   return (
@@ -702,6 +788,12 @@ function EditorSurface({
         </button>
         <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("insertUnorderedList")} className={toolbarButton} title="Bullet list" aria-label="Bullet list">
           <List className="h-4 w-4" />
+        </button>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("indent")} className={toolbarButton} title="Indent" aria-label="Indent">
+          <Indent className="h-4 w-4" />
+        </button>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("outdent")} className={toolbarButton} title="Outdent" aria-label="Outdent">
+          <Outdent className="h-4 w-4" />
         </button>
 
         <span className="mx-1 h-4 w-px bg-border" />
@@ -770,7 +862,12 @@ function EditorSurface({
           </PopoverContent>
         </Popover>
 
-        {trailingTool && <div className="ml-auto flex items-center">{trailingTool}</div>}
+        <div className="ml-auto flex items-center gap-1">
+          <button type="button" onClick={handleCopyMarkdown} className={toolbarButton} title="Copy as Markdown" aria-label="Copy as Markdown">
+            <Copy className="h-4 w-4" />
+          </button>
+          {trailingTool && <div>{trailingTool}</div>}
+        </div>
       </div>
 
       <div

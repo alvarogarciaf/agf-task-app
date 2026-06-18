@@ -63,12 +63,14 @@ export function ObjectFullScreenView({
     save,
     cancel,
     convertType,
+    autosaveStatus,
   } = useObjectDraft({
     task,
     projects,
     urgencies,
     onUpdate,
     onClose: onBack,
+    autosave: true,
   })
 
   if (!draft) return null
@@ -182,21 +184,15 @@ export function ObjectFullScreenView({
             <ArrowLeftRight className="h-3 w-3" />
             {isNote ? "To task" : "To note"}
           </button>
-          <button
-            type="button"
-            onClick={cancel}
-            className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Cancel
-          </button>
+          {/* Removed Cancel button since we're autosaving */}
           <button
             type="button"
             onClick={save}
-            disabled={!dirty || !(draft.description || "").trim()}
+            disabled={!dirty || !(draft.description || "").trim() || autosaveStatus === "saving" || autosaveStatus === "saved"}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Check className="h-3 w-3" />
-            Save changes
+            {autosaveStatus === "saved" ? "Autosaved" : autosaveStatus === "saving" ? "Saving..." : "Save changes"}
           </button>
         </div>
       </div>
@@ -222,7 +218,7 @@ export function ObjectFullScreenView({
 
         {/* Right: details editor only, capped to the maximized-editor width */}
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-5">
-          <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
+          <div className="flex min-h-0 w-full max-w-3xl flex-1 flex-col">
             <ObjectDetailsEditor
               value={draft.details ?? ""}
               onChange={(val) => update("details", val)}

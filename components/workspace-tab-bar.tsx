@@ -1,10 +1,44 @@
 "use client"
 
-import { Plus, X } from "lucide-react"
+import { useState } from "react"
+import {
+  Plus,
+  X,
+  Home,
+  ListChecks,
+  Tags,
+  Tag as TagIcon,
+  Users,
+  FolderKanban,
+  FileText,
+  Settings,
+  Calendar,
+  Star,
+  Layout,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { WorkspaceTab } from "@/lib/workspace-tabs"
+import type { WorkspaceTab, TabRoute } from "@/lib/workspace-tabs"
 import { getTabTitle } from "@/lib/workspace-tabs"
-import type { SavedView } from "@/lib/types"
+import type { SavedView, ViewKey } from "@/lib/types"
+
+const VIEW_ICONS: Record<ViewKey, React.ComponentType<{ className?: string }>> = {
+  home: Home,
+  inbox: Home,
+  all: ListChecks,
+  contexts: Tags,
+  persons: Users,
+  projects: FolderKanban,
+  settings: Settings,
+  "saved-view": Star,
+  today: Calendar,
+  notes: FileText,
+  tags: TagIcon,
+}
+
+function getTabIcon(route: TabRoute): React.ComponentType<{ className?: string }> {
+  if (route.kind !== "view") return Layout
+  return VIEW_ICONS[route.view] ?? Layout
+}
 
 interface WorkspaceTabBarProps {
   tabs: WorkspaceTab[]
@@ -13,6 +47,8 @@ interface WorkspaceTabBarProps {
   onSelect: (tabId: string) => void
   onClose: (tabId: string) => void
   onAdd: () => void
+  onReorder?: (sourceTabId: string, targetTabId: string) => void
+  resolveObjectTitle?: (id: string) => string | undefined
 }
 
 export function WorkspaceTabBar({
@@ -22,39 +58,83 @@ export function WorkspaceTabBar({
   onSelect,
   onClose,
   onAdd,
+  onReorder,
+  resolveObjectTitle,
 }: WorkspaceTabBarProps) {
+  const [dragTabId, setDragTabId] = useState<string | null>(null)
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null)
+
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+    <div className="flex min-w-0 flex-1 items-stretch gap-0 overflow-x-auto">
       {tabs.map((tab) => {
         const isActive = tab.id === activeTabId
-        const title = getTabTitle(tab, savedViews)
+        const objectTitle = tab.ui.objectId ? resolveObjectTitle?.(tab.ui.objectId) : undefined
+        const title = getTabTitle(tab, savedViews, objectTitle)
+        const Icon = getTabIcon(tab.route)
         return (
           <div
             key={tab.id}
+            draggable={tabs.length > 1}
+            onDragStart={(e) => {
+              setDragTabId(tab.id)
+              e.dataTransfer.effectAllowed = "move"
+              e.dataTransfer.setData("text/plain", tab.id)
+            }}
+            onDragOver={(e) => {
+              if (!dragTabId || dragTabId === tab.id) return
+              e.preventDefault()
+              e.dataTransfer.dropEffect = "move"
+              if (dropTargetId !== tab.id) setDropTargetId(tab.id)
+            }}
+            onDragLeave={() => {
+              if (dropTargetId === tab.id) setDropTargetId(null)
+            }}
+            onDrop={(e) => {
+              e.preventDefault()
+              if (dragTabId && dragTabId !== tab.id) {
+                onReorder?.(dragTabId, tab.id)
+              }
+              setDragTabId(null)
+              setDropTargetId(null)
+            }}
+            onDragEnd={() => {
+              setDragTabId(null)
+              setDropTargetId(null)
+            }}
             className={cn(
-              "group relative flex h-8 max-w-[200px] shrink-0 items-center rounded-md text-xs transition-all",
+              "group relative flex shrink-0 items-center text-sm transition-colors",
               isActive
-                ? "bg-card text-foreground shadow-sm ring-1 ring-border/80"
-                : "text-foreground/55 hover:bg-muted/80 hover:text-foreground/90",
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground",
+              dragTabId === tab.id && "opacity-40",
+              dropTargetId === tab.id && dragTabId !== tab.id && "bg-primary/5",
             )}
           >
-            {isActive && (
+            {/* Drop indicator */}
+            {dropTargetId === tab.id && dragTabId !== tab.id && (
               <span
-                className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary"
                 aria-hidden
+                className="pointer-events-none absolute inset-y-0 left-0 w-0.5 bg-primary"
               />
             )}
+
+            {/* Active underline indicator */}
+            {isActive && (
+              <span className="absolute inset-x-0 -bottom-px h-px bg-primary" />
+            )}
+
             <button
               type="button"
               onClick={() => onSelect(tab.id)}
               className={cn(
-                "flex min-w-0 flex-1 items-center px-2.5 py-1.5",
+                "relative inline-flex items-center gap-1.5 px-3 py-2",
                 isActive && "font-semibold",
               )}
               title={title}
               aria-current={isActive ? "page" : undefined}
             >
-              <span className="truncate">{title}</span>
+              <Icon className="h-3.5 w-3.5" />
+              <span className="truncate max-w-[140px]">{title}</span>
             </button>
             {tabs.length > 1 && (
               <button
@@ -80,7 +160,7 @@ export function WorkspaceTabBar({
       <button
         type="button"
         onClick={onAdd}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="ml-1 flex h-7 w-7 self-center shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         aria-label="New tab"
         title="New tab (Ctrl+T)"
       >

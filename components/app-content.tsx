@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useEffect, useState, Suspense, useRef, useCallback, useMemo } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
@@ -875,14 +875,22 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   )
 
   const routeLabel = useCallback(
-    (route: TabRoute): string => {
+    (route: TabRoute, task?: Task | null): string => {
       if (route.kind !== "view") return "previous"
       if (route.view === "saved-view") {
         return savedViews.find((v) => v.id === route.savedViewId)?.name || "Saved View"
       }
+      // When inside a project detail and viewing a note/task, show the project name
+      if (
+        (route.view === "projects" || route.view === "notes") &&
+        task?.project_id
+      ) {
+        const proj = projects.find((p) => p.id === task.project_id)
+        if (proj) return proj.name
+      }
       return VIEW_TITLES[route.view]
     },
-    [savedViews],
+    [savedViews, projects],
   )
 
   const sidebarActive = isMobile
@@ -963,6 +971,18 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                 onSelect={selectTab}
                 onClose={closeTab}
                 onAdd={addTab}
+                onReorder={(sourceId, targetId) => {
+                  setTabs((prev) => {
+                    const arr = [...prev]
+                    const srcIdx = arr.findIndex((t) => t.id === sourceId)
+                    const tgtIdx = arr.findIndex((t) => t.id === targetId)
+                    if (srcIdx === -1 || tgtIdx === -1) return prev
+                    const [moved] = arr.splice(srcIdx, 1)
+                    arr.splice(tgtIdx, 0, moved)
+                    return arr
+                  })
+                }}
+                resolveObjectTitle={(id) => findObjectById(id)?.description}
               />
             ) : undefined
           }
@@ -1012,12 +1032,18 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                       value={{
                         openObjectFullScreen: (taskId, objectMode) =>
                           updateTabUi(tab.id, { objectId: taskId, objectMode }),
+                        openObjectInNewTab: (taskId, objectMode) => {
+                          const newTab = createTabFromRoute(tab.route)
+                          newTab.ui = { objectId: taskId, objectMode }
+                          setTabs((prev) => [...prev, newTab])
+                          setActiveTabId(newTab.id)
+                        },
                       }}
                     >
-                      {tab.ui.objectId ? (
+                      {tab.ui.objectId && (
                         <ObjectFullScreenView
                           task={findObjectById(tab.ui.objectId)}
-                          previousLabel={routeLabel(tab.route)}
+                          previousLabel={routeLabel(tab.route, findObjectById(tab.ui.objectId))}
                           onBack={() =>
                             updateTabUi(tab.id, {
                               objectId: undefined,
@@ -1031,41 +1057,41 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                           urgencies={urgencies}
                           onUpdate={handleUpdateTask}
                         />
-                      ) : (
-                        <div
-                          className={cn(
-                            "flex min-h-0 flex-1 flex-col overflow-y-auto",
-                            desktopMainPadding(tab.route),
-                          )}
-                        >
-                          <div className="min-h-full w-full">
-                            <WorkspaceViewContent
-                              {...workspaceContentProps}
-                              hideDesktopAdd
-                              route={tab.route}
-                              ui={tab.ui}
-                              onNavigate={(view, savedViewId, settingsTab) => {
-                                navigateTab(
-                                  tab.id,
-                                  view,
-                                  savedViewId,
-                                  settingsTab,
-                                  false,
-                                )
-                                if (isActive) {
-                                  syncUrlToRoute({
-                                    kind: "view",
-                                    view,
-                                    savedViewId: savedViewId ?? null,
-                                    settingsTab,
-                                  })
-                                }
-                              }}
-                              onUpdateUi={(patch) => updateTabUi(tab.id, patch)}
-                            />
-                          </div>
-                        </div>
                       )}
+                      <div
+                        className={cn(
+                          "flex min-h-0 flex-1 flex-col overflow-y-auto",
+                          desktopMainPadding(tab.route),
+                          tab.ui.objectId && "hidden",
+                        )}
+                      >
+                        <div className="min-h-full w-full">
+                          <WorkspaceViewContent
+                            {...workspaceContentProps}
+                            hideDesktopAdd
+                            route={tab.route}
+                            ui={tab.ui}
+                            onNavigate={(view, savedViewId, settingsTab) => {
+                              navigateTab(
+                                tab.id,
+                                view,
+                                savedViewId,
+                                settingsTab,
+                                false,
+                              )
+                              if (isActive) {
+                                syncUrlToRoute({
+                                  kind: "view",
+                                  view,
+                                  savedViewId: savedViewId ?? null,
+                                  settingsTab,
+                                })
+                              }
+                            }}
+                            onUpdateUi={(patch) => updateTabUi(tab.id, patch)}
+                          />
+                        </div>
+                      </div>
                     </TabObjectProvider>
                   </TabToolbarProvider>
                 </TabPortalProvider>

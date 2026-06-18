@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useRef } from "react"
 import {
   Calendar,
   FileText,
@@ -186,27 +186,55 @@ export function useObjectDraft({
   urgencies,
   onUpdate,
   onClose,
+  autosave,
 }: {
   task: Task | null
   projects: Project[]
   urgencies: UrgencyLevel[]
   onUpdate: (task: Task) => void
   onClose: () => void
+  autosave?: boolean
 }) {
   const [draft, setDraft] = useState<Task | null>(getFullPlainTask(task))
   const [autoProcess, setAutoProcess] = useState(false)
+  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved">("idle")
+  
+  const prevDetailsRef = useRef(task?.details)
+  const prevDescriptionRef = useRef(task?.description)
+  const isTypingRef = useRef(false)
 
   useEffect(() => {
     const fullPlain = getFullPlainTask(task)
-    if (fullPlain && fullPlain.project_id) {
+    if (!fullPlain) {
+      setDraft(null)
+      return
+    }
+    if (fullPlain.project_id) {
       const proj = projects.find((p) => p.id === fullPlain.project_id)
       if (proj && proj.linked_person_id) {
         fullPlain.person_id = proj.linked_person_id
       }
     }
-    setDraft(fullPlain)
-    setAutoProcess(task && !task.processed ? true : false)
-  }, [task, projects])
+    
+    setDraft((prev) => {
+      // If we are currently typing text fields in autosave mode, preserve the draft's text fields
+      // to avoid incoming database updates (e.g. from other fields syncing) overwriting the text.
+      if (prev && prev.id === fullPlain.id && autosave && isTypingRef.current) {
+        return { ...fullPlain, details: prev.details, description: prev.description }
+      }
+      
+      // If we're not actively typing, we are accepting the incoming DB state.
+      // Update the refs so we don't trigger a fake autosave loop.
+      prevDetailsRef.current = fullPlain.details
+      prevDescriptionRef.current = fullPlain.description
+      return fullPlain
+    })
+
+    setAutoProcess((prev) => {
+      if (task && !task.processed) return true
+      return false
+    })
+  }, [task, projects, autosave])
 
   const sortedUrgencies = [...urgencies].sort((a, b) => a.order - b.order)
 
@@ -218,8 +246,42 @@ export function useObjectDraft({
     (JSON.stringify(toPlain(draft)) !== JSON.stringify(toPlain(task)) ||
       isAutoProcessing)
 
+  // Debounce text fields autosave (details & description)
+  useEffect(() => {
+    if (!autosave || !draft) return
+    const detailsChanged = draft.details !== prevDetailsRef.current
+    const descChanged = draft.description !== prevDescriptionRef.current
+
+    if (detailsChanged || descChanged) {
+      isTypingRef.current = true
+      setAutosaveStatus("idle") // Revert from "saved" so user knows it's pending
+      
+      const timer = setTimeout(() => {
+        setAutosaveStatus("saving")
+        onUpdate({ ...draft, processed: isAutoProcessing ? true : draft.processed })
+        setAutosaveStatus("saved")
+        prevDetailsRef.current = draft.details
+        prevDescriptionRef.current = draft.description
+        isTypingRef.current = false
+      }, 3000)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [draft?.details, draft?.description, autosave, isAutoProcessing, onUpdate])
+
   function update<K extends keyof Task>(key: K, value: Task[K]) {
-    setDraft((prev) => (prev ? { ...prev, [key]: value } : prev))
+    setDraft((prev) => {
+      if (!prev) return prev
+      const next = { ...prev, [key]: value }
+      
+      // Immediately autosave non-text fields. Text fields are debounced.
+      if (autosave && key !== "details" && key !== "description") {
+        onUpdate({ ...next, processed: isAutoProcessing ? true : next.processed })
+        setAutosaveStatus("saved")
+      }
+      
+      return next
+    })
   }
 
   function handleToggleTask(taskIndex: number, checked: boolean) {
@@ -276,6 +338,7 @@ export function useObjectDraft({
     convertType,
     handleToggleTask,
     getFullPlainTask,
+    autosaveStatus,
   }
 }
 

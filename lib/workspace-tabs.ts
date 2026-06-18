@@ -56,7 +56,10 @@ export function createTabFromRoute(route: TabRoute): WorkspaceTab {
   }
 }
 
-export function getTabTitle(tab: WorkspaceTab, savedViews: SavedView[]): string {
+export function getTabTitle(tab: WorkspaceTab, savedViews: SavedView[], objectTitle?: string): string {
+  if (objectTitle) {
+    return objectTitle.length > 25 ? objectTitle.slice(0, 25) + "..." : objectTitle
+  }
   if (tab.route.kind === "empty") return "New tab"
   const { view, savedViewId } = tab.route
   if (view === "saved-view") {

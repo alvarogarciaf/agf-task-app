@@ -16,6 +16,7 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { TaskDetailDialog } from "@/components/task-detail-dialog"
 import { InlineTextEditor, InlineSelectEditor, InlineMultiSelectEditor, InlineDateEditor } from "@/components/inline-cell-editors"
 import type { Context, Person, Project, Tag, Task, UrgencyLevel } from "@/lib/types"
+import { useOpenObjectFullScreen } from "@/components/tab-object-context"
 
 export type TaskColumnKey =
   | "status"
@@ -190,6 +191,24 @@ export function TasksTable({
   const [isEditing, setIsEditing] = useState(false)
   const cellRefs = useRef<Record<string, HTMLTableCellElement | null>>({})
   const isMobile = useIsMobile()
+  const tabObjectCtx = useOpenObjectFullScreen()
+
+  // Read user preference for how notes should open
+  const openNotesAs = typeof window !== "undefined"
+    ? (localStorage.getItem("open_notes_as") as "popup" | "fullscreen") || "popup"
+    : "popup"
+
+  /** Open a task/note, routing to full-screen for notes when the preference is set, or if requested explicitly via newTab. */
+  const openObject = useCallback((task: Task, mode: "view" | "edit", newTab = false) => {
+    if (newTab && tabObjectCtx?.openObjectInNewTab) {
+      tabObjectCtx.openObjectInNewTab(task.id, mode)
+    } else if (task.type === "note" && openNotesAs === "fullscreen" && tabObjectCtx?.openObjectFullScreen) {
+      tabObjectCtx.openObjectFullScreen(task.id, mode)
+    } else {
+      setDetailMode(mode)
+      setActiveTaskId(task.id)
+    }
+  }, [openNotesAs, tabObjectCtx])
 
   // Auto-focus logic for new tasks - opens the detail dialog in edit mode
   useEffect(() => {
@@ -484,13 +503,11 @@ export function TasksTable({
                     } else {
                       // On mobile, tasks open directly in edit mode; notes keep view mode first.
                       const mobileMode = (isMobile && t.type !== "note") ? "edit" : defaultOpenMode
-                      setDetailMode(mobileMode)
-                      setActiveTaskId(t.id)
+                      openObject(t, mobileMode)
                     }
                   }}
                   onEditClick={(t) => {
-                    setDetailMode("edit")
-                    setActiveTaskId(t.id)
+                    openObject(t, "edit")
                   }}
                   isSelected={selectedIds.has(task.id)}
                   onToggleSelection={() => onToggleSelection?.(task.id)}
@@ -734,13 +751,23 @@ export function TasksTable({
                               onToggleProcessed,
                               onToggleStatus,
                               inboxMode,
-                              onOpenView: (id) => {
-                                setDetailMode("view")
-                                setActiveTaskId(id)
+                              onOpenView: (id, newTab) => {
+                                const t = tasks.find(tt => tt.id === id)
+                                if (t) openObject(t, "view", newTab)
+                                else if (newTab && tabObjectCtx?.openObjectInNewTab) tabObjectCtx.openObjectInNewTab(id, "view")
+                                else {
+                                  setDetailMode("view")
+                                  setActiveTaskId(id)
+                                }
                               },
-                              onOpenEdit: (id) => {
-                                setDetailMode("edit")
-                                setActiveTaskId(id)
+                              onOpenEdit: (id, newTab) => {
+                                const t = tasks.find(tt => tt.id === id)
+                                if (t) openObject(t, "edit", newTab)
+                                else if (newTab && tabObjectCtx?.openObjectInNewTab) tabObjectCtx.openObjectInNewTab(id, "edit")
+                                else {
+                                  setDetailMode("edit")
+                                  setActiveTaskId(id)
+                                }
                               },
                             })
                           )}
@@ -856,8 +883,8 @@ interface CellContext {
   onToggleProcessed: (id: string) => void
   onToggleStatus: (id: string) => void
   inboxMode: boolean
-  onOpenView?: (id: string) => void
-  onOpenEdit?: (id: string) => void
+  onOpenView?: (id: string, newTab?: boolean) => void
+  onOpenEdit?: (id: string, newTab?: boolean) => void
 }
 
 function renderCell(key: TaskColumnKey, ctx: CellContext) {
@@ -908,24 +935,24 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
 
     case "description":
       return (
-        <div className="group/desc relative flex items-center gap-2 w-full min-w-0 h-full min-h-[1.5rem]">
+        <div className="group/desc relative flex items-center w-full min-w-0 h-full min-h-[1.5rem]">
           <span
             className={cn(
-              "truncate text-sm min-w-0",
+              "truncate text-sm min-w-0 transition-all duration-200",
               task.processed ? "text-muted-foreground" : "text-foreground",
             )}
           >
             {task.description === "New task" ? "" : task.description}
           </span>
-          <div className="hidden group-hover/desc:flex items-center gap-1.5 shrink-0 bg-background/80 backdrop-blur-[2px] px-1 py-0.5 rounded border border-border/20 shadow-sm animate-fade-in">
+          <div className="hidden group-hover/desc:flex absolute right-0 top-1/2 -translate-y-1/2 items-center gap-1.5 shrink-0 bg-background/90 backdrop-blur-sm pl-4 pr-1 py-1 rounded-l-md animate-fade-in z-10" style={{ backgroundImage: "linear-gradient(to right, transparent, var(--background) 20%)" }}>
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
-                ctx.onOpenView?.(task.id)
+                ctx.onOpenView?.(task.id, e.ctrlKey || e.metaKey)
               }}
               className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/5 hover:bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary transition-colors cursor-pointer"
-              title="View details"
+              title="View details (Ctrl+Click to open in new tab)"
             >
               <Eye className="h-3 w-3" />
               <span>View</span>
@@ -934,10 +961,10 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
-                ctx.onOpenEdit?.(task.id)
+                ctx.onOpenEdit?.(task.id, e.ctrlKey || e.metaKey)
               }}
               className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/5 hover:bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary transition-colors cursor-pointer"
-              title="Edit task"
+              title="Edit task (Ctrl+Click to open in new tab)"
             >
               <Pencil className="h-3 w-3" />
               <span>Edit</span>

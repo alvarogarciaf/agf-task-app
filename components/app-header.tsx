@@ -179,7 +179,7 @@ export function AppHeader({
         )}
       >
         {desktopTabs && tabBar ? (
-          <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-stretch gap-3 self-stretch">
             {tabBar}
           </div>
         ) : null}

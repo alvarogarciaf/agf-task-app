@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from "react"
-import { Users, Tags, Tag as TagIcon, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Info, Database, Calendar, Copy, LogOut, Bell, BellOff, BellRing, CheckCircle2, XCircle, ShieldAlert } from "lucide-react"
+import { Users, Tags, Tag as TagIcon, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Info, Database, Calendar, Copy, LogOut, Bell, BellOff, BellRing, CheckCircle2, XCircle, ShieldAlert, Eye } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useGoogleCalendar } from "@/components/google-calendar-provider"
@@ -12,7 +12,7 @@ import { firestoreDb } from "@/lib/firebase/config"
 import type { Context, Person, Tag, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "@/components/db-provider"
 
-export type TabKey = "contexts" | "tags" | "calendar" | "data" | "notifications" | "troubleshoot"
+export type TabKey = "view" | "contexts" | "tags" | "calendar" | "data" | "notifications" | "troubleshoot"
 
 interface SettingsViewProps {
   activeTab?: TabKey
@@ -65,7 +65,7 @@ export function SettingsView({
   userUid,
   onSyncCalendar,
 }: SettingsViewProps) {
-  const [internalTab, setInternalTab] = useState<TabKey>("contexts")
+  const [internalTab, setInternalTab] = useState<TabKey>("view")
   const tab = controlledTab || internalTab
   const setTab = onTabChange || setInternalTab
   const activeTabRef = useRef<HTMLButtonElement | null>(null)
@@ -140,6 +140,9 @@ export function SettingsView({
     <div className="max-w-4xl mx-auto">
       {/* Tabs - Scrollable on mobile, full tabs on desktop */}
       <div className="hidden md:flex items-center gap-1 border-b border-border mb-6 overflow-x-auto no-scrollbar">
+        <TabButton ref={tab === "view" ? activeTabRef : null} active={tab === "view"} onClick={() => setTab("view")} icon={Eye}>
+          View
+        </TabButton>
         <TabButton ref={tab === "contexts" ? activeTabRef : null} active={tab === "contexts"} onClick={() => setTab("contexts")} icon={Tags}>
           Contexts
         </TabButton>
@@ -162,6 +165,19 @@ export function SettingsView({
 
       {/* Content */}
       <div className="bg-card border border-border rounded-lg overflow-hidden">
+        {tab === "view" && (
+          <div className="p-8">
+            <h3 className="text-lg font-semibold mb-2">View Settings</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Configure how items are displayed and opened in the app.
+            </p>
+
+            <div className="space-y-6">
+              <OpenNotesAsSetting />
+            </div>
+          </div>
+        )}
+
         {tab === "contexts" && (
           <EntityManager
             title="Contexts"
@@ -1031,6 +1047,79 @@ function NotificationsPanel({ userUid }: { userUid?: string }) {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function OpenNotesAsSetting() {
+  const [value, setValue] = useState<"popup" | "fullscreen">(() => {
+    if (typeof window === "undefined") return "popup"
+    return (localStorage.getItem("open_notes_as") as "popup" | "fullscreen") || "popup"
+  })
+
+  const handleChange = (next: "popup" | "fullscreen") => {
+    setValue(next)
+    localStorage.setItem("open_notes_as", next)
+  }
+
+  return (
+    <div className="rounded-lg border border-border p-5">
+      <div className="mb-4">
+        <h4 className="text-sm font-medium">Open Notes as</h4>
+        <p className="text-xs text-muted-foreground mt-1">
+          Choose how notes open when you click on them.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+        <label
+          className={cn(
+            "flex flex-1 cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors",
+            value === "popup"
+              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+              : "border-border hover:border-primary/40",
+          )}
+        >
+          <input
+            type="radio"
+            name="open_notes_as"
+            value="popup"
+            checked={value === "popup"}
+            onChange={() => handleChange("popup")}
+            className="mt-0.5 accent-primary"
+          />
+          <div>
+            <div className="text-sm font-medium">Popup</div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Notes open as a modal dialog. Click the expand button to go full screen.
+            </p>
+          </div>
+        </label>
+
+        <label
+          className={cn(
+            "flex flex-1 cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors",
+            value === "fullscreen"
+              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+              : "border-border hover:border-primary/40",
+          )}
+        >
+          <input
+            type="radio"
+            name="open_notes_as"
+            value="fullscreen"
+            checked={value === "fullscreen"}
+            onChange={() => handleChange("fullscreen")}
+            className="mt-0.5 accent-primary"
+          />
+          <div>
+            <div className="text-sm font-medium">Full Screen</div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Notes automatically open in the full-screen editor view.
+            </p>
+          </div>
+        </label>
       </div>
     </div>
   )

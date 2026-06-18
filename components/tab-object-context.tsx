@@ -4,6 +4,7 @@ import { createContext, useContext } from "react"
 
 type TabObjectContextValue = {
   openObjectFullScreen: (taskId: string, mode: "view" | "edit") => void
+  openObjectInNewTab: (taskId: string, mode: "view" | "edit") => void
 }
 
 const TabObjectContext = createContext<TabObjectContextValue | null>(null)
