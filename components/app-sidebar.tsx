@@ -14,9 +14,11 @@ import {
   AlertCircle,
   Settings,
   Calendar,
+  ChevronRight,
+  ChevronDown,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { ViewKey, SavedView } from "@/lib/types"
+import type { ViewKey, SavedView, Project, Context, Tag, Person } from "@/lib/types"
 import type { SyncStatus } from "@/components/db-provider"
 import { Star, MoreVertical, Edit2, Trash2 } from "lucide-react"
 import { ICONS } from "@/lib/constants"
@@ -28,12 +30,19 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { UserMenu } from "@/components/user-menu"
 
+interface NavItemSub {
+  id: string
+  name: string
+  color?: string
+}
+
 interface NavItem {
   key: ViewKey
   label: string
   icon: React.ComponentType<{ className?: string }>
   badge?: number
   shortcut?: string
+  subItems?: NavItemSub[]
 }
 
 interface AppSidebarProps {
@@ -41,7 +50,7 @@ interface AppSidebarProps {
   activeSavedViewId?: string | null
   /** When false (e.g. blank desktop tab), no nav item is highlighted. */
   sidebarSelectionActive?: boolean
-  onChange: (key: ViewKey, savedViewId?: string) => void
+  onChange: (key: ViewKey, savedViewId?: string, settingsTab?: any, objectId?: string) => void
   onEditSavedView?: (view: SavedView) => void
   onDeleteSavedView?: (id: string) => void
   onReorderSavedViews?: (views: SavedView[]) => void
@@ -52,6 +61,10 @@ interface AppSidebarProps {
   workspaceLabel: string
   workspaceInitial: string
   savedViews: SavedView[]
+  projects?: Project[]
+  contexts?: Context[]
+  tags?: Tag[]
+  persons?: Person[]
   user?: {
     displayName: string | null
     email: string | null
@@ -76,6 +89,10 @@ export function AppSidebar({
   workspaceLabel,
   workspaceInitial,
   savedViews,
+  projects = [],
+  contexts = [],
+  tags = [],
+  persons = [],
   user,
   onSignOut,
   showUserMenu = false,
@@ -84,19 +101,47 @@ export function AppSidebar({
   const items: NavItem[] = [
     { key: "home", label: "Inbox", icon: Home, shortcut: "I" },
     { key: "all", label: "All Tasks", icon: ListChecks, badge: totalCount, shortcut: "A" },
-    { key: "contexts", label: "Contexts", icon: Tags, shortcut: "C" },
+    { 
+      key: "contexts", 
+      label: "Contexts", 
+      icon: Tags, 
+      shortcut: "C",
+      subItems: contexts.map(c => ({ id: c.id, name: c.name, color: c.color })) 
+    },
   ]
   const notesItems: NavItem[] = [
     { key: "notes", label: "Notes", icon: FileText, shortcut: "N" },
-    { key: "tags", label: "Tags", icon: TagIcon },
+    { 
+      key: "tags", 
+      label: "Tags", 
+      icon: TagIcon,
+      subItems: tags.map(t => ({ id: t.id, name: t.name, color: t.color })) 
+    },
   ]
   const browse: NavItem[] = [
-    { key: "projects", label: "Projects", icon: FolderKanban, shortcut: "P" },
-    { key: "persons", label: "People", icon: Users, shortcut: "U" },
+    { 
+      key: "projects", 
+      label: "Projects", 
+      icon: FolderKanban, 
+      shortcut: "P",
+      subItems: projects.map(p => ({ id: p.id, name: p.name })) 
+    },
+    { 
+      key: "persons", 
+      label: "People", 
+      icon: Users, 
+      shortcut: "U",
+      subItems: persons.map(p => ({ id: p.id, name: p.name })) 
+    },
     { key: "today", label: "Today", icon: Calendar, badge: todayCount, shortcut: "T" },
   ]
 
   const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
+
+  const toggleGroup = (key: string) => {
+    setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }))
+  }
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     setDraggedId(id)
@@ -126,7 +171,7 @@ export function AppSidebar({
   }
 
   return (
-    <aside className="hidden md:flex pt-safe pb-safe h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+    <aside className="hidden md:flex pt-safe pb-safe h-screen w-64 max-w-[16rem] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground overflow-hidden">
 
       {/* App Branding */}
       <div className="mx-3 my-4 flex items-center gap-2.5 px-3 py-2">
@@ -135,7 +180,7 @@ export function AppSidebar({
       </div>
 
       {/* Primary nav */}
-      <nav className="px-2 overflow-y-auto">
+      <nav className="px-2 overflow-y-auto overflow-x-hidden min-h-0 flex-1">
         <NavGroup label="Tasks">
           {items.map((item) => (
             <NavLink
@@ -143,6 +188,9 @@ export function AppSidebar({
               item={item}
               active={showActive && active === item.key}
               onClick={() => onChange(item.key)}
+              isExpanded={!!expandedGroups[item.key]}
+              onExpandToggle={() => toggleGroup(item.key)}
+              onSubItemClick={(objectId) => onChange(item.key, undefined, undefined, objectId)}
             />
           ))}
         </NavGroup>
@@ -154,6 +202,9 @@ export function AppSidebar({
               item={item}
               active={showActive && active === item.key}
               onClick={() => onChange(item.key)}
+              isExpanded={!!expandedGroups[item.key]}
+              onExpandToggle={() => toggleGroup(item.key)}
+              onSubItemClick={(objectId) => onChange(item.key, undefined, undefined, objectId)}
             />
           ))}
         </NavGroup>
@@ -165,6 +216,9 @@ export function AppSidebar({
               item={item}
               active={showActive && active === item.key}
               onClick={() => onChange(item.key)}
+              isExpanded={!!expandedGroups[item.key]}
+              onExpandToggle={() => toggleGroup(item.key)}
+              onSubItemClick={(objectId) => onChange(item.key, undefined, undefined, objectId)}
             />
           ))}
         </NavGroup>
@@ -329,6 +383,9 @@ function NavLink({
   onDragOver,
   onDrop,
   isDragged,
+  isExpanded,
+  onExpandToggle,
+  onSubItemClick,
 }: {
   item: NavItem
   active: boolean
@@ -341,6 +398,9 @@ function NavLink({
   onDragOver?: (e: React.DragEvent) => void
   onDrop?: (e: React.DragEvent) => void
   isDragged?: boolean
+  isExpanded?: boolean
+  onExpandToggle?: () => void
+  onSubItemClick?: (id: string) => void
 }) {
   const Icon = item.icon
   return (
@@ -354,77 +414,121 @@ function NavLink({
         isDragged ? "opacity-40" : "opacity-100"
       )}
     >
-      <div className={cn(
-        "group relative flex w-full items-center rounded-md transition-colors",
-        active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-      )}>
-        <button
-          type="button"
-          onClick={onClick}
-          className="flex flex-1 items-center gap-2.5 px-2 py-1.5 text-sm"
-          aria-current={active ? "page" : undefined}
+      <div className="group relative flex w-full flex-col">
+        <div
+          onClick={item.subItems ? onExpandToggle : onClick}
+          className={cn(
+            "group/row relative flex w-full items-center rounded-md transition-colors",
+            item.subItems ? "cursor-pointer" : "",
+            active && !item.subItems ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+          )}
         >
           {active && (
             <span className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r bg-primary" />
           )}
-          <span 
-            className={cn(
-              "flex h-4 w-4 shrink-0 items-center justify-center",
-              active ? "text-foreground" : "text-muted-foreground group-hover:text-foreground",
-            )}
-            style={color ? { color } : undefined}
-          >
-            <Icon className="h-4 w-4" />
-          </span>
-          <span className="flex-1 truncate text-left">{item.label}</span>
-          {item.badge !== undefined && item.badge > 0 ? (
-            <span
+          
+          <div className="flex flex-1 min-w-0 items-center gap-2.5 px-2 py-1.5 text-sm">
+            <span 
               className={cn(
-                "rounded px-1.5 py-0.5 font-mono text-[10px]",
-                active
-                  ? "bg-primary/20 text-primary"
-                  : "bg-muted text-muted-foreground group-hover:bg-background",
+                "flex h-4 w-4 shrink-0 items-center justify-center",
+                active ? "text-foreground" : "text-muted-foreground group-hover/row:text-foreground",
               )}
+              style={color ? { color } : undefined}
             >
-              {item.badge}
+              <Icon className="h-4 w-4" />
             </span>
-          ) : item.shortcut ? (
-            <span className="font-mono text-[10px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
-              {item.shortcut}
-            </span>
-          ) : null}
-        </button>
+            
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onClick()
+              }}
+              className="truncate text-left hover:underline focus:underline focus:outline-none"
+            >
+              {item.label}
+            </button>
+            
+            {item.badge !== undefined && item.badge > 0 ? (
+              <span
+                className={cn(
+                  "ml-auto rounded px-1.5 py-0.5 font-mono text-[10px]",
+                  active
+                    ? "bg-primary/20 text-primary"
+                    : "bg-muted text-muted-foreground group-hover/row:bg-background",
+                )}
+              >
+                {item.badge}
+              </span>
+            ) : item.shortcut ? (
+              <span className="ml-auto font-mono text-[10px] text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100">
+                {item.shortcut}
+              </span>
+            ) : null}
+          </div>
 
-        {(onEdit || onDelete) && (
-          <div className="mr-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+          {item.subItems && (
+            <div className="mr-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-sidebar-accent-foreground/10 text-muted-foreground">
+              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            </div>
+          )}
+
+          {(onEdit || onDelete) && (
+            <div className="mr-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-sidebar-accent-foreground/10"
+                  >
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-32">
+                  {onEdit && (
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(); }}>
+                      <Edit2 className="mr-2 h-3.5 w-3.5" />
+                      Edit
+                    </DropdownMenuItem>
+                  )}
+                  {onDelete && (
+                    <DropdownMenuItem 
+                      onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-3.5 w-3.5" />
+                      Delete
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+        </div>
+
+        {/* Expanded SubItems */}
+        {isExpanded && item.subItems && item.subItems.length > 0 && (
+          <ul className="mt-0.5 flex flex-col gap-0.5 pl-7 pb-1">
+            {item.subItems.map((sub) => (
+              <li key={sub.id}>
                 <button
                   type="button"
-                  className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-sidebar-accent-foreground/10"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onSubItemClick?.(sub.id)
+                  }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground transition-colors"
                 >
-                  <MoreVertical className="h-3.5 w-3.5" />
+                  <span 
+                    className="h-1.5 w-1.5 shrink-0 rounded-full" 
+                    style={{ backgroundColor: sub.color || "currentColor", opacity: sub.color ? 1 : 0.6 }} 
+                  />
+                  <span className="truncate text-left">{sub.name}</span>
                 </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-32">
-                {onEdit && (
-                  <DropdownMenuItem onClick={onEdit}>
-                    <Edit2 className="mr-2 h-3.5 w-3.5" />
-                    Edit
-                  </DropdownMenuItem>
-                )}
-                {onDelete && (
-                  <DropdownMenuItem 
-                    onClick={onDelete}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="mr-2 h-3.5 w-3.5" />
-                    Delete
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </li>

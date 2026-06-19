@@ -362,7 +362,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     setTabToolbar({ canAdd: false, addLabel: "", onAdd: null })
   }, [])
 
-  const handleNavigate = (view: ViewKey, savedViewId?: string, settingsTab?: TabKey) => {
+  const handleNavigate = (view: ViewKey, savedViewId?: string, settingsTab?: TabKey, objectId?: string) => {
     setInitialContextId(undefined)
     setInitialPersonId(undefined)
     setInitialTagId(undefined)
@@ -377,6 +377,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       else params.delete("savedViewId")
       if (settingsTab) params.set("tab", settingsTab)
       else params.delete("tab")
+      if (objectId) params.set("objectId", objectId)
+      else params.delete("objectId")
 
       const newUrl = `${window.location.pathname}?${params.toString()}`
       window.history.pushState(null, "", newUrl)
@@ -390,6 +392,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       savedViewId?: string,
       settingsTab?: TabKey,
       clearUi = true,
+      objectId?: string,
     ) => {
       setTabs((prev) =>
         prev.map((t) => {
@@ -402,7 +405,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
               savedViewId: savedViewId ?? null,
               settingsTab,
             },
-            ui: clearUi ? {} : t.ui,
+            ui: {
+              ...(clearUi ? {} : t.ui),
+              ...(objectId ? { objectId, objectEditing: false } : {}),
+            },
           }
         }),
       )
@@ -411,8 +417,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   )
 
   const navigateActiveTab = useCallback(
-    (view: ViewKey, savedViewId?: string, settingsTab?: TabKey) => {
-      navigateTab(activeTabId, view, savedViewId, settingsTab, true)
+    (view: ViewKey, savedViewId?: string, settingsTab?: TabKey, objectId?: string) => {
+      navigateTab(activeTabId, view, savedViewId, settingsTab, true, objectId)
       syncUrlToRoute({
         kind: "view",
         view,
@@ -929,6 +935,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         workspaceLabel={workspaceLabel}
         workspaceInitial={workspaceInitial}
         savedViews={savedViews}
+        projects={projects}
+        contexts={contexts}
+        tags={tags}
+        persons={persons}
         onReorderSavedViews={handleReorderSavedViews}
         user={user}
         onSignOut={onSignOut}
