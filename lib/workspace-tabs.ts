@@ -14,6 +14,7 @@ export type TabUiState = {
   initialContextId?: string
   initialPersonId?: string
   initialTagId?: string
+  initialProjectId?: string
   /** Desktop only: when set, the tab renders a full-screen object editor
    *  over its current route. The route remains the "previous screen". */
   objectId?: string

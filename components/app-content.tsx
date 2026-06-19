@@ -72,6 +72,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [initialContextId, setInitialContextId] = useState<string | undefined>()
   const [initialPersonId, setInitialPersonId] = useState<string | undefined>()
   const [initialTagId, setInitialTagId] = useState<string | undefined>()
+  const [initialProjectId, setInitialProjectId] = useState<string | undefined>()
 
   // Data state â€” split tasks into two efficient streams
   const [inboxTasks, setInboxTasks] = useState<Task[]>([])
@@ -362,10 +363,11 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     setTabToolbar({ canAdd: false, addLabel: "", onAdd: null })
   }, [])
 
-  const handleNavigate = (view: ViewKey, savedViewId?: string, settingsTab?: TabKey, objectId?: string) => {
-    setInitialContextId(undefined)
-    setInitialPersonId(undefined)
-    setInitialTagId(undefined)
+  const handleNavigate = (view: ViewKey, savedViewId?: string, settingsTab?: TabKey, objectId?: string, uiPatch?: Partial<TabUiState>) => {
+    setInitialContextId(uiPatch?.initialContextId ?? undefined)
+    setInitialPersonId(uiPatch?.initialPersonId ?? undefined)
+    setInitialTagId(uiPatch?.initialTagId ?? undefined)
+    setInitialProjectId(uiPatch?.initialProjectId ?? undefined)
     setActiveView(view)
     setActiveSavedViewId(savedViewId || null)
     if (settingsTab) setActiveSettingsTab(settingsTab)
@@ -393,6 +395,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       settingsTab?: TabKey,
       clearUi = true,
       objectId?: string,
+      uiPatch?: Partial<TabUiState>
     ) => {
       setTabs((prev) =>
         prev.map((t) => {
@@ -408,6 +411,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             ui: {
               ...(clearUi ? {} : t.ui),
               ...(objectId ? { objectId, objectEditing: false } : {}),
+              ...uiPatch,
             },
           }
         }),
@@ -417,8 +421,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   )
 
   const navigateActiveTab = useCallback(
-    (view: ViewKey, savedViewId?: string, settingsTab?: TabKey, objectId?: string) => {
-      navigateTab(activeTabId, view, savedViewId, settingsTab, true, objectId)
+    (view: ViewKey, savedViewId?: string, settingsTab?: TabKey, objectId?: string, uiPatch?: Partial<TabUiState>) => {
+      navigateTab(activeTabId, view, savedViewId, settingsTab, true, objectId, uiPatch)
       syncUrlToRoute({
         kind: "view",
         view,
@@ -855,6 +859,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         initialContextId,
         initialPersonId,
         initialTagId,
+        initialProjectId,
       }}
       onNavigate={handleNavigate}
       onUpdateUi={(patch) => {
@@ -866,6 +871,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         }
         if (patch.initialTagId !== undefined) {
           setInitialTagId(patch.initialTagId)
+        }
+        if (patch.initialProjectId !== undefined) {
+          setInitialProjectId(patch.initialProjectId)
         }
       }}
     />

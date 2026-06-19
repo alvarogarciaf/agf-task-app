@@ -34,6 +34,7 @@ interface NavItemSub {
   id: string
   name: string
   color?: string
+  iconKey?: string
 }
 
 interface NavItem {
@@ -50,7 +51,13 @@ interface AppSidebarProps {
   activeSavedViewId?: string | null
   /** When false (e.g. blank desktop tab), no nav item is highlighted. */
   sidebarSelectionActive?: boolean
-  onChange: (key: ViewKey, savedViewId?: string, settingsTab?: any, objectId?: string) => void
+  onChange: (
+    view: ViewKey,
+    savedViewId?: string,
+    settingsTab?: import("@/components/views/settings-view").TabKey,
+    objectId?: string,
+    uiPatch?: Partial<import("@/lib/workspace-tabs").TabUiState>
+  ) => void
   onEditSavedView?: (view: SavedView) => void
   onDeleteSavedView?: (id: string) => void
   onReorderSavedViews?: (views: SavedView[]) => void
@@ -100,6 +107,7 @@ export function AppSidebar({
   const showActive = sidebarSelectionActive
   const items: NavItem[] = [
     { key: "home", label: "Inbox", icon: Home, shortcut: "I" },
+    { key: "today", label: "Today", icon: Calendar, badge: todayCount, shortcut: "T" },
     { key: "all", label: "All Tasks", icon: ListChecks, badge: totalCount, shortcut: "A" },
     { 
       key: "contexts", 
@@ -124,16 +132,15 @@ export function AppSidebar({
       label: "Projects", 
       icon: FolderKanban, 
       shortcut: "P",
-      subItems: projects.map(p => ({ id: p.id, name: p.name })) 
+      subItems: projects.map(p => ({ id: p.id, name: p.name, color: p.color ?? undefined, iconKey: p.icon ?? undefined })) 
     },
     { 
       key: "persons", 
       label: "People", 
       icon: Users, 
       shortcut: "U",
-      subItems: persons.map(p => ({ id: p.id, name: p.name })) 
+      subItems: persons.map(p => ({ id: p.id, name: p.name, color: p.color ?? undefined })) 
     },
-    { key: "today", label: "Today", icon: Calendar, badge: todayCount, shortcut: "T" },
   ]
 
   const [draggedId, setDraggedId] = useState<string | null>(null)
@@ -190,7 +197,13 @@ export function AppSidebar({
               onClick={() => onChange(item.key)}
               isExpanded={!!expandedGroups[item.key]}
               onExpandToggle={() => toggleGroup(item.key)}
-              onSubItemClick={(objectId) => onChange(item.key, undefined, undefined, objectId)}
+              onSubItemClick={(subId) => {
+                if (item.key === "contexts") onChange("all", undefined, undefined, undefined, { initialContextId: subId })
+                else if (item.key === "persons") onChange("all", undefined, undefined, undefined, { initialPersonId: subId })
+                else if (item.key === "tags") onChange("notes", undefined, undefined, undefined, { initialTagId: subId })
+                else if (item.key === "projects") onChange("projects", undefined, undefined, undefined, { initialProjectId: subId })
+                else onChange(item.key, undefined, undefined, subId)
+              }}
             />
           ))}
         </NavGroup>
@@ -204,7 +217,13 @@ export function AppSidebar({
               onClick={() => onChange(item.key)}
               isExpanded={!!expandedGroups[item.key]}
               onExpandToggle={() => toggleGroup(item.key)}
-              onSubItemClick={(objectId) => onChange(item.key, undefined, undefined, objectId)}
+              onSubItemClick={(subId) => {
+                if (item.key === "contexts") onChange("all", undefined, undefined, undefined, { initialContextId: subId })
+                else if (item.key === "persons") onChange("all", undefined, undefined, undefined, { initialPersonId: subId })
+                else if (item.key === "tags") onChange("notes", undefined, undefined, undefined, { initialTagId: subId })
+                else if (item.key === "projects") onChange("projects", undefined, undefined, undefined, { initialProjectId: subId })
+                else onChange(item.key, undefined, undefined, subId)
+              }}
             />
           ))}
         </NavGroup>
@@ -218,7 +237,13 @@ export function AppSidebar({
               onClick={() => onChange(item.key)}
               isExpanded={!!expandedGroups[item.key]}
               onExpandToggle={() => toggleGroup(item.key)}
-              onSubItemClick={(objectId) => onChange(item.key, undefined, undefined, objectId)}
+              onSubItemClick={(subId) => {
+                if (item.key === "contexts") onChange("all", undefined, undefined, undefined, { initialContextId: subId })
+                else if (item.key === "persons") onChange("all", undefined, undefined, undefined, { initialPersonId: subId })
+                else if (item.key === "tags") onChange("notes", undefined, undefined, undefined, { initialTagId: subId })
+                else if (item.key === "projects") onChange("projects", undefined, undefined, undefined, { initialProjectId: subId })
+                else onChange(item.key, undefined, undefined, subId)
+              }}
             />
           ))}
         </NavGroup>
@@ -520,10 +545,17 @@ function NavLink({
                   }}
                   className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-[13px] text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground transition-colors"
                 >
-                  <span 
-                    className="h-1.5 w-1.5 shrink-0 rounded-full" 
-                    style={{ backgroundColor: sub.color || "currentColor", opacity: sub.color ? 1 : 0.6 }} 
-                  />
+                  {sub.iconKey && ICONS[sub.iconKey] ? (
+                    (() => {
+                      const SubIcon = ICONS[sub.iconKey]
+                      return <SubIcon className="h-3.5 w-3.5 shrink-0" style={{ color: sub.color || "currentColor", opacity: sub.color ? 1 : 0.6 }} />
+                    })()
+                  ) : (
+                    <span 
+                      className="h-1.5 w-1.5 shrink-0 rounded-full" 
+                      style={{ backgroundColor: sub.color || "currentColor", opacity: sub.color ? 1 : 0.6 }} 
+                    />
+                  )}
                   <span className="truncate text-left">{sub.name}</span>
                 </button>
               </li>

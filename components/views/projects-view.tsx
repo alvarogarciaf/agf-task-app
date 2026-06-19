@@ -64,6 +64,7 @@ interface ProjectsViewProps {
   onAddProject: (project: Omit<Project, "id">) => void
   onUpdateProject: (project: Project) => void
   onDeleteProject: (id: string) => void
+  initialSelectedId?: string
 }
 
 export function ProjectsView({
@@ -84,11 +85,16 @@ export function ProjectsView({
   onAddProject,
   onUpdateProject,
   onDeleteProject,
+  initialSelectedId,
 }: ProjectsViewProps) {
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string | null>(initialSelectedId || null)
   const [statusFilter, setStatusFilter] = useState<"Ongoing" | "Closed" | "All">("Ongoing")
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
+
+  useEffect(() => {
+    setSelected(initialSelectedId || null)
+  }, [initialSelectedId])
 
   const handleSaveProject = (p: Project | Omit<Project, "id">) => {
     if ("id" in p) {

@@ -224,6 +224,7 @@ export function WorkspaceViewContent({
           onAddProject={onAddProject}
           onUpdateProject={onUpdateProject}
           onDeleteProject={onDeleteProject}
+          initialSelectedId={ui.initialProjectId}
         />
       )
     case "contexts":
