@@ -8,6 +8,7 @@ import {
   Circle,
   CircleCheck,
   FileText,
+  Trash2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -34,6 +35,7 @@ interface ObjectFullScreenViewProps {
   tags?: TagType[]
   urgencies: UrgencyLevel[]
   onUpdate: (task: Task) => void
+  onDeleteTask?: (id: string) => void
 }
 
 export function ObjectFullScreenView({
@@ -46,6 +48,7 @@ export function ObjectFullScreenView({
   tags = [],
   urgencies,
   onUpdate,
+  onDeleteTask,
 }: ObjectFullScreenViewProps) {
   // If the object disappears (deleted elsewhere), return to the previous screen.
   useEffect(() => {
@@ -184,6 +187,21 @@ export function ObjectFullScreenView({
             <ArrowLeftRight className="h-3 w-3" />
             {isNote ? "To task" : "To note"}
           </button>
+          {onDeleteTask && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("Are you sure you want to delete this?")) {
+                  onDeleteTask(draft.id)
+                  onBack()
+                }
+              }}
+              className="inline-flex items-center gap-1.5 rounded-md border border-destructive/20 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20"
+              title="Delete"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
           {/* Removed Cancel button since we're autosaving */}
           <button
             type="button"

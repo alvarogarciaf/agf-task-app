@@ -1074,6 +1074,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                           tags={tags}
                           urgencies={urgencies}
                           onUpdate={handleUpdateTask}
+                          onDeleteTask={handleDeleteTask}
                         />
                       )}
                       <div

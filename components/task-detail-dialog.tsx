@@ -130,6 +130,7 @@ export function TaskDetailDialog({
   const canExpand = !isMobile && !!expandFullScreen && !!task
   function expand() {
     if (!task || !expandFullScreen) return
+    save()
     expandFullScreen(task.id, "edit")
     onOpenChange(false)
   }

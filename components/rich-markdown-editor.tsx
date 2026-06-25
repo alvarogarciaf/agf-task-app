@@ -14,6 +14,7 @@ import {
   Indent,
   Outdent,
   Copy,
+  Image as ImageIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -29,6 +30,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { uploadImage } from "@/lib/image-upload"
 
 export { markdownToHtml, htmlToMarkdown } from "@/lib/markdown"
 
@@ -733,6 +735,16 @@ function EditorSurface({
   }
 
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    // Check for images in clipboard
+    const items = Array.from(e.clipboardData.items)
+    const imageItems = items.filter(item => item.type.startsWith("image/"))
+    if (imageItems.length > 0) {
+      e.preventDefault()
+      const files = imageItems.map(item => item.getAsFile()).filter(f => f !== null) as File[]
+      handleImageFiles(files)
+      return
+    }
+
     e.preventDefault()
     const text = e.clipboardData.getData("text/plain")
 
@@ -750,6 +762,52 @@ function EditorSurface({
     }
 
     document.execCommand("insertHTML", false, htmlToInsert)
+  }
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"))
+    if (files.length > 0) {
+      e.preventDefault()
+      // Optional: focus where the image was dropped, but it's hard to get exact caret reliably.
+      // Usually the caret moves to drop location automatically on native drop if we don't preventDefault too early.
+      handleImageFiles(files)
+    }
+  }
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleImageFiles = async (files: File[]) => {
+    if (!editorRef.current) return
+    editorRef.current.focus()
+
+    for (const file of files) {
+      const placeholderId = Math.random().toString(36).substring(7)
+      const placeholderText = `![Uploading_${placeholderId}...]()`
+      document.execCommand("insertText", false, placeholderText)
+      syncMarkdown()
+
+      try {
+        const url = await uploadImage(file)
+        if (editorRef.current) {
+          const currentHtml = editorRef.current.innerHTML
+          const markdown = htmlToMarkdown(currentHtml)
+          const updatedMarkdown = markdown.replace(placeholderText, `![${file.name}](${url})`)
+          const newHtml = markdownToHtml(updatedMarkdown)
+          editorRef.current.innerHTML = newHtml || "<p><br></p>"
+          syncMarkdown()
+        }
+      } catch (error: any) {
+        toast.error("Failed to upload image")
+        if (editorRef.current) {
+          const currentHtml = editorRef.current.innerHTML
+          const markdown = htmlToMarkdown(currentHtml)
+          const updatedMarkdown = markdown.replace(placeholderText, `![Upload_Failed:_${error.message.replace(/\s+/g, "_")}]()`)
+          const newHtml = markdownToHtml(updatedMarkdown)
+          editorRef.current.innerHTML = newHtml || "<p><br></p>"
+          syncMarkdown()
+        }
+      }
+    }
   }
 
   const handleCopyMarkdown = async () => {
@@ -795,6 +853,25 @@ function EditorSurface({
         <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("outdent")} className={toolbarButton} title="Outdent" aria-label="Outdent">
           <Outdent className="h-4 w-4" />
         </button>
+
+        <span className="mx-1 h-4 w-px bg-border" />
+
+        <button type="button" onClick={() => fileInputRef.current?.click()} className={toolbarButton} title="Insert Image" aria-label="Insert Image">
+          <ImageIcon className="h-4 w-4" />
+        </button>
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          className="hidden" 
+          accept="image/*" 
+          multiple
+          onChange={(e) => {
+            if (e.target.files) {
+              handleImageFiles(Array.from(e.target.files))
+            }
+            e.target.value = ""
+          }} 
+        />
 
         <span className="mx-1 h-4 w-px bg-border" />
 
@@ -890,8 +967,10 @@ function EditorSurface({
         onInput={handleInput}
         onBeforeInput={handleBeforeInput}
         onKeyDown={handleKeyDown}
+        onMouseUp={handleInput}
         onClick={handleClick}
         onPaste={handlePaste}
+        onDrop={handleDrop}
         data-placeholder={placeholder}
         className={cn(
           "rich-editor prose prose-sm dark:prose-invert max-w-none min-h-0 w-full flex-1 rounded-b-md border border-border bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground/90 overflow-y-auto outline-none transition-colors",
@@ -908,6 +987,7 @@ function EditorSurface({
           "[&>div]:mb-3 [&>div]:text-xs [&>div]:text-foreground/90 [&>div]:leading-relaxed",
           "[&_.md-task]:flex [&_.md-task]:items-start [&_.md-task]:gap-2",
           "[&_.md-task-box]:mt-0.5 [&_.md-task-box]:h-3.5 [&_.md-task-box]:w-3.5 [&_.md-task-box]:shrink-0 [&_.md-task-box]:cursor-pointer [&_.md-task-box]:accent-primary",
+          "[&_.image-resizer]:outline [&_.image-resizer]:outline-transparent hover:[&_.image-resizer]:outline-border/50",
         )}
       />
     </div>

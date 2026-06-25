@@ -35,7 +35,20 @@ export function markdownToHtml(md: string): string {
   const parseInline = (text: string): string => {
     let result = text;
 
-    // Links [text](url)
+    // Images ![alt|WxH](url) or ![alt](url)
+    // We add an onerror handler to display an offline placeholder
+    const fallbackSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100' style='background:%23f3f4f6;border-radius:6px;'><text x='50%' y='50%' fill='%239ca3af' text-anchor='middle' dominant-baseline='middle' font-family='sans-serif' font-size='12'>Image unavailable offline</text></svg>";
+    result = result.replace(/!\[([^|\]]*)(?:\|(\d+)(?:x(\d+))?)?\]\(([^)]+)\)/g, (match, alt, width, height, url) => {
+      let style = '';
+      if (width) style += `width:${width}px;`;
+      if (height) style += `height:${height}px;`;
+      
+      return `<span class="image-resizer" style="display:inline-block; resize:horizontal; overflow:hidden; max-width:100%; min-width:20px; vertical-align: bottom; ${style}"><img src="${url}" data-original-src="${url}" alt="${alt}" class="w-full h-auto object-contain rounded-md" onerror="this.onerror=null; this.src='${fallbackSvg}';" /></span>`;
+    });
+
+    // Links [text](url) - Note: simple regex, but since we run this after images, `![alt](url)` could be problematic if we don't differentiate.
+    // To prevent matching `![alt](url)` as a link if it wasn't caught (it should be caught above), we use a regex that doesn't start with `!`.
+    // Actually, string replace processes sequentially. But if we replace `![]()` with `<img>`, the `<img>` won't match `[]()`.
     result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-semibold">$1</a>');
 
     // Bold: **text** or __text__
@@ -107,6 +120,7 @@ export function markdownToPlainText(md: string): string {
 
   const stripInline = (text: string) =>
     text
+      .replace(/!\[([^|\]]*)(?:\|(\d+)(?:x(\d+))?)?\]\([^)]+\)/g, " [Image] ")
       .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
       .replace(/(\*\*|__)(.*?)\1/g, "$2")
       .replace(/(\*|_)(.*?)\1/g, "$2")
@@ -193,7 +207,29 @@ function nodeToMarkdown(node: Node): string {
         const href = el.getAttribute("href") || "";
         return `[${childContent}](${href})`;
       }
+      case "img": {
+        const src = el.getAttribute("src") || "";
+        const originalSrc = el.getAttribute("data-original-src") || src;
+        const alt = el.getAttribute("alt") || "";
+        return `![${alt}](${originalSrc})`;
+      }
       case "span":
+        if (el.classList.contains("image-resizer")) {
+          const img = el.querySelector("img");
+          if (img) {
+            const originalSrc = img.getAttribute("data-original-src") || img.getAttribute("src") || "";
+            const alt = img.getAttribute("alt") || "";
+            
+            const w = el.style.width ? parseInt(el.style.width) : null;
+            const h = el.style.height ? parseInt(el.style.height) : null;
+            
+            let dimStr = "";
+            if (w && h) dimStr = `|${w}x${h}`;
+            else if (w) dimStr = `|${w}`;
+
+            return `![${alt}${dimStr}](${originalSrc})`;
+          }
+        }
         if (el.style.fontWeight === "bold") {
           return `**${childContent}**`;
         }
@@ -254,9 +290,33 @@ export function renderMarkdown(
   };
 
   const parseInline = (line: string): React.ReactNode[] => {
-    let segments: { type: "text" | "bold" | "italic" | "link"; content: string; url?: string }[] = [
+    let segments: { type: "text" | "bold" | "italic" | "link" | "image"; content: string; url?: string }[] = [
       { type: "text", content: line }
     ];
+
+    // 0. Parse Images: ![alt](url)
+    segments = segments.flatMap(seg => {
+      if (seg.type !== "text") return [seg];
+      const parts: typeof segments = [];
+      const remaining = seg.content;
+      const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+      let match;
+      let lastIndex = 0;
+
+      while ((match = imgRegex.exec(remaining)) !== null) {
+        const textBefore = remaining.substring(lastIndex, match.index);
+        if (textBefore) {
+          parts.push({ type: "text", content: textBefore });
+        }
+        parts.push({ type: "image", content: match[1], url: match[2] });
+        lastIndex = imgRegex.lastIndex;
+      }
+      const textAfter = remaining.substring(lastIndex);
+      if (textAfter) {
+        parts.push({ type: "text", content: textAfter });
+      }
+      return parts;
+    });
 
     // 1. Parse Links: [text](url)
     segments = segments.flatMap(seg => {
@@ -348,6 +408,21 @@ export function renderMarkdown(
           >
             {seg.content}
           </a>
+        );
+      }
+      if (seg.type === "image") {
+        return (
+          <img
+            key={idx}
+            src={seg.url}
+            alt={seg.content}
+            className="max-w-full h-auto rounded-md my-2 inline-block object-contain"
+            onError={(e) => {
+              const target = e.currentTarget;
+              target.onerror = null; // prevent infinite loop
+              target.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100' style='background:%23f3f4f6;border-radius:6px;'><text x='50%' y='50%' fill='%239ca3af' text-anchor='middle' dominant-baseline='middle' font-family='sans-serif' font-size='12'>Image unavailable offline</text></svg>";
+            }}
+          />
         );
       }
       return seg.content;
