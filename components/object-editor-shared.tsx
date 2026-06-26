@@ -359,6 +359,7 @@ export function ObjectEditFields({
   isProjectShared,
   descriptionRef,
   detailsRef,
+  onSubmit,
 }: {
   draft: Task
   setDraft: React.Dispatch<React.SetStateAction<Task | null>>
