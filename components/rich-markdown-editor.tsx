@@ -411,9 +411,9 @@ function EditorSurface({
   }
 
   const HEADING_CLASSES: Record<"h1" | "h2" | "h3", string> = {
-    h1: "text-base font-bold text-foreground mt-3 mb-1.5 font-sans border-b border-border/10 pb-0.5",
-    h2: "text-sm font-semibold text-foreground mt-3 mb-1.5 font-sans",
-    h3: "text-xs font-semibold text-foreground mt-2 mb-1 font-sans uppercase tracking-wider text-muted-foreground",
+    h1: "text-lg font-bold text-foreground mt-3 mb-1.5 font-sans border-b border-border/10 pb-0.5",
+    h2: "text-base font-semibold text-foreground mt-3 mb-1.5 font-sans",
+    h3: "text-sm font-semibold text-foreground mt-2 mb-1 font-sans uppercase tracking-wider text-muted-foreground",
   }
 
   const convertBlockToHeading = (
@@ -975,16 +975,17 @@ function EditorSurface({
         className={cn(
           "rich-editor prose prose-sm dark:prose-invert max-w-none min-h-0 w-full flex-1 rounded-b-md border border-border bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground/90 overflow-y-auto outline-none transition-colors",
           "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus:outline-none focus:ring-1 focus:ring-ring",
-          "[&_h1]:text-base [&_h1]:font-bold [&_h1]:text-foreground [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:font-sans [&_h1]:border-b [&_h1]:border-border/10 [&_h1]:pb-0.5",
-          "[&_h2]:text-sm [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mt-3 [&_h2]:mb-1.5 [&_h2]:font-sans",
-          "[&_h3]:text-xs [&_h3]:font-semibold [&_h3]:text-foreground [&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:font-sans [&_h3]:uppercase [&_h3]:tracking-wider [&_h3]:text-muted-foreground",
-          "[&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3 [&_ul]:space-y-1",
-          "[&_li]:leading-relaxed [&_li]:text-xs [&_li]:text-foreground/90",
+          "[&_h1]:text-lg [&_h1]:font-bold [&_h1]:text-foreground [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:font-sans [&_h1]:border-b [&_h1]:border-border/10 [&_h1]:pb-0.5",
+          "[&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mt-3 [&_h2]:mb-1.5 [&_h2]:font-sans",
+          "[&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-foreground [&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:font-sans [&_h3]:uppercase [&_h3]:tracking-wider [&_h3]:text-muted-foreground",
+          "[&_ul]:my-2 [&_ul]:ml-4 [&_ul]:list-disc",
+          "[&_ol]:my-2 [&_ol]:ml-4 [&_ol]:list-decimal",
+          "[&_li]:leading-relaxed [&_li]:text-sm [&_li]:text-foreground/90",
           "[&_strong]:font-bold [&_strong]:text-foreground",
           "[&_em]:italic [&_em]:text-foreground/90",
           "[&_a]:text-primary [&_a]:hover:underline [&_a]:font-semibold",
-          "[&_p]:mb-3 [&_p]:text-xs [&_p]:text-foreground/90 [&_p]:leading-relaxed",
-          "[&>div]:mb-3 [&>div]:text-xs [&>div]:text-foreground/90 [&>div]:leading-relaxed",
+          "[&_p]:mb-3 [&_p]:text-sm [&_p]:text-foreground/90 [&_p]:leading-relaxed",
+          "[&>div]:mb-3 [&>div]:text-sm [&>div]:text-foreground/90 [&>div]:leading-relaxed",
           "[&_.md-task]:flex [&_.md-task]:items-start [&_.md-task]:gap-2",
           "[&_.md-task-box]:mt-0.5 [&_.md-task-box]:h-3.5 [&_.md-task-box]:w-3.5 [&_.md-task-box]:shrink-0 [&_.md-task-box]:cursor-pointer [&_.md-task-box]:accent-primary",
           "[&_.image-resizer]:outline [&_.image-resizer]:outline-transparent hover:[&_.image-resizer]:outline-border/50",
