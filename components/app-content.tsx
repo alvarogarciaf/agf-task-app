@@ -152,6 +152,22 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   }, [db])
 
   // Handlers
+  const undoStackRef = useRef<Array<{ label: string; reverse: () => Promise<void> }>>([])
+
+  const handleUndo = useCallback(async () => {
+    const action = undoStackRef.current.pop()
+    if (action) {
+      try {
+        await action.reverse()
+        toast.success("Action undone")
+      } catch (e) {
+        toast.error("Failed to undo")
+      }
+    } else {
+      toast("Nothing to undo")
+    }
+  }, [])
+
   const handleCreateTask = async (input: {
     description: string
     details?: string | null
