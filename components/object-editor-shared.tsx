@@ -322,7 +322,6 @@ export function useObjectDraft({
     toast.success(
       nextType === "note" ? "Converted to Note" : "Converted to Task",
     )
-    onClose()
   }
 
   return {
@@ -373,6 +372,7 @@ export function ObjectEditFields({
   isProjectShared: boolean
   descriptionRef?: React.Ref<HTMLTextAreaElement>
   detailsRef?: React.RefObject<HTMLDivElement | null>
+  onSubmit?: () => void
 }) {
   function focusDetails() {
     const el = detailsRef?.current?.querySelector<HTMLElement>('[contenteditable]')
@@ -392,7 +392,10 @@ export function ObjectEditFields({
             update("description", cleaned)
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === "Tab") {
+            if (e.key === "Enter") {
+              e.preventDefault()
+              if (onSubmit) onSubmit()
+            } else if (e.key === "Tab") {
               e.preventDefault()
               focusDetails()
             }

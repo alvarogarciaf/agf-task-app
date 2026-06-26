@@ -236,25 +236,54 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         }
       }
 
+      const prevData = doc.toJSON()
       // Construct clean patch object filtering out undefined fields
       const patchObj: Partial<Task> = {}
+      let hasChanges = false
       for (const key of Object.keys(task) as Array<keyof Task>) {
         if (task[key] !== undefined) {
-          (patchObj as any)[key] = task[key]
+          if (JSON.stringify(task[key]) !== JSON.stringify(prevData[key])) {
+            (patchObj as any)[key] = task[key]
+            hasChanges = true
+          }
         }
       }
       
       // Set the resolved person_id
-      patchObj.person_id = personId
+      if (personId !== prevData.person_id) {
+        patchObj.person_id = personId
+        hasChanges = true
+      }
 
-      await doc.patch(patchObj)
+      if (hasChanges) {
+        await doc.patch(patchObj)
+        undoStackRef.current.push({
+          label: "Undo update task",
+          reverse: async () => {
+            const d = await db.tasks.findOne(task.id).exec()
+            if (d) await d.patch(prevData)
+          },
+        })
+      }
     }
   }
 
   const handleToggleProcessed = async (id: string) => {
     const doc = await db.tasks.findOne(id).exec()
     if (doc) {
-      await doc.patch({ processed: !doc.get("processed") })
+      const current = doc.get("processed")
+      const next = !current
+      await doc.patch({ processed: next })
+      undoStackRef.current.push({
+        label: "Undo toggle processed",
+        reverse: async () => {
+          const d = await db.tasks.findOne(id).exec()
+          if (d) await d.patch({ processed: current })
+        },
+      })
+      toast(next ? "Marked as processed" : "Moved back to inbox", {
+        action: { label: "Undo", onClick: () => handleUndo() },
+      })
     }
   }
 
@@ -262,21 +291,53 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     const doc = await db.tasks.findOne(id).exec()
     if (doc) {
       const current = doc.get("status")
-      await doc.patch({ status: current === "Open" ? "Done" : "Open" })
+      const next = current === "Open" ? "Done" : "Open"
+      await doc.patch({ status: next })
+      undoStackRef.current.push({
+        label: "Undo toggle status",
+        reverse: async () => {
+          const d = await db.tasks.findOne(id).exec()
+          if (d) await d.patch({ status: current })
+        },
+      })
+      toast(next === "Done" ? "Task marked as done" : "Task reopened", {
+        action: { label: "Undo", onClick: () => handleUndo() },
+      })
     }
   }
 
   const handleArchiveTask = async (id: string) => {
     const doc = await db.tasks.findOne(id).exec()
     if (doc) {
+      const current = doc.get("archived")
       await doc.patch({ archived: true })
+      undoStackRef.current.push({
+        label: "Undo archive",
+        reverse: async () => {
+          const d = await db.tasks.findOne(id).exec()
+          if (d) await d.patch({ archived: current })
+        },
+      })
+      toast("Task archived", {
+        action: { label: "Undo", onClick: () => handleUndo() },
+      })
     }
   }
 
   const handleDeleteTask = async (id: string) => {
     const doc = await db.tasks.findOne(id).exec()
     if (doc) {
+      const data = doc.toJSON()
       await doc.remove()
+      undoStackRef.current.push({
+        label: "Undo delete task",
+        reverse: async () => {
+          await db.tasks.insert(data)
+        },
+      })
+      toast("Task deleted", {
+        action: { label: "Undo", onClick: () => handleUndo() },
+      })
     }
   }
 
@@ -739,15 +800,6 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   // Keyboard shortcuts
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement ||
-        (e.target instanceof HTMLElement &&
-          (e.target.isContentEditable || e.target.closest("[contenteditable]")))
-      ) {
-        return
-      }
-
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "t" && !isMobile) {
         e.preventDefault()
         addTab()
@@ -767,6 +819,21 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             handleCreateTask({ description: "New task", contextIds: [], projectId: null, personId: null })
           }
         }
+        return
+      }
+
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target instanceof HTMLElement &&
+          (e.target.isContentEditable || e.target.closest("[contenteditable]")))
+      ) {
+        return
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault()
+        handleUndo()
         return
       }
 
