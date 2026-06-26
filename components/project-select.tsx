@@ -287,7 +287,10 @@ export function ProjectSelect({
           placeholder="Search projects…"
           className="w-full border-b border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-0"
         />
-        <div className="max-h-64 overflow-y-auto overscroll-contain p-1">
+        <div 
+          className="overflow-y-auto overscroll-contain p-1"
+          style={{ maxHeight: "min(320px, calc(var(--radix-popover-content-available-height) - 50px))" }}
+        >
           {items.length === 0 ? (
             <p className="px-3 py-2 text-sm text-muted-foreground">No projects found</p>
           ) : (

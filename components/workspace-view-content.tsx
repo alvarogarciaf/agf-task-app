@@ -211,6 +211,7 @@ export function WorkspaceViewContent({
           {...activeViewProps}
           initialContextId={ui.initialContextId}
           initialPersonId={ui.initialPersonId}
+          initialProjectId={ui.initialProjectId}
           fullWidthOnMobile={true}
         />
       )
