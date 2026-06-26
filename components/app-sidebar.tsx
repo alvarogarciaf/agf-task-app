@@ -534,7 +534,7 @@ function NavLink({
 
         {/* Expanded SubItems */}
         {isExpanded && item.subItems && item.subItems.length > 0 && (
-          <ul className="mt-0.5 flex flex-col gap-0.5 pl-7 md:pl-4 pb-1">
+          <ul className="mt-0.5 flex flex-col gap-0.5 pl-7 md:pl-2 pb-1">
             {item.subItems.map((sub) => (
               <li key={sub.id}>
                 <button
