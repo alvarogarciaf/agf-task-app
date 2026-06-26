@@ -471,23 +471,33 @@ export function FilteredTasks({
     sortConfig.key !== "date_created" ||
     sortConfig.direction !== "desc"
 
-  // Keyboard shortcut: Ctrl+N for new task
+  // Keyboard shortcut: Ctrl+N for new task (handled globally, we just intercept it)
   useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
-        // Only trigger if we're not already in an input/textarea/contenteditable
-        if (
-          e.target instanceof HTMLInputElement ||
-          e.target instanceof HTMLTextAreaElement ||
-          (e.target instanceof HTMLElement && (e.target.isContentEditable || e.target.closest("[contenteditable]")))
-        ) {
-          return
-        }
-        
+    function handleGlobalCreateTask(e: Event) {
+      if (!notesMode) {
         e.preventDefault()
         handleAddNewTask()
       }
+    }
+    
+    function handleGlobalCreateNote(e: Event) {
+      if (notesMode) {
+        e.preventDefault()
+        handleAddNewTask()
+      }
+    }
 
+    window.addEventListener("global-create-task", handleGlobalCreateTask)
+    window.addEventListener("global-create-note", handleGlobalCreateNote)
+
+    return () => {
+      window.removeEventListener("global-create-task", handleGlobalCreateTask)
+      window.removeEventListener("global-create-note", handleGlobalCreateNote)
+    }
+  }, [handleAddNewTask, notesMode])
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
       if ((e.key === "Delete" || e.key === "Backspace") && selectedIds.size > 0) {
         // Only trigger if we're not already in an input/textarea/contenteditable
         if (
@@ -503,7 +513,7 @@ export function FilteredTasks({
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [handleAddNewTask, selectedIds, handleBulkDelete])
+  }, [selectedIds, handleBulkDelete])
 
   const hasFilter = activeFiltersCount > 0
 

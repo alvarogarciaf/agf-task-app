@@ -96,9 +96,14 @@ export function AppHeader({
   // Listen for global keyboard shortcut (Cmd+K / Ctrl+K) and custom open event
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault()
-        setSearchOpen((o) => !o)
+        if (e.shiftKey) {
+          setSearchScope("notes")
+        } else {
+          setSearchScope("tasks")
+        }
+        setSearchOpen(true)
       }
     }
     const handleOpenSearch = () => setSearchOpen(true)

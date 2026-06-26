@@ -754,6 +754,22 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         return
       }
 
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
+        e.preventDefault()
+        if (e.shiftKey) {
+          const event = new CustomEvent('global-create-note', { cancelable: true })
+          if (window.dispatchEvent(event)) {
+            handleCreateNote({ description: "New note", contextIds: [], projectId: null, personId: null, processed: true })
+          }
+        } else {
+          const event = new CustomEvent('global-create-task', { cancelable: true })
+          if (window.dispatchEvent(event)) {
+            handleCreateTask({ description: "New task", contextIds: [], projectId: null, personId: null })
+          }
+        }
+        return
+      }
+
       if (e.ctrlKey || e.metaKey || e.altKey) return
 
       const navigate = isMobile ? handleNavigate : navigateActiveTab
@@ -768,7 +784,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }
     window.addEventListener("keydown", handleKey)
     return () => window.removeEventListener("keydown", handleKey)
-  }, [isMobile, addTab, navigateActiveTab])
+  }, [isMobile, addTab, navigateActiveTab, handleCreateTask, handleCreateNote])
 
   useEffect(() => {
     const viewParam = searchParams.get("view")
