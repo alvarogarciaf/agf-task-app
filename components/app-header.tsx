@@ -55,6 +55,7 @@ interface AppHeaderProps {
   tabToolbar?: TabToolbarState
   tabPortalContainer?: HTMLElement | null
   onExpandFullScreen?: (taskId: string, mode: "view" | "edit") => void
+  mobileCenterContent?: React.ReactNode
 }
 
 export function AppHeader({
@@ -77,6 +78,7 @@ export function AppHeader({
   tabToolbar,
   tabPortalContainer = null,
   onExpandFullScreen,
+  mobileCenterContent,
 }: AppHeaderProps) {
   const title = view === "saved-view" ? savedViewName || "Saved View" : TITLES[view]
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -91,7 +93,7 @@ export function AppHeader({
   const searchInputRef = useRef<HTMLInputElement>(null)
   const resultRefs = useRef<(HTMLDivElement | null)[]>([])
 
-  // Listen for global keyboard shortcut (Cmd+K / Ctrl+K)
+  // Listen for global keyboard shortcut (Cmd+K / Ctrl+K) and custom open event
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -99,8 +101,15 @@ export function AppHeader({
         setSearchOpen((o) => !o)
       }
     }
+    const handleOpenSearch = () => setSearchOpen(true)
+    
     document.addEventListener("keydown", handleKeyDown)
-    return () => document.removeEventListener("keydown", handleKeyDown)
+    window.addEventListener("open-search", handleOpenSearch)
+    
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown)
+      window.removeEventListener("open-search", handleOpenSearch)
+    }
   }, [])
 
   // Focus input when modal opens, clear query when it closes.
@@ -241,11 +250,14 @@ export function AppHeader({
               </DrawerContent>
             </Drawer>
           </div>
-
-          {/* Section title (mobile only; desktop uses tab labels) */}
-          {!desktopTabs && (
-            <h1 className="text-lg font-semibold tracking-tight md:text-xl">{title}</h1>
+          {/* Mobile Center Content (Tabs) */}
+          {!desktopTabs && mobileCenterContent && (
+            <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
+              {mobileCenterContent}
+            </div>
           )}
+
+          {/* Section title (desktop only uses tab labels, mobile uses the separate title row now) */}
         </div>
 
         {/* Right side controls */}
@@ -253,7 +265,7 @@ export function AppHeader({
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
-            className="flex h-10 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-muted-foreground transition-all hover:bg-muted active:scale-[0.98] md:h-8 md:text-xs"
+            className="hidden h-10 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-muted-foreground transition-all hover:bg-muted active:scale-[0.98] md:flex md:h-8 md:text-xs"
           >
             <Search className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Search…</span>
@@ -279,6 +291,13 @@ export function AppHeader({
           </div>
         </div>
       </div>
+
+      {/* Second row for Mobile Title */}
+      {!desktopTabs && (
+        <div className="flex items-center px-4 pb-2 md:hidden">
+          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+        </div>
+      )}
 
       {/* Search Modal */}
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>

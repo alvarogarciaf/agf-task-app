@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, Calendar, Briefcase, FolderClosed, Star, FileText, Tags } from "lucide-react"
+import { Home, Calendar, Briefcase, FolderClosed, Star, FileText, Tags, ListTodo } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ViewKey, SavedView } from "@/lib/types"
 
@@ -24,6 +24,7 @@ export function TasksMobileNav({
   const items = [
     { key: "home", label: "Inbox", icon: Home, badge: inboxCount, isSelector: false },
     { key: "today", label: "Today", icon: Calendar, badge: todayCount, isSelector: false },
+    { key: "all", label: "All Tasks", icon: ListTodo, isSelector: false },
     { key: "contexts", label: "Contexts", icon: Briefcase, isSelector: true },
     { key: "projects", label: "Projects", icon: FolderClosed, isSelector: true },
     { key: "views", label: "Views", icon: Star, isSelector: true },

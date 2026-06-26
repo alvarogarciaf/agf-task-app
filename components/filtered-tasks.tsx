@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react"
 import { useRegisterTabAdd } from "@/components/tab-toolbar-context"
-import { CalendarClock, Filter, X, Check, LayoutList, Columns3, Plus, RotateCcw, Star } from "lucide-react"
+import { CalendarClock, Filter, X, Check, LayoutList, Columns3, Plus, RotateCcw, Star, MoreHorizontal } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { TasksTable, TASK_COLUMNS, COLUMN_MAP } from "@/components/tasks-table"
@@ -518,6 +518,41 @@ export function FilteredTasks({
     ? ["status", "urgency", "contexts", "show_on", "action_date"]
     : ["tags"]
 
+  const activeChips = []
+  if (!notesMode && showStatus !== "open" && !hideFilters.includes("status")) {
+    activeChips.push({ label: `Status: ${showStatus}`, onRemove: () => setShowStatus("open") })
+  }
+  if (!notesMode && contextIds.length > 0 && !hideFilters.includes("context")) {
+    activeChips.push({ 
+      label: `Context: ${contextIds.length === 1 ? contexts.find(c => c.id === contextIds[0])?.name : `${contextIds.length} selected`}`, 
+      onRemove: () => setContextIds([]) 
+    })
+  }
+  if (notesMode && tagIds.length > 0) {
+    activeChips.push({ 
+      label: `Tag: ${tagIds.length === 1 ? tags.find(t => t.id === tagIds[0])?.name : `${tagIds.length} selected`}`, 
+      onRemove: () => setTagIds([]) 
+    })
+  }
+  if (projectId && !hideFilters.includes("project")) {
+    activeChips.push({ 
+      label: `Project: ${projects.find(p => p.id === projectId)?.name}`, 
+      onRemove: () => setProjectId(null) 
+    })
+  }
+  if (personId && !hideFilters.includes("person")) {
+    activeChips.push({ 
+      label: `Person: ${persons.find(p => p.id === personId)?.name}`, 
+      onRemove: () => setPersonId(null) 
+    })
+  }
+  if (showHiddenByShowOn) {
+    activeChips.push({ label: "Hidden by Show on", onRemove: () => setShowHiddenByShowOn(false) })
+  }
+  if (isGroupedByProject) {
+    activeChips.push({ label: "Grouped by Project", onRemove: () => setIsGroupedByProject(false) })
+  }
+
   return (
     <div key={`${initialContextId}-${initialContextIds?.join(",")}-${initialProjectId}-${initialPersonId}-${initialShowStatus}-${initialIsGroupedByProject}-${initialShowHiddenByShowOn}-${initialSortKey}-${initialSortDirection}`} className={cn(
       "flex flex-col min-w-0 w-full bg-transparent md:bg-card overflow-hidden",
@@ -527,8 +562,30 @@ export function FilteredTasks({
     )}>
       {/* Filter bar */}
       {!hideFilterBar && (
-        <div className="flex items-center justify-between border-b border-border bg-muted/20 p-3 md:p-2">
+        <div className="flex md:flex-wrap items-center border-b border-border bg-muted/20 p-2 gap-2">
           
+          {/* Scrollable left side: Mobile filter icon and active chips */}
+          <div className="flex md:hidden flex-1 min-w-0 items-center gap-2 overflow-x-auto no-scrollbar">
+            <button
+              onClick={() => setMobileFiltersOpen(true)}
+              className={cn(
+                "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                activeFiltersCount > 0
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-card text-muted-foreground"
+              )}
+            >
+              <Filter className="h-3.5 w-3.5" />
+              {activeFiltersCount > 0 && <span>{activeFiltersCount}</span>}
+            </button>
+            {activeChips.map((chip, i) => (
+              <div key={i} className="flex shrink-0 items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs text-primary">
+                <span>{chip.label}</span>
+                <X className="h-3 w-3 cursor-pointer opacity-70 hover:opacity-100" onClick={chip.onRemove} />
+              </div>
+            ))}
+          </div>
+
           {/* Desktop Filter Bar (hidden on mobile, flex on desktop) */}
           <div className="hidden md:flex flex-wrap items-center gap-2">
             <div
@@ -617,35 +674,35 @@ export function FilteredTasks({
             )}
           </div>
 
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          <div className="ml-auto flex shrink-0 items-center justify-end gap-1 md:gap-2">
             <span className="hidden lg:inline font-mono text-[10px] uppercase tracking-wider text-muted-foreground mr-2">
               {filtered.length} {filtered.length === 1 ? itemNoun : `${itemNoun}s`}
             </span>
 
-            {!projectId && !hideFilters.includes("project") && (
-              <button
-                type="button"
-                onClick={() => setIsGroupedByProject(!isGroupedByProject)}
-                className={cn(
-                  toolbarBtnBase,
-                  "px-2.5 py-1 text-xs font-medium",
-                  isGroupedByProject ? toolbarBtnActive : toolbarBtnRest,
-                )}
-                title="Group tasks by project"
-              >
-                <LayoutList className="h-3.5 w-3.5 shrink-0" />
-                <span>Group by project</span>
-              </button>
-            )}
-
-            {!notesMode && (
-              <ShowOnVisibilityToggle
-                active={showHiddenByShowOn}
-                onToggle={() => setShowHiddenByShowOn((v) => !v)}
-              />
-            )}
-
-            <div className="h-4 w-px bg-border mx-1 hidden md:block" />
+            {/* Desktop-only individual toggle buttons */}
+            <div className="hidden md:flex items-center gap-2">
+              {!projectId && !hideFilters.includes("project") && (
+                <button
+                  type="button"
+                  onClick={() => setIsGroupedByProject(!isGroupedByProject)}
+                  className={cn(
+                    toolbarBtnBase,
+                    "px-2.5 py-1 text-xs font-medium",
+                    isGroupedByProject ? toolbarBtnActive : toolbarBtnRest,
+                  )}
+                  title="Group tasks by project"
+                >
+                  <LayoutList className="h-3.5 w-3.5 shrink-0" />
+                  <span>Group by project</span>
+                </button>
+              )}
+              {!notesMode && (
+                <ShowOnVisibilityToggle
+                  active={showHiddenByShowOn}
+                  onToggle={() => setShowHiddenByShowOn((v) => !v)}
+                />
+              )}
+            </div>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -719,6 +776,57 @@ export function FilteredTasks({
               </button>
             )}
 
+            {/* Mobile Three-dots Menu */}
+            <div className="md:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className={cn(toolbarBtnBase, toolbarBtnRest, "h-8 w-8 justify-center")}>
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {!projectId && !hideFilters.includes("project") && (
+                    <DropdownMenuCheckboxItem
+                      checked={isGroupedByProject}
+                      onCheckedChange={() => setIsGroupedByProject(!isGroupedByProject)}
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      Group by project
+                    </DropdownMenuCheckboxItem>
+                  )}
+                  {!notesMode && (
+                    <DropdownMenuCheckboxItem
+                      checked={showHiddenByShowOn}
+                      onCheckedChange={() => setShowHiddenByShowOn((v) => !v)}
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      Show hidden by Show on
+                    </DropdownMenuCheckboxItem>
+                  )}
+                  {hasFilter && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onSelect={() => {
+                          setContextIds([])
+                          setTagIds([])
+                          setPersonId(null)
+                          setProjectId(null)
+                          setShowStatus("open")
+                          setShowHiddenByShowOn(false)
+                          setIsGroupedByProject(false)
+                        }}
+                        className="text-primary"
+                      >
+                        <X className="mr-2 h-4 w-4" />
+                        Clear all filters
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
             {hasFilter && (
               <button
                 type="button"
@@ -731,15 +839,16 @@ export function FilteredTasks({
                   setShowHiddenByShowOn(false)
                   setIsGroupedByProject(false)
                 }}
-                className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10 md:px-2 md:py-1 md:text-xs"
+                className="hidden md:inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
               >
                 <X className="h-3.5 w-3.5" />
-                <span className="hidden md:inline">Clear all</span>
+                <span>Clear all</span>
               </button>
             )}
           </div>
         </div>
       )}
+
 
       {hideFilterBar && (
         <div className="flex items-center justify-end p-2 border-b border-border bg-muted/20">
@@ -842,28 +951,8 @@ export function FilteredTasks({
         )}
       </div>
 
-      {/* Mobile floating action buttons */}
-      <div className="fixed bottom-[88px] right-5 z-40 flex items-center gap-2.5 md:hidden">
-        {!hideFilterBar && (
-          <button
-            type="button"
-            onClick={() => setMobileFiltersOpen(true)}
-            className={cn(
-              "relative flex h-12 w-12 items-center justify-center rounded-full border shadow-lg active:scale-95 transition-transform",
-              activeFiltersCount > 0
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border bg-card text-muted-foreground"
-            )}
-            aria-label="Filters"
-          >
-            <Filter className="h-5 w-5" />
-            {activeFiltersCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 font-mono text-[10px] font-bold text-primary-foreground">
-                {activeFiltersCount}
-              </span>
-            )}
-          </button>
-        )}
+      {/* Mobile Actions Overlay */}
+      <div className="fixed bottom-[88px] right-4 z-50 flex flex-col items-end gap-3 md:hidden">
         {onCreate && (
           <button
             type="button"

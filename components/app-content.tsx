@@ -12,6 +12,7 @@ import { MobileSelector } from "@/components/mobile-selectors"
 import { WorkspaceViewContent } from "@/components/workspace-view-content"
 import { WorkspaceTabBar } from "@/components/workspace-tab-bar"
 import { ObjectFullScreenView } from "@/components/object-full-screen-view"
+import { Search } from "lucide-react"
 import useEmblaCarousel from "embla-carousel-react"
 import { TabPortalProvider } from "@/components/tab-portal-context"
 import { TabToolbarProvider, type TabToolbarState } from "@/components/tab-toolbar-context"
@@ -1045,6 +1046,28 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                   updateTabUi(activeTabId, { objectId: taskId, objectMode })
               : undefined
           }
+          mobileCenterContent={
+            <div className="flex bg-muted/50 rounded-lg p-1 w-[160px] relative">
+              <div
+                className={cn(
+                  "absolute inset-y-1 w-[calc(50%-0.25rem)] rounded-md bg-background shadow-sm transition-transform duration-300 ease-in-out",
+                  mobileSection === "notes" ? "translate-x-full" : "translate-x-0"
+                )}
+              />
+              <button 
+                onClick={() => emblaApi?.scrollTo(0)}
+                className={cn("flex-1 flex items-center justify-center font-medium text-[13px] transition-colors relative z-10 py-1", mobileSection === "tasks" ? "text-foreground" : "text-muted-foreground")}
+              >
+                Tasks
+              </button>
+              <button 
+                onClick={() => emblaApi?.scrollTo(1)}
+                className={cn("flex-1 flex items-center justify-center font-medium text-[13px] transition-colors relative z-10 py-1", mobileSection === "notes" ? "text-foreground" : "text-muted-foreground")}
+              >
+                Notes
+              </button>
+            </div>
+          }
         />
 
         <main
@@ -1055,20 +1078,15 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         >
           {isMobile ? (
             <div className="flex flex-col h-full w-full">
-              <div className="flex shrink-0 h-[38px] border-b border-border px-2">
-                <button 
-                  onClick={() => emblaApi?.scrollTo(0)}
-                  className={cn("flex-1 flex items-center justify-center font-medium text-[13px] transition-colors relative", mobileSection === "tasks" ? "text-foreground" : "text-muted-foreground")}
+              {/* Mobile Floating Search Button */}
+              <div className="fixed bottom-[148px] right-4 z-50 flex flex-col items-end gap-3 md:hidden">
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent("open-search"))}
+                  className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground shadow-lg border border-border active:scale-95 transition-transform"
+                  aria-label="Search"
                 >
-                  Tasks
-                  {mobileSection === "tasks" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />}
-                </button>
-                <button 
-                  onClick={() => emblaApi?.scrollTo(1)}
-                  className={cn("flex-1 flex items-center justify-center font-medium text-[13px] transition-colors relative", mobileSection === "notes" ? "text-foreground" : "text-muted-foreground")}
-                >
-                  Notes
-                  {mobileSection === "notes" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />}
+                  <Search className="h-5 w-5" />
                 </button>
               </div>
 
