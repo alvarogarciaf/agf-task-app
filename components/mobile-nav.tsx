@@ -1,51 +1,52 @@
 "use client"
 
-import { Home, ListChecks, FileText, Star, Calendar } from "lucide-react"
+import { Home, Calendar, Briefcase, FolderClosed, Star, FileText, Tags } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ViewKey, SavedView } from "@/lib/types"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { ICONS } from "@/lib/constants"
 
-interface MobileNavProps {
-  active: ViewKey
+interface TasksMobileNavProps {
+  active: string
   activeSavedViewId?: string | null
   onChange: (key: ViewKey, savedViewId?: string) => void
+  onOpenSelector: (type: "contexts" | "projects" | "views") => void
   inboxCount: number
   todayCount: number
-  savedViews: SavedView[]
 }
 
-export function MobileNav({ 
+export function TasksMobileNav({ 
   active, 
   activeSavedViewId,
   onChange, 
+  onOpenSelector,
   inboxCount,
   todayCount,
-  savedViews 
-}: MobileNavProps) {
+}: TasksMobileNavProps) {
   const items = [
-    { key: "home" as ViewKey, label: "Inbox", icon: Home, badge: inboxCount },
-    { key: "today" as ViewKey, label: "Today", icon: Calendar, badge: todayCount },
-    { key: "all" as ViewKey, label: "Tasks", icon: ListChecks },
-    { key: "notes" as ViewKey, label: "Notes", icon: FileText },
+    { key: "home", label: "Inbox", icon: Home, badge: inboxCount, isSelector: false },
+    { key: "today", label: "Today", icon: Calendar, badge: todayCount, isSelector: false },
+    { key: "contexts", label: "Contexts", icon: Briefcase, isSelector: true },
+    { key: "projects", label: "Projects", icon: FolderClosed, isSelector: true },
+    { key: "views", label: "Views", icon: Star, isSelector: true },
   ]
 
   const isSavedViewActive = active === "saved-view"
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex h-[72px] items-center justify-around border-t border-border bg-background/90 backdrop-blur pb-safe px-2">
+    <nav className="md:hidden absolute bottom-0 w-full z-10 flex h-[72px] items-center justify-around border-t border-border bg-background/90 backdrop-blur pb-safe px-2">
       {items.map((item) => {
         const Icon = item.icon
-        const isActive = active === item.key
+        const isActive = item.key === "views" ? isSavedViewActive : active === item.key
+
         return (
           <button
             key={item.key}
-            onClick={() => onChange(item.key)}
+            onClick={() => {
+              if (item.isSelector) {
+                onOpenSelector(item.key as "contexts" | "projects" | "views")
+              } else {
+                onChange(item.key as ViewKey)
+              }
+            }}
             className={cn(
               "relative flex flex-col items-center justify-center w-full h-full gap-1 text-[11px] font-medium transition-colors",
               isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
@@ -63,45 +64,55 @@ export function MobileNav({
           </button>
         )
       })}
+    </nav>
+  )
+}
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+interface NotesMobileNavProps {
+  active: string
+  onChange: (key: ViewKey) => void
+  onOpenSelector: (type: "tags" | "projects") => void
+}
+
+export function NotesMobileNav({
+  active,
+  onChange,
+  onOpenSelector,
+}: NotesMobileNavProps) {
+  const items = [
+    { key: "notes", label: "All Notes", icon: FileText, isSelector: false },
+    { key: "tags", label: "Tags", icon: Tags, isSelector: true },
+    { key: "projects", label: "Projects", icon: FolderClosed, isSelector: true },
+  ]
+
+  return (
+    <nav className="md:hidden absolute bottom-0 w-full z-10 flex h-[72px] items-center justify-around border-t border-border bg-background/90 backdrop-blur pb-safe px-2">
+      {items.map((item) => {
+        const Icon = item.icon
+        const isActive = active === item.key
+
+        return (
           <button
+            key={item.key}
+            onClick={() => {
+              if (item.isSelector) {
+                onOpenSelector(item.key as "tags" | "projects")
+              } else {
+                onChange(item.key as ViewKey)
+              }
+            }}
             className={cn(
               "relative flex flex-col items-center justify-center w-full h-full gap-1 text-[11px] font-medium transition-colors",
-              isSavedViewActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <Star className="h-6 w-6" />
-            <span>Views</span>
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" side="top" sideOffset={12} className="w-64">
-          {savedViews.length === 0 ? (
-            <div className="px-4 py-6 text-[15px] text-muted-foreground italic text-center">
-              No saved views yet
+            <div className="relative">
+              <Icon className="h-6 w-6" />
             </div>
-          ) : (
-            savedViews.map((sv) => {
-              const Icon = ICONS[sv.icon] || Star
-              const isActive = active === "saved-view" && activeSavedViewId === sv.id
-              return (
-                <DropdownMenuItem 
-                  key={sv.id}
-                  onClick={() => onChange("saved-view", sv.id)}
-                  className={cn(
-                    "py-3 px-3",
-                    isActive && "bg-accent text-accent-foreground"
-                  )}
-                >
-                  <Icon className="mr-3 h-5 w-5" style={{ color: sv.color }} />
-                  <span className="flex-1 truncate text-[15px] font-medium">{sv.name}</span>
-                </DropdownMenuItem>
-              )
-            })
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+            <span>{item.label}</span>
+          </button>
+        )
+      })}
     </nav>
   )
 }

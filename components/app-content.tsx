@@ -7,10 +7,12 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppHeader } from "@/components/app-header"
-import { MobileNav } from "@/components/mobile-nav"
+import { TasksMobileNav, NotesMobileNav } from "@/components/mobile-nav"
+import { MobileSelector } from "@/components/mobile-selectors"
 import { WorkspaceViewContent } from "@/components/workspace-view-content"
 import { WorkspaceTabBar } from "@/components/workspace-tab-bar"
 import { ObjectFullScreenView } from "@/components/object-full-screen-view"
+import useEmblaCarousel from "embla-carousel-react"
 import { TabPortalProvider } from "@/components/tab-portal-context"
 import { TabToolbarProvider, type TabToolbarState } from "@/components/tab-toolbar-context"
 import { TabObjectProvider } from "@/components/tab-object-context"
@@ -90,14 +92,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     const t = new URLSearchParams(window.location.search).get("tab") as TabKey
     return t || "contexts"
   })
-
-  // Synchronize state with URL search params (for browser back/forward and initial loads)
   useEffect(() => {
-    const view = searchParams.get("view") as ViewKey
-    if (view && view !== activeView) {
-      setActiveView(view)
-    }
-
     const savedViewId = searchParams.get("savedViewId")
     if (savedViewId !== activeSavedViewId) {
       setActiveSavedViewId(savedViewId || null)
@@ -344,6 +339,32 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [activePortalContainer, setActivePortalContainer] =
     useState<HTMLElement | null>(null)
 
+
+  // Mobile specific state
+  const [mobileSection, setMobileSection] = useState<"tasks" | "notes">("tasks")
+  const [mobileSelectorType, setMobileSelectorType] = useState<"contexts" | "projects" | "tags" | "views" | null>(null)
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, watchDrag: isMobile })
+
+  useEffect(() => {
+    if (!emblaApi) return
+    const onSelect = () => {
+      setMobileSection(emblaApi.selectedScrollSnap() === 0 ? "tasks" : "notes")
+    }
+    emblaApi.on("select", onSelect)
+    return () => { emblaApi.off("select", onSelect) }
+  }, [emblaApi])
+
+  // Synchronize state with URL search params (for browser back/forward and initial loads)
+  useEffect(() => {
+    const view = searchParams.get("view") as ViewKey
+    if (view && view !== activeView) {
+      setActiveView(view)
+      if (isMobile && emblaApi) {
+        if (view === "notes" && mobileSection !== "notes") emblaApi.scrollTo(1)
+        else if (view !== "notes" && mobileSection !== "tasks") emblaApi.scrollTo(0)
+      }
+    }
+  }, [searchParams])
   const handleActivePortalContainer = useCallback(
     (el: HTMLElement | null) => setActivePortalContainer(el),
     [],
@@ -371,6 +392,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     setActiveView(view)
     setActiveSavedViewId(savedViewId || null)
     if (settingsTab) setActiveSettingsTab(settingsTab)
+    setMobileSelectorType(null)
 
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search)
@@ -846,35 +868,42 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     },
   }
 
-  const renderMobileView = () => (
+  const renderMobileTasksContent = () => (
     <WorkspaceViewContent
       {...workspaceContentProps}
       route={{
         kind: "view",
-        view: activeView,
+        view: activeView === "notes" ? "home" : activeView,
         savedViewId: activeSavedViewId,
         settingsTab: activeSettingsTab,
       }}
       ui={{
         initialContextId,
         initialPersonId,
-        initialTagId,
-        initialProjectId,
+        initialTagId: undefined,
+        initialProjectId: mobileSection === "tasks" ? initialProjectId : undefined,
       }}
       onNavigate={handleNavigate}
       onUpdateUi={(patch) => {
-        if (patch.initialContextId !== undefined) {
-          setInitialContextId(patch.initialContextId)
-        }
-        if (patch.initialPersonId !== undefined) {
-          setInitialPersonId(patch.initialPersonId)
-        }
-        if (patch.initialTagId !== undefined) {
-          setInitialTagId(patch.initialTagId)
-        }
-        if (patch.initialProjectId !== undefined) {
-          setInitialProjectId(patch.initialProjectId)
-        }
+        if (patch.initialContextId !== undefined) setInitialContextId(patch.initialContextId)
+        if (patch.initialPersonId !== undefined) setInitialPersonId(patch.initialPersonId)
+        if (patch.initialProjectId !== undefined) setInitialProjectId(patch.initialProjectId)
+      }}
+    />
+  )
+
+  const renderMobileNotesContent = () => (
+    <WorkspaceViewContent
+      {...workspaceContentProps}
+      route={{ kind: "view", view: "notes" }}
+      ui={{
+        initialTagId,
+        initialProjectId: mobileSection === "notes" ? initialProjectId : undefined,
+      }}
+      onNavigate={handleNavigate}
+      onUpdateUi={(patch) => {
+        if (patch.initialTagId !== undefined) setInitialTagId(patch.initialTagId)
+        if (patch.initialProjectId !== undefined) setInitialProjectId(patch.initialProjectId)
       }}
     />
   )
@@ -957,7 +986,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         <AppHeader
           view={
             isMobile
-              ? activeView
+              ? (mobileSection === "tasks" 
+                  ? (activeView === "all" && initialContextId ? "contexts" : activeView === "all" && initialProjectId ? "projects" : activeView)
+                  : (initialTagId ? "tags" : initialProjectId ? "projects" : "notes")) as ViewKey
               : activeTab.route.kind === "view"
                 ? activeTab.route.view
                 : "home"
@@ -1019,19 +1050,74 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         <main
           className={cn(
             "flex min-h-0 flex-1 flex-col overflow-hidden",
-            isMobile && "overflow-y-auto",
-            isMobile &&
-              (activeView === "all" ||
-                activeView === "saved-view" ||
-                activeView === "notes")
-              ? "px-0 md:px-6 pt-0 pb-28 md:py-6"
-              : isMobile
-                ? "px-4 md:px-6 pt-6 pb-28 md:py-6"
-                : "",
+            isMobile && "relative bg-background",
           )}
         >
           {isMobile ? (
-            <div className="min-h-full w-full">{renderMobileView()}</div>
+            <div className="flex flex-col h-full w-full">
+              <div className="flex shrink-0 h-[38px] border-b border-border px-2">
+                <button 
+                  onClick={() => emblaApi?.scrollTo(0)}
+                  className={cn("flex-1 flex items-center justify-center font-medium text-[13px] transition-colors relative", mobileSection === "tasks" ? "text-foreground" : "text-muted-foreground")}
+                >
+                  Tasks
+                  {mobileSection === "tasks" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />}
+                </button>
+                <button 
+                  onClick={() => emblaApi?.scrollTo(1)}
+                  className={cn("flex-1 flex items-center justify-center font-medium text-[13px] transition-colors relative", mobileSection === "notes" ? "text-foreground" : "text-muted-foreground")}
+                >
+                  Notes
+                  {mobileSection === "notes" && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />}
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-hidden" ref={emblaRef}>
+                <div className="flex h-full">
+                  <div className="flex-[0_0_100%] min-w-0 flex flex-col relative h-full transform-gpu">
+                    <div className="flex-1 overflow-y-auto px-0 pt-0 pb-28">
+                      {renderMobileTasksContent()}
+                    </div>
+                    <TasksMobileNav
+                      active={mobileSelectorType || (activeView === "saved-view" ? "views" : (activeView === "all" && initialContextId) ? "contexts" : (activeView === "all" && initialProjectId) ? "projects" : activeView)}
+                      activeSavedViewId={activeSavedViewId}
+                      onChange={handleNavigate}
+                      onOpenSelector={setMobileSelectorType}
+                      inboxCount={inboxCount}
+                      todayCount={todayCount}
+                    />
+                  </div>
+
+                  <div className="flex-[0_0_100%] min-w-0 flex flex-col relative h-full transform-gpu">
+                    <div className="flex-1 overflow-y-auto px-0 pt-0 pb-28">
+                      {renderMobileNotesContent()}
+                    </div>
+                    <NotesMobileNav
+                      active={mobileSelectorType || (initialTagId ? "tags" : initialProjectId ? "projects" : "notes")}
+                      onChange={(k) => { setInitialTagId(undefined); setInitialProjectId(undefined); handleNavigate(k) }}
+                      onOpenSelector={setMobileSelectorType}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <MobileSelector
+                isOpen={mobileSelectorType !== null}
+                type={mobileSelectorType}
+                onClose={() => setMobileSelectorType(null)}
+                contexts={contexts}
+                projects={projects}
+                tags={tags}
+                savedViews={savedViews}
+                onSelectContext={(id) => { handleNavigate("all"); setInitialContextId(id) }}
+                onSelectProject={(id) => { 
+                  if (mobileSection === "tasks") { handleNavigate("all"); setInitialProjectId(id) }
+                  else { handleNavigate("notes"); setInitialProjectId(id) }
+                }}
+                onSelectTag={(id) => { handleNavigate("notes"); setInitialTagId(id) }}
+                onSelectView={(id) => { handleNavigate("saved-view", id) }}
+              />
+            </div>
           ) : (
             tabs.map((tab) => {
               const isActive = tab.id === activeTabId
@@ -1119,17 +1205,6 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           )}
         </main>
       </div>
-
-      {isMobile && (
-        <MobileNav
-          active={activeView}
-          activeSavedViewId={activeSavedViewId}
-          onChange={handleNavigate}
-          inboxCount={inboxCount}
-          todayCount={todayCount}
-          savedViews={savedViews}
-        />
-      )}
 
       <SaveViewDialog
         open={!!editingView}
