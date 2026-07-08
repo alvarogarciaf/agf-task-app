@@ -247,13 +247,15 @@ export function FormMultiSelect({
           align="start"
           side="bottom"
           collisionPadding={16}
-          className={cn(
-            "z-[100] w-[var(--radix-popover-trigger-width)] p-1",
-            isMobile && "max-h-[70vh] overflow-y-auto overscroll-contain touch-pan-y",
-          )}
-          style={isMobile ? { WebkitOverflowScrolling: "touch" } : undefined}
+          className="z-[100] w-[var(--radix-popover-trigger-width)] overflow-hidden p-0"
         >
-          <div className={cn(!isMobile && "max-h-64 overflow-y-auto")}>
+          <div
+            className="overflow-y-auto overscroll-contain touch-pan-y p-1 max-h-[60vh] md:max-h-64"
+            style={{ WebkitOverflowScrolling: "touch" }}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
+            onWheel={(e) => e.stopPropagation()}
+          >
             {options.length === 0 ? (
               <p className="px-3 py-2 text-sm text-muted-foreground">No options</p>
             ) : (

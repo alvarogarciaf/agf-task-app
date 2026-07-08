@@ -326,6 +326,9 @@ export function ProjectSelect({
         <div 
           className="overflow-y-auto overscroll-contain touch-pan-y p-1"
           style={{ maxHeight: "min(320px, calc(var(--radix-popover-content-available-height) - 50px))", WebkitOverflowScrolling: "touch" }}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
         >
           {items.length === 0 ? (
             <p className="px-3 py-2 text-sm text-muted-foreground">No projects found</p>
