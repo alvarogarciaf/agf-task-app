@@ -201,22 +201,29 @@ export function ProjectsView({
               <div className="absolute top-2 right-2 z-10" onClick={(e) => e.stopPropagation()}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-muted text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-muted text-muted-foreground md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                       <MoreVertical className="h-3.5 w-3.5" />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-32">
+                  <DropdownMenuContent align="end" className="w-40">
                     <DropdownMenuItem onClick={() => { setEditingProject(p); setEditorOpen(true); }}>
                       <Edit2 className="h-3.5 w-3.5 mr-2" />
                       Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      className="text-destructive focus:text-destructive" 
-                      onClick={() => { if(confirm(`Are you sure you want to delete "${p.name}"?`)) onDeleteProject(p.id) }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
+                    {(() => {
+                      const hasItems = tasks.some((t) => t.project_id === p.id) || notes.some((n) => n.project_id === p.id)
+                      return (
+                        <DropdownMenuItem
+                          className={cn("text-destructive focus:text-destructive", hasItems && "opacity-40 pointer-events-none")}
+                          disabled={hasItems}
+                          onClick={() => { if(confirm(`Are you sure you want to delete "${p.name}"?`)) onDeleteProject(p.id) }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-2" />
+                          Delete
+                          {hasItems && <span className="ml-auto text-[10px] text-muted-foreground font-normal">Has items</span>}
+                        </DropdownMenuItem>
+                      )
+                    })()}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -451,6 +458,30 @@ function ProjectDetail({
           >
             {project.status === "Ongoing" ? "Close" : "Reopen"}
           </button>
+          {(() => {
+            const hasItems = tasks.some((t) => t.project_id === project.id) || notes.some((n) => n.project_id === project.id)
+            return (
+              <button
+                type="button"
+                disabled={hasItems}
+                title={hasItems ? "Remove all tasks and notes before deleting" : "Delete project"}
+                onClick={() => {
+                  if (confirm(`Are you sure you want to delete "${project.name}"?`)) {
+                    onDeleteProject(project.id)
+                  }
+                }}
+                className={cn(
+                  "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs transition-colors",
+                  hasItems
+                    ? "border-border bg-card text-muted-foreground/40 cursor-not-allowed"
+                    : "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20",
+                )}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Delete</span>
+              </button>
+            )
+          })()}
         </div>
       </div>
 

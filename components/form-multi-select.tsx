@@ -252,7 +252,6 @@ export function FormMultiSelect({
             isMobile && "max-h-[70vh] overflow-y-auto overscroll-contain touch-pan-y",
           )}
           style={isMobile ? { WebkitOverflowScrolling: "touch" } : undefined}
-          onTouchMove={isMobile ? (e) => e.stopPropagation() : undefined}
         >
           <div className={cn(!isMobile && "max-h-64 overflow-y-auto")}>
             {options.length === 0 ? (

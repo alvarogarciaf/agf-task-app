@@ -9,6 +9,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { useDatabase } from "@/components/db-provider"
 import type { Project } from "@/lib/types"
 
 const DEFAULT_PROJECT_ICON = "Layers"
@@ -105,12 +106,14 @@ interface ProjectSelectProps {
   pillLabel?: string
   className?: string
   triggerClassName?: string
+  onCreateProject?: (name: string) => Promise<string | void> | string | void
 }
 
 type ListItem = {
   id: string | null
   label: string
   project: Project | null
+  isCreate?: boolean
 }
 
 export function ProjectSelect({
@@ -124,7 +127,9 @@ export function ProjectSelect({
   pillLabel = "Project",
   className,
   triggerClassName,
+  onCreateProject,
 }: ProjectSelectProps) {
+  const db = useDatabase()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [highlightedIdx, setHighlightedIdx] = useState(0)
@@ -142,14 +147,18 @@ export function ProjectSelect({
 
   const items: ListItem[] = useMemo(() => {
     const list: ListItem[] = []
-    if (allowNone) {
+    const trimmed = query.trim()
+    if (allowNone && !trimmed) {
       list.push({ id: null, label: noneLabel, project: null })
     }
     for (const p of filtered) {
       list.push({ id: p.id, label: p.name, project: p })
     }
+    if (trimmed) {
+      list.push({ id: "__create__", label: `Add "${trimmed}"`, project: null, isCreate: true })
+    }
     return list
-  }, [allowNone, noneLabel, filtered])
+  }, [allowNone, noneLabel, filtered, query])
 
   useEffect(() => {
     if (open) {
@@ -163,8 +172,35 @@ export function ProjectSelect({
     setHighlightedIdx(0)
   }, [query])
 
-  function select(id: string | null) {
-    onChange(id)
+  async function select(item: ListItem) {
+    if (item.isCreate) {
+      const trimmedName = query.trim()
+      if (onCreateProject) {
+        const newId = await onCreateProject(trimmedName)
+        if (newId && typeof newId === "string") {
+          onChange(newId)
+        }
+      } else if (db) {
+        try {
+          const newId = crypto.randomUUID()
+          await db.projects.insert({
+            id: newId,
+            name: trimmedName,
+            details: null,
+            color: "#64748b",
+            icon: "Folder",
+            status: "Ongoing",
+            linked_person_id: null,
+          })
+          onChange(newId)
+        } catch (err) {
+          console.error("[ProjectSelect] Failed to create project:", err)
+        }
+      }
+      setOpen(false)
+      return
+    }
+    onChange(item.id)
     setOpen(false)
   }
 
@@ -180,7 +216,7 @@ export function ProjectSelect({
     if (e.key === "Enter") {
       e.preventDefault()
       const item = items[highlightedIdx]
-      if (item) select(item.id)
+      if (item) select(item)
     }
     if (e.key === "Escape") {
       e.preventDefault()
@@ -288,8 +324,8 @@ export function ProjectSelect({
           className="w-full border-b border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-0"
         />
         <div 
-          className="overflow-y-auto overscroll-contain p-1"
-          style={{ maxHeight: "min(320px, calc(var(--radix-popover-content-available-height) - 50px))" }}
+          className="overflow-y-auto overscroll-contain touch-pan-y p-1"
+          style={{ maxHeight: "min(320px, calc(var(--radix-popover-content-available-height) - 50px))", WebkitOverflowScrolling: "touch" }}
         >
           {items.length === 0 ? (
             <p className="px-3 py-2 text-sm text-muted-foreground">No projects found</p>
@@ -302,7 +338,7 @@ export function ProjectSelect({
                   key={item.id ?? "__none__"}
                   type="button"
                   onMouseEnter={() => setHighlightedIdx(idx)}
-                  onClick={() => select(item.id)}
+                  onClick={() => select(item)}
                   className={cn(
                     "flex w-full items-center gap-2.5 rounded-md px-2.5 py-3 text-left text-base md:py-2 md:text-sm transition-colors",
                     isHighlighted && "bg-muted ring-1 ring-inset ring-primary/40",
@@ -310,7 +346,12 @@ export function ProjectSelect({
                     item.id === null && "text-muted-foreground",
                   )}
                 >
-                  {item.project ? (
+                  {item.isCreate ? (
+                    <ProjectOptionIcon
+                      icon="Folder"
+                      color="#64748b"
+                    />
+                  ) : item.project ? (
                     <ProjectOptionIcon
                       icon={item.project.icon ?? DEFAULT_PROJECT_ICON}
                       color={item.project.color}
@@ -318,7 +359,7 @@ export function ProjectSelect({
                   ) : (
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-dashed border-border" />
                   )}
-                  <span className="flex-1 truncate">{item.label}</span>
+                  <span className={cn("flex-1 truncate", item.isCreate && "text-primary font-medium")}>{item.label}</span>
                   {isSelected ? (
                     <Check className="h-4 w-4 shrink-0 text-primary" />
                   ) : null}

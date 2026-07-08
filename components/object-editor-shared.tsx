@@ -202,13 +202,37 @@ export function useObjectDraft({
   const prevDetailsRef = useRef(task?.details)
   const prevDescriptionRef = useRef(task?.description)
   const isTypingRef = useRef(false)
+  const prevTaskRef = useRef(task)
 
   useEffect(() => {
     const fullPlain = getFullPlainTask(task)
     if (!fullPlain) {
       setDraft(null)
+      prevTaskRef.current = task
       return
     }
+
+    const taskChanged = task !== prevTaskRef.current
+    prevTaskRef.current = task
+
+    // If only projects changed (not the task itself), preserve the draft
+    // and only update linked_person_id if the current draft project has one.
+    if (!taskChanged) {
+      setDraft((prev) => {
+        if (!prev) return prev
+        const projId = prev.project_id
+        if (projId) {
+          const proj = projects.find((p) => p.id === projId)
+          if (proj?.linked_person_id && prev.person_id !== proj.linked_person_id) {
+            return { ...prev, person_id: proj.linked_person_id }
+          }
+        }
+        return prev
+      })
+      return
+    }
+
+    // Task changed — do a full draft reset
     if (fullPlain.project_id) {
       const proj = projects.find((p) => p.id === fullPlain.project_id)
       if (proj && proj.linked_person_id) {
@@ -473,23 +497,12 @@ export function ObjectEditFields({
               className="mt-0"
               triggerClassName="mt-1.5"
               onChange={(projId) => {
+                update("project_id", projId)
                 const proj = projId
                   ? projects.find((p) => p.id === projId)
                   : null
                 if (proj?.linked_person_id) {
-                  setDraft((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          project_id: projId,
-                          person_id: proj.linked_person_id,
-                        }
-                      : null,
-                  )
-                } else {
-                  setDraft((prev) =>
-                    prev ? { ...prev, project_id: projId } : null,
-                  )
+                  update("person_id", proj.linked_person_id)
                 }
               }}
             />

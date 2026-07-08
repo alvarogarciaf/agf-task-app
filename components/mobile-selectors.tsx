@@ -128,7 +128,7 @@ export function MobileSelector({
               <X className="w-5 h-5" />
             </button>
           </header>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y" style={{ WebkitOverflowScrolling: "touch" }}>
             {renderContent()}
           </div>
         </div>

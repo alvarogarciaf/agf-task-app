@@ -1223,7 +1223,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                 type={mobileSelectorType}
                 onClose={() => setMobileSelectorType(null)}
                 contexts={contexts}
-                projects={projects}
+                projects={projects.filter((p) => p.status !== "Closed")}
                 tags={tags}
                 savedViews={savedViews}
                 onSelectContext={(id) => { handleNavigate("all"); setInitialContextId(id) }}

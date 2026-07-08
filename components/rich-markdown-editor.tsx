@@ -261,6 +261,10 @@ function EditorSurface({
       syncMarkdown()
       return
     }
+    if (fixupListAfterInput()) {
+      syncMarkdown()
+      return
+    }
     syncMarkdown()
   }
 
@@ -501,6 +505,46 @@ function EditorSurface({
 
     convertBlockToCheckbox(ctx.block, match[1].length + 1, match[2])
     return true
+  }
+
+  const fixupListAfterInput = (): boolean => {
+    const ctx = getCursorTextContext()
+    if (!ctx || ctx.block.querySelector("input.md-task-box") || ctx.block.closest("ul, ol")) return false
+
+    const text = (ctx.block.textContent || "").replace(/\u00A0/g, " ")
+    const ulMatch = text.match(/^([*\-•])\s+(.*)$/)
+    if (ulMatch) {
+      const prefixLen = ulMatch[1].length + 1
+      let target = ctx.block
+      if (ctx.block.querySelector("br")) {
+        target = isolateLineToParagraph(ctx.block, ctx.range)
+      }
+      removeBlockPrefix(target, prefixLen)
+      if (!target.textContent && !target.querySelector("br")) {
+        target.appendChild(document.createElement("br"))
+      }
+      placeCaretAtStart(target)
+      document.execCommand("insertUnorderedList", false)
+      return true
+    }
+
+    const olMatch = text.match(/^(\d+[\.\)])\s+(.*)$/)
+    if (olMatch) {
+      const prefixLen = olMatch[1].length + 1
+      let target = ctx.block
+      if (ctx.block.querySelector("br")) {
+        target = isolateLineToParagraph(ctx.block, ctx.range)
+      }
+      removeBlockPrefix(target, prefixLen)
+      if (!target.textContent && !target.querySelector("br")) {
+        target.appendChild(document.createElement("br"))
+      }
+      placeCaretAtStart(target)
+      document.execCommand("insertOrderedList", false)
+      return true
+    }
+
+    return false
   }
 
   const applySpaceShortcuts = (): boolean => {
@@ -967,7 +1011,6 @@ function EditorSurface({
         onInput={handleInput}
         onBeforeInput={handleBeforeInput}
         onKeyDown={handleKeyDown}
-        onMouseUp={handleInput}
         onClick={handleClick}
         onPaste={handlePaste}
         onDrop={handleDrop}
@@ -986,8 +1029,8 @@ function EditorSurface({
           "[&_a]:text-primary [&_a]:hover:underline [&_a]:font-semibold",
           "[&_p]:mb-3 [&_p]:text-sm [&_p]:text-foreground/90 [&_p]:leading-relaxed",
           "[&>div]:mb-3 [&>div]:text-sm [&>div]:text-foreground/90 [&>div]:leading-relaxed",
-          "[&_.md-task]:flex [&_.md-task]:items-start [&_.md-task]:gap-2",
-          "[&_.md-task-box]:mt-0.5 [&_.md-task-box]:h-3.5 [&_.md-task-box]:w-3.5 [&_.md-task-box]:shrink-0 [&_.md-task-box]:cursor-pointer [&_.md-task-box]:accent-primary",
+          "[&_.md-task]:relative [&_.md-task]:pl-6 [&_.md-task]:block",
+          "[&_.md-task-box]:absolute [&_.md-task-box]:left-0.5 [&_.md-task-box]:top-1 [&_.md-task-box]:h-3.5 [&_.md-task-box]:w-3.5 [&_.md-task-box]:cursor-pointer [&_.md-task-box]:accent-primary",
           "[&_.image-resizer]:outline [&_.image-resizer]:outline-transparent hover:[&_.image-resizer]:outline-border/50",
         )}
       />

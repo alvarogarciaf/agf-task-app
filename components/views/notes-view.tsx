@@ -27,9 +27,11 @@ interface NotesViewProps {
 }
 
 export function NotesView(props: NotesViewProps) {
+  const activeProjects = props.projects.filter((p) => p.status !== "Closed")
   return (
     <FilteredTasks
       {...props}
+      projects={activeProjects}
       contexts={[]}
       notesMode
       itemNoun="note"
