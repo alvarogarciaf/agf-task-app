@@ -166,8 +166,6 @@ export function AppHeader({
   ]
 
   const settingsOptions: { key: TabKey; label: string; icon: any }[] = [
-    { key: "contexts", label: "Contexts", icon: Tags },
-    { key: "tags", label: "Tags", icon: TagIcon },
     { key: "calendar", label: "Calendar", icon: Calendar },
     { key: "data", label: "Data Management", icon: Trash2 },
     { key: "notifications", label: "Notifications", icon: Bell },

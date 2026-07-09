@@ -303,18 +303,10 @@ export function WorkspaceViewContent({
           activeTab={settingsTab}
           onTabChange={(tab) => onNavigate("settings", undefined, tab)}
           persons={persons}
-          contexts={contexts}
-          tags={tags}
           urgencies={urgencies}
           onAddPerson={onInsertPerson}
           onUpdatePerson={onPatchPerson}
           onDeletePerson={onRemovePerson}
-          onAddContext={onInsertContext}
-          onUpdateContext={onPatchContext}
-          onDeleteContext={onRemoveContext}
-          onAddTag={onAddTag}
-          onUpdateTag={onUpdateTag}
-          onDeleteTag={onDeleteTag}
           onAddUrgency={onInsertUrgency}
           onUpdateUrgency={onPatchUrgency}
           onDeleteUrgency={onRemoveUrgency}
