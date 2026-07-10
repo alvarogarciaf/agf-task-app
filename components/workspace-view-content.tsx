@@ -13,6 +13,7 @@ import { TabEmptyState } from "@/components/tab-empty-state"
 import type { Context, Person, Project, Task, Tag, UrgencyLevel, ViewKey, SavedView } from "@/lib/types"
 import type { TabRoute, TabUiState } from "@/lib/workspace-tabs"
 import type { SyncStatus } from "@/components/db-provider"
+import { useTodaySectionFilter, isTaskForTodaySection } from "@/lib/today-filter"
 
 export type NavigateFn = (
   view: ViewKey,
@@ -127,6 +128,8 @@ export function WorkspaceViewContent({
   onPatchUrgency,
   onRemoveUrgency,
 }: WorkspaceViewContentProps) {
+  const todayFilter = useTodaySectionFilter()
+
   if (route.kind === "empty") {
     return <TabEmptyState />
   }
@@ -182,11 +185,7 @@ export function WorkspaceViewContent({
     }
     case "today": {
       const todayStr = new Date().toLocaleDateString("en-CA")
-      const todayTasks = activeTasks.filter((t) => {
-        if (t.status === "Done" || !t.action_date) return false
-        const taskDateStr = t.action_date.slice(0, 10)
-        return taskDateStr === todayStr
-      })
+      const todayTasks = activeTasks.filter((t) => isTaskForTodaySection(t, todayFilter, todayStr))
 
       return (
         <AllTasksView

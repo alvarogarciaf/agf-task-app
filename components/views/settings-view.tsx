@@ -11,6 +11,7 @@ import { collection, doc, setDoc, deleteDoc, getDocs } from "firebase/firestore"
 import { firestoreDb } from "@/lib/firebase/config"
 import type { Person, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "@/components/db-provider"
+import { useTodaySectionFilter, setTodaySectionFilter } from "@/lib/today-filter"
 
 export type TabKey = "view" | "contexts" | "tags" | "calendar" | "data" | "notifications" | "troubleshoot"
 
@@ -153,6 +154,7 @@ export function SettingsView({
 
             <div className="space-y-6">
               <OpenNotesAsSetting />
+              <TodaySectionSetting />
             </div>
           </div>
         )}
@@ -830,6 +832,71 @@ function OpenNotesAsSetting() {
             <div className="text-sm font-medium">Full Screen</div>
             <p className="text-xs text-muted-foreground mt-0.5">
               Notes automatically open in the full-screen editor view.
+            </p>
+          </div>
+        </label>
+      </div>
+    </div>
+  )
+}
+
+function TodaySectionSetting() {
+  const value = useTodaySectionFilter()
+
+  return (
+    <div className="rounded-lg border border-border p-5">
+      <div className="mb-4">
+        <h4 className="text-sm font-medium">Today section</h4>
+        <p className="text-xs text-muted-foreground mt-1">
+          Choose which tasks are displayed in the Today section.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+        <label
+          className={cn(
+            "flex flex-1 cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors",
+            value === "today_only"
+              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+              : "border-border hover:border-primary/40",
+          )}
+        >
+          <input
+            type="radio"
+            name="today_section_filter"
+            value="today_only"
+            checked={value === "today_only"}
+            onChange={() => setTodaySectionFilter("today_only")}
+            className="mt-0.5 accent-primary"
+          />
+          <div>
+            <div className="text-sm font-medium">Show today only</div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Only show tasks scheduled for today.
+            </p>
+          </div>
+        </label>
+
+        <label
+          className={cn(
+            "flex flex-1 cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors",
+            value === "today_and_overdue"
+              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+              : "border-border hover:border-primary/40",
+          )}
+        >
+          <input
+            type="radio"
+            name="today_section_filter"
+            value="today_and_overdue"
+            checked={value === "today_and_overdue"}
+            onChange={() => setTodaySectionFilter("today_and_overdue")}
+            className="mt-0.5 accent-primary"
+          />
+          <div>
+            <div className="text-sm font-medium">Show today and overdue</div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Show tasks scheduled for today and also overdue tasks.
             </p>
           </div>
         </label>

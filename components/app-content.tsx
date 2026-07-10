@@ -33,6 +33,7 @@ import {
 } from "@/lib/workspace-tabs"
 import { syncCalendarToStorage } from "@/lib/calendar-sync-client"
 import { createGoogleEvent, updateGoogleEvent, deleteGoogleEvent } from "@/lib/google-calendar"
+import { useTodaySectionFilter, isTaskForTodaySection } from "@/lib/today-filter"
 import { useGoogleCalendar } from "@/components/google-calendar-provider"
 import { SaveViewDialog } from "./save-view-dialog"
 
@@ -895,12 +896,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const inboxCount = inboxTasks.length
   const totalCount = activeTasks.length
 
+  const todayFilter = useTodaySectionFilter()
   const todayStr = new Date().toLocaleDateString("en-CA")
-  const todayCount = activeTasks.filter(t => {
-    if (t.status === "Done" || !t.action_date) return false
-    const taskDateStr = t.action_date.slice(0, 10)
-    return taskDateStr === todayStr
-  }).length
+  const todayCount = activeTasks.filter(t => isTaskForTodaySection(t, todayFilter, todayStr)).length
 
   const workspaceContentProps = {
     inboxTasks,
