@@ -124,6 +124,28 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     return () => window.removeEventListener("popstate", handlePopState)
   }, [])
 
+  // Global Backspace navigation when not in an input
+  useEffect(() => {
+    const handleBackspace = (e: KeyboardEvent) => {
+      if (e.key === "Backspace") {
+        const active = document.activeElement
+        const isInput =
+          active &&
+          (active.tagName === "INPUT" ||
+            active.tagName === "TEXTAREA" ||
+            active.tagName === "SELECT" ||
+            (active as HTMLElement).isContentEditable)
+
+        if (!isInput) {
+          e.preventDefault()
+          window.history.back()
+        }
+      }
+    }
+    window.addEventListener("keydown", handleBackspace)
+    return () => window.removeEventListener("keydown", handleBackspace)
+  }, [])
+
   // Subscriptions â€” targeted queries so IndexedDB does the heavy filtering.
   // A unified object is a note when `type === 'note'`; everything else (including
   // legacy docs with a missing type) is treated as a task.
