@@ -42,6 +42,7 @@ export interface Project {
   linked_person_id?: string | null
   icon?: string | null
   color?: string | null
+  background_image?: string | null
 }
 
 export interface Person {

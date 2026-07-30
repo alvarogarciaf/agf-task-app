@@ -26,7 +26,7 @@ export function TasksMobileNav({
     { key: "today", label: "Today", icon: Calendar, badge: todayCount, isSelector: false },
     { key: "all", label: "All Tasks", icon: ListTodo, isSelector: false },
     { key: "contexts", label: "Contexts", icon: Briefcase, isSelector: true },
-    { key: "projects", label: "Projects", icon: FolderClosed, isSelector: true },
+    { key: "projects", label: "Projects", icon: FolderClosed, isSelector: false },
     { key: "views", label: "Views", icon: Star, isSelector: true },
   ]
 
@@ -83,7 +83,7 @@ export function NotesMobileNav({
   const items = [
     { key: "notes", label: "All Notes", icon: FileText, isSelector: false },
     { key: "tags", label: "Tags", icon: Tags, isSelector: true },
-    { key: "projects", label: "Projects", icon: FolderClosed, isSelector: true },
+    { key: "projects", label: "Projects", icon: FolderClosed, isSelector: false },
   ]
 
   return (

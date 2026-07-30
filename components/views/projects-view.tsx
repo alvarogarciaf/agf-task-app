@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ArrowLeft, FolderKanban, FileText, ListChecks, Circle, Dot, Plus, Trash2, StickyNote, Pencil } from "lucide-react"
+import { ArrowLeft, FolderKanban, FileText, ListChecks, Circle, Dot, Plus, Trash2, StickyNote, Pencil, LayoutGrid, List, Image as ImageIcon, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { FilteredTasks } from "@/components/filtered-tasks"
 import { TaskDetailDialog } from "@/components/task-detail-dialog"
@@ -31,7 +31,8 @@ import {
 import { MoreVertical, Edit2 } from "lucide-react"
 import { ICON_OPTIONS, ICONS, COLOR_PALETTE } from "@/lib/constants"
 import type { Context, Person, Project, Tag, Task, UrgencyLevel, ProjectStatus } from "@/lib/types"
-
+import { uploadImage } from "@/lib/image-upload"
+import { toast } from "sonner"
 const DEFAULT_PROJECT_ICON = "Layers"
 
 interface ProjectsViewProps {
@@ -89,8 +90,21 @@ export function ProjectsView({
 }: ProjectsViewProps) {
   const [selected, setSelected] = useState<string | null>(initialSelectedId || null)
   const [statusFilter, setStatusFilter] = useState<"Ongoing" | "Closed" | "All">("Ongoing")
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
+
+  useEffect(() => {
+    const saved = localStorage.getItem("projects_view_mode")
+    if (saved === "grid" || saved === "list") {
+      setViewMode(saved)
+    }
+  }, [])
+
+  const handleViewModeChange = (mode: "list" | "grid") => {
+    setViewMode(mode)
+    localStorage.setItem("projects_view_mode", mode)
+  }
 
   useEffect(() => {
     setSelected(initialSelectedId || null)
@@ -173,9 +187,34 @@ export function ProjectsView({
               ))}
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
+            <div className="flex items-center gap-2 ml-auto">
+              <div className="flex items-center rounded-md border border-border bg-card p-0.5">
+                <button
+                  type="button"
+                  onClick={() => handleViewModeChange("list")}
+                  className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-sm transition-colors",
+                    viewMode === "list" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
+                  )}
+                  aria-label="List view"
+                >
+                  <List className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleViewModeChange("grid")}
+                  className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-sm transition-colors",
+                    viewMode === "grid" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
+                  )}
+                  aria-label="Grid view"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
                 setEditingProject(null)
                 setEditorOpen(true)
               }}
@@ -184,14 +223,106 @@ export function ProjectsView({
               <Plus className="h-3.5 w-3.5" />
               New Project
             </button>
+            </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={cn(
+            "grid gap-3",
+            viewMode === "grid" 
+              ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+              : "sm:grid-cols-2 lg:grid-cols-3"
+          )}>
         {filtered.map((p) => {
           const projTasks = tasks.filter((t) => t.project_id === p.id && t.processed)
           const open = projTasks.filter((t) => t.status === "Open").length
           const done = projTasks.filter((t) => t.status === "Done").length
           const pct = projTasks.length === 0 ? 0 : Math.round((done / projTasks.length) * 100)
+          const ProjIcon = p.icon ? ICONS[p.icon] ?? FolderKanban : FolderKanban
+          
+          if (viewMode === "grid") {
+            return (
+              <div
+                key={p.id}
+                onClick={() => setSelected(p.id)}
+                className="group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition-all hover:border-primary/50 hover:shadow-md aspect-[16/9]"
+              >
+                {/* Background Layer */}
+                <div 
+                  className="absolute inset-0 z-0 opacity-40 transition-opacity group-hover:opacity-50"
+                  style={
+                    p.background_image 
+                      ? { backgroundImage: `url(${p.background_image})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                      : p.color 
+                        ? { backgroundColor: `color-mix(in oklch, ${p.color} 20%, transparent)` }
+                        : { backgroundColor: 'var(--muted)' }
+                  }
+                />
+                {!p.background_image && (
+                  <div className="absolute inset-0 z-0 flex items-center justify-center opacity-20">
+                    <ProjIcon className="w-24 h-24" style={{ color: p.color || 'var(--primary)' }} />
+                  </div>
+                )}
+                <div className="absolute inset-0 z-0 bg-gradient-to-t from-background/90 via-background/40 to-transparent" />
+
+                <div className="absolute top-2 right-2 z-20" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex h-8 w-8 items-center justify-center rounded-full bg-background/50 backdrop-blur-sm text-foreground hover:bg-background/80 transition-colors shadow-sm md:opacity-0 md:group-hover:opacity-100">
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuItem onClick={() => { setEditingProject(p); setEditorOpen(true); }}>
+                        <Edit2 className="h-3.5 w-3.5 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                      {(() => {
+                        const hasItems = tasks.some((t) => t.project_id === p.id) || notes.some((n) => n.project_id === p.id)
+                        return (
+                          <DropdownMenuItem
+                            className={cn("text-destructive focus:text-destructive", hasItems && "opacity-40 pointer-events-none")}
+                            disabled={hasItems}
+                            onClick={() => { if(confirm(`Are you sure you want to delete "${p.name}"?`)) onDeleteProject(p.id) }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-2" />
+                            Delete
+                            {hasItems && <span className="ml-auto text-[10px] text-muted-foreground font-normal">Has items</span>}
+                          </DropdownMenuItem>
+                        )
+                      })()}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* Content */}
+                <div className="relative z-10 flex flex-col justify-end h-full p-4">
+                   <div className="flex items-center gap-2 mb-1.5">
+                     {p.linked_person_id && (() => {
+                        const lp = persons.find(per => per.id === p.linked_person_id)
+                        return lp ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/80 backdrop-blur px-2 py-0.5 text-[10px] text-white font-medium">
+                            👤 {lp.name}
+                          </span>
+                        ) : null
+                      })()}
+                   </div>
+                   <h3 className="text-lg font-bold tracking-tight text-foreground line-clamp-1 mb-1">{p.name}</h3>
+                   <div className="flex items-center gap-3 text-xs text-muted-foreground font-medium drop-shadow-sm">
+                     <span className="flex items-center gap-1">
+                        <Circle className="h-3 w-3" /> {open} open
+                     </span>
+                     <span className="flex items-center gap-1">
+                        <ListChecks className="h-3.5 w-3.5" /> {pct}%
+                     </span>
+                   </div>
+                   <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-background/50 backdrop-blur">
+                     <div className="h-full bg-primary transition-all duration-500" style={{ width: `${pct}%` }} />
+                   </div>
+                </div>
+              </div>
+            )
+          }
+
           return (
             <div
               key={p.id}
@@ -230,25 +361,20 @@ export function ProjectsView({
 
               <div className="flex items-center justify-between gap-2 min-w-0 pr-6">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                  {(() => {
-                    const ProjIcon = p.icon ? ICONS[p.icon] ?? FolderKanban : FolderKanban
-                    return (
-                      <div
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-                        style={
-                          p.color
-                            ? {
-                                backgroundColor: `color-mix(in oklch, ${p.color} 15%, transparent)`,
-                                color: p.color,
-                                boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${p.color} 30%, transparent)`,
-                              }
-                            : undefined
-                        }
-                      >
-                        <ProjIcon className={cn("h-4 w-4", !p.color && "text-primary")} />
-                      </div>
-                    )
-                  })()}
+                  <div
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+                    style={
+                      p.color
+                        ? {
+                            backgroundColor: `color-mix(in oklch, ${p.color} 15%, transparent)`,
+                            color: p.color,
+                            boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${p.color} 30%, transparent)`,
+                          }
+                        : undefined
+                    }
+                  >
+                    <ProjIcon className={cn("h-4 w-4", !p.color && "text-primary")} />
+                  </div>
                   <h3 className="text-sm font-semibold tracking-tight truncate">{p.name}</h3>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -618,6 +744,9 @@ function ProjectEditor({
   const [linkedPersonId, setLinkedPersonId] = useState<string>("not_shared")
   const [icon, setIcon] = useState<string>(DEFAULT_PROJECT_ICON)
   const [color, setColor] = useState<string>(COLOR_PALETTE[0])
+  const [backgroundImage, setBackgroundImage] = useState<string>("")
+  const [isUploading, setIsUploading] = useState(false)
+
 
   useEffect(() => {
     if (open) {
@@ -627,6 +756,8 @@ function ProjectEditor({
       setLinkedPersonId(project?.linked_person_id ?? "not_shared")
       setIcon(project?.icon ?? DEFAULT_PROJECT_ICON)
       setColor(project?.color ?? COLOR_PALETTE[0])
+      setBackgroundImage(project?.background_image ?? "")
+
     }
   }, [open, project])
 
@@ -640,7 +771,25 @@ function ProjectEditor({
       linked_person_id: linkedPersonId === "not_shared" ? null : linkedPersonId,
       icon,
       color,
+      background_image: backgroundImage.trim() || null,
     } as any)
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    try {
+      setIsUploading(true)
+      const url = await uploadImage(file)
+      setBackgroundImage(url)
+      toast.success("Image uploaded successfully")
+    } catch (error) {
+      toast.error("Failed to upload image")
+    } finally {
+      setIsUploading(false)
+      if (e.target) e.target.value = "" // reset input
+    }
   }
 
   const linkablePersons = persons.filter(p => !!p.linked_uid)
@@ -748,6 +897,59 @@ function ProjectEditor({
             <p className="text-[11px] text-muted-foreground leading-tight">
               Sharing a project will automatically sync the project's metadata and assign all its tasks to the selected person. Unlinking it keeps tasks linked, but makes the projects separate.
             </p>
+          </div>
+          <div className="grid gap-2">
+            <Label>Background Image</Label>
+            <div className="flex items-center gap-3">
+              {backgroundImage ? (
+                <div className="relative h-16 w-28 overflow-hidden rounded-md border border-border">
+                  <div 
+                    className="absolute inset-0 bg-cover bg-center" 
+                    style={{ backgroundImage: `url(${backgroundImage})` }} 
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setBackgroundImage("")}
+                    className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-background/80 text-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex h-16 w-28 items-center justify-center rounded-md border border-dashed border-border bg-muted/40">
+                  <ImageIcon className="h-5 w-5 text-muted-foreground/50" />
+                </div>
+              )}
+              <div className="flex-1">
+                <Label
+                  htmlFor="bg-image-upload"
+                  className={cn(
+                    "inline-flex cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                    isUploading && "pointer-events-none opacity-50"
+                  )}
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    "Upload Image"
+                  )}
+                </Label>
+                <input
+                  id="bg-image-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                  disabled={isUploading}
+                />
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Visible in grid view. Replaces color/icon.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
