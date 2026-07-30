@@ -107,8 +107,38 @@ export function ProjectsView({
   }
 
   useEffect(() => {
-    setSelected(initialSelectedId || null)
+    const params = new URLSearchParams(window.location.search)
+    const urlProj = params.get("project")
+    if (urlProj) {
+      setSelected(urlProj)
+    } else {
+      setSelected(initialSelectedId || null)
+    }
   }, [initialSelectedId])
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search)
+      setSelected(params.get("project") || initialSelectedId || null)
+    }
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [initialSelectedId])
+
+  const handleSelect = (id: string | null) => {
+    setSelected(id)
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      if (id) {
+        params.set("project", id)
+      } else {
+        params.delete("project")
+      }
+      const qs = params.toString()
+      const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+      window.history.pushState(null, "", newUrl)
+    }
+  }
 
   const handleSaveProject = (p: Project | Omit<Project, "id">) => {
     if ("id" in p) {
@@ -145,7 +175,7 @@ export function ProjectsView({
               persons={persons}
               contexts={contexts}
               tags={tags}
-              onBack={() => setSelected(null)}
+              onBack={() => handleSelect(null)}
               onToggleProcessed={onToggleProcessed}
               onToggleStatus={onToggleStatus}
               onUpdate={onUpdate}
@@ -156,7 +186,7 @@ export function ProjectsView({
               onCreateNote={onCreateNote}
               onUpdateProject={onUpdateProject}
               onDeleteProject={(id) => {
-                setSelected(null)
+                handleSelect(null)
                 onDeleteProject(id)
               }}
               onEdit={() => {
@@ -243,7 +273,7 @@ export function ProjectsView({
             return (
               <div
                 key={p.id}
-                onClick={() => setSelected(p.id)}
+                onClick={() => handleSelect(p.id)}
                 className="group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition-all hover:border-primary/50 hover:shadow-md aspect-[16/9]"
               >
                 {/* Background Layer */}
@@ -326,7 +356,7 @@ export function ProjectsView({
           return (
             <div
               key={p.id}
-              onClick={() => setSelected(p.id)}
+              onClick={() => handleSelect(p.id)}
               className="group relative flex cursor-pointer flex-col gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-primary/40"
             >
               <div className="absolute top-2 right-2 z-10" onClick={(e) => e.stopPropagation()}>
