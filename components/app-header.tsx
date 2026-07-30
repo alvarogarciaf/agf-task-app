@@ -154,8 +154,16 @@ export function AppHeader({
   }, [highlightedIdx])
 
   function openSearchResult(task: Task) {
-    setActiveTask(task)
-    setDetailMode("view")
+    const openNotesAs = typeof window !== "undefined"
+      ? (localStorage.getItem("open_notes_as") as "popup" | "fullscreen") || "popup"
+      : "popup"
+
+    if (task.type === "note" && openNotesAs === "fullscreen" && onExpandFullScreen) {
+      onExpandFullScreen(task.id, "view")
+    } else {
+      setActiveTask(task)
+      setDetailMode("view")
+    }
     setSearchOpen(false)
   }
 
