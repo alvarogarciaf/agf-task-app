@@ -678,6 +678,30 @@ function EditorSurface({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Backspace") {
+      const sel = window.getSelection()
+      const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null
+      const block = getCurrentBlock()
+      
+      if (block && block.classList.contains("md-task") && range && range.collapsed) {
+        const checkbox = block.querySelector("input.md-task-box")
+        if (checkbox) {
+          const lineText = getLineTextBeforeCursor(block, range).replace(/\u00A0/g, "")
+          if (lineText === "") {
+            e.preventDefault()
+            checkbox.remove()
+            if (block.firstChild && block.firstChild.nodeType === Node.TEXT_NODE) {
+              block.firstChild.textContent = block.firstChild.textContent?.replace(/^[\s\u00A0]+/, "") || ""
+            }
+            block.classList.remove("md-task")
+            if (block.className === "") block.removeAttribute("class")
+            syncMarkdown()
+            return
+          }
+        }
+      }
+    }
+
     if (e.key === "Enter") {
       // Ctrl/Cmd+Enter -> soft line break within the current paragraph.
       if (e.ctrlKey || e.metaKey) {
