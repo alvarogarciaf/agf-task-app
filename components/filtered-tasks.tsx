@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react"
 import { useRegisterTabAdd } from "@/components/tab-toolbar-context"
+import { useIsTabActive } from "@/components/tab-portal-context"
 import { CalendarClock, Filter, X, Check, LayoutList, Columns3, Plus, RotateCcw, Star, MoreHorizontal } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -121,6 +122,7 @@ export function FilteredTasks({
   allowUnprocessed = false,
   hideDesktopAdd = false,
 }: FilteredTasksProps) {
+  const isTabActive = useIsTabActive()
   const [contextIds, setContextIds] = useState<string[]>(() => {
     if (initialContextIds) return initialContextIds
     if (initialContextId) return [initialContextId]
@@ -474,6 +476,7 @@ export function FilteredTasks({
   // Keyboard shortcut: Ctrl+N for new task (handled globally, we just intercept it)
   useEffect(() => {
     function handleGlobalCreateTask(e: Event) {
+      if (!isTabActive) return
       if (!notesMode) {
         e.preventDefault()
         handleAddNewTask()
@@ -481,6 +484,7 @@ export function FilteredTasks({
     }
     
     function handleGlobalCreateNote(e: Event) {
+      if (!isTabActive) return
       if (notesMode) {
         e.preventDefault()
         handleAddNewTask()
@@ -494,7 +498,7 @@ export function FilteredTasks({
       window.removeEventListener("global-create-task", handleGlobalCreateTask)
       window.removeEventListener("global-create-note", handleGlobalCreateNote)
     }
-  }, [handleAddNewTask, notesMode])
+  }, [handleAddNewTask, notesMode, isTabActive])
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {

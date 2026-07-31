@@ -4,9 +4,14 @@ import { createContext, useContext, useRef, useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 
 const TabPortalContext = createContext<HTMLElement | null>(null)
+export const TabActiveContext = createContext<boolean>(true)
 
 export function useTabPortalContainer() {
   return useContext(TabPortalContext)
+}
+
+export function useIsTabActive() {
+  return useContext(TabActiveContext)
 }
 
 export function TabPortalProvider({
@@ -39,8 +44,9 @@ export function TabPortalProvider({
   }, [isActive])
 
   return (
-    <TabPortalContext.Provider value={container}>
-      <div
+    <TabActiveContext.Provider value={isActive ?? true}>
+      <TabPortalContext.Provider value={container}>
+        <div
         ref={ref}
         className={cn(
           "relative flex min-h-0 flex-1 flex-col overflow-hidden",
@@ -50,6 +56,7 @@ export function TabPortalProvider({
       >
         {children}
       </div>
-    </TabPortalContext.Provider>
+      </TabPortalContext.Provider>
+    </TabActiveContext.Provider>
   )
 }
