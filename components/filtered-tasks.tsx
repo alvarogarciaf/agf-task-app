@@ -339,7 +339,7 @@ export function FilteredTasks({
   const handleAddNewTask = async (overriddenProjectId?: string | null) => {
     if (!onCreate) return
     const id = await onCreate({
-      description: "New task",
+      description: notesMode ? "New note" : "New task",
       contextIds: contextIds,
       projectId: overriddenProjectId !== undefined ? overriddenProjectId : projectId,
       personId: personId,

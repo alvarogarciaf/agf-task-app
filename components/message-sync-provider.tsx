@@ -293,7 +293,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
 
           // ── Push notification logic ──
           const hasBeenNotified = notifiedTasksRef.current.has(taskData.id);
-          const isPlaceholder = taskData.description === "New task" || !taskData.description.trim();
+          const isPlaceholder = taskData.description === "New task" || taskData.description === "New note" || !taskData.description.trim();
 
           if (!hasBeenNotified && !isPlaceholder) {
             let shouldNotify = false;
@@ -301,7 +301,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
             if (changeEvent.operation === "INSERT") {
               shouldNotify = true;
             } else if (changeEvent.operation === "UPDATE" && previousData) {
-              const wasPlaceholder = previousData.description === "New task" || !previousData.description.trim();
+              const wasPlaceholder = previousData.description === "New task" || previousData.description === "New note" || !previousData.description.trim();
               const wasUnassigned = !previousData.person_id;
               if (wasPlaceholder || wasUnassigned) {
                 shouldNotify = true;

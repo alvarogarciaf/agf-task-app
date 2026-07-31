@@ -93,7 +93,7 @@ export function TaskDetailDialog({
   const detailsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (open && draft?.description === "New task") {
+    if (open && (draft?.description === "New task" || draft?.description === "New note")) {
       setDraft((prev) => (prev ? { ...prev, description: "" } : prev))
       setTimeout(() => {
         descriptionRef.current?.focus()

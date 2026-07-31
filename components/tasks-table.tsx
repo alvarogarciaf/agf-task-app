@@ -946,7 +946,7 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
               task.processed ? "text-muted-foreground" : "text-foreground",
             )}
           >
-            {task.description === "New task" ? "" : task.description}
+            {task.description === "New task" || task.description === "New note" ? "" : task.description}
           </span>
           <div className="hidden group-hover/desc:flex absolute right-0 top-1/2 -translate-y-1/2 items-center gap-1.5 shrink-0 bg-background/90 backdrop-blur-sm pl-4 pr-1 py-1 rounded-l-md animate-fade-in z-10" style={{ backgroundImage: "linear-gradient(to right, transparent, var(--background) 20%)" }}>
             {task.type === "note" && ctx.openNotesAs === "fullscreen" ? (
@@ -1128,7 +1128,7 @@ function InlineCellEditor({ task, column, projects, persons, contexts, tags, urg
   const shared = { onCommit, onCancel, onTab, onCtrlEnter }
   switch (column) {
     case "description":
-      return <InlineTextEditor value={task.description === "New task" ? "" : task.description} {...shared} />
+      return <InlineTextEditor value={task.description === "New task" || task.description === "New note" ? "" : task.description} {...shared} />
     case "details":
       return <InlineTextEditor value={task.details ?? ""} {...shared} />
     case "project":
