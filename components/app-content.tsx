@@ -850,12 +850,20 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         if (e.shiftKey) {
           const event = new CustomEvent('global-create-note', { cancelable: true })
           if (window.dispatchEvent(event)) {
-            handleCreateNote({ description: "New note", contextIds: [], projectId: null, personId: null, processed: true })
+            const navigate = isMobile ? handleNavigate : navigateActiveTab
+            navigate("notes")
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent('global-create-note', { cancelable: true }))
+            }, 100)
           }
         } else {
           const event = new CustomEvent('global-create-task', { cancelable: true })
           if (window.dispatchEvent(event)) {
-            handleCreateTask({ description: "New task", contextIds: [], projectId: null, personId: null })
+            const navigate = isMobile ? handleNavigate : navigateActiveTab
+            navigate("home")
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent('global-create-task', { cancelable: true }))
+            }, 100)
           }
         }
         return
@@ -890,7 +898,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }
     window.addEventListener("keydown", handleKey)
     return () => window.removeEventListener("keydown", handleKey)
-  }, [isMobile, addTab, navigateActiveTab, handleCreateTask, handleCreateNote])
+  }, [isMobile, addTab, navigateActiveTab, handleNavigate])
 
   useEffect(() => {
     const viewParam = searchParams.get("view")
