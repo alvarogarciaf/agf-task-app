@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from "react"
 import { Search, Command, Settings, Menu, Users, Tags, Tag as TagIcon, AlertCircle, Calendar, Trash2, Info, Bell, Circle, CheckCircle2, FolderKanban, ListChecks, FileText, Plus } from "lucide-react"
 import { UserMenu } from "@/components/user-menu"
+import { useIsMobile } from "@/components/ui/use-mobile"
 import type { TabToolbarState } from "@/components/tab-toolbar-context"
 import type { ViewKey, Task, Project, Person, Context, Tag, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "./db-provider"
@@ -153,16 +154,18 @@ export function AppHeader({
     resultRefs.current[highlightedIdx]?.scrollIntoView({ block: "nearest" })
   }, [highlightedIdx])
 
+  const isMobile = useIsMobile()
+
   function openSearchResult(task: Task) {
     const openNotesAs = typeof window !== "undefined"
       ? (localStorage.getItem("open_notes_as") as "popup" | "fullscreen") || "popup"
       : "popup"
 
     if (task.type === "note" && openNotesAs === "fullscreen" && onExpandFullScreen) {
-      onExpandFullScreen(task.id, "view")
+      onExpandFullScreen(task.id, isMobile ? "edit" : "view")
     } else {
       setActiveTask(task)
-      setDetailMode("view")
+      setDetailMode(isMobile ? "edit" : "view")
     }
     setSearchOpen(false)
   }

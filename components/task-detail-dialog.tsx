@@ -447,7 +447,7 @@ export function TaskDetailDialog({
                     ) : (
                       <Circle className="h-3.5 w-3.5" />
                     )}
-                    {draft.status === "Done" ? "Done" : "Open"}
+                    {draft.status === "Done" ? "Mark as undone" : "Mark as done"}
                   </button>
 
                   <span
@@ -503,6 +503,7 @@ export function TaskDetailDialog({
                 descriptionRef={descriptionRef}
                 detailsRef={detailsRef}
                 onSubmit={save}
+                isMobile={isMobile}
               />
 
               <div className="mt-5">

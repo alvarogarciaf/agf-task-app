@@ -9,6 +9,8 @@ import {
   Tag,
   User,
   Zap,
+  ChevronDown,
+  Settings2,
 } from "lucide-react"
 import * as SliderPrimitive from "@radix-ui/react-slider"
 import { toast } from "sonner"
@@ -19,6 +21,7 @@ import { toggleMarkdownTask } from "@/lib/markdown"
 import { FormMultiSelect } from "@/components/form-multi-select"
 import { FormDateField } from "@/components/form-date-field"
 import { ProjectSelect } from "@/components/project-select"
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import {
   Select,
   SelectContent,
@@ -384,6 +387,7 @@ export function ObjectEditFields({
   descriptionRef,
   detailsRef,
   onSubmit,
+  isMobile,
 }: {
   draft: Task
   setDraft: React.Dispatch<React.SetStateAction<Task | null>>
@@ -398,11 +402,175 @@ export function ObjectEditFields({
   descriptionRef?: React.Ref<HTMLTextAreaElement>
   detailsRef?: React.RefObject<HTMLDivElement | null>
   onSubmit?: () => void
+  isMobile?: boolean
 }) {
   function focusDetails() {
     const el = detailsRef?.current?.querySelector<HTMLElement>('[contenteditable]')
     el?.focus()
   }
+
+  const propertiesContent = (
+    <div className={cn("grid gap-5", !isMobile && "mt-5")}>
+      {!isNote && (
+        <div>
+          <Label icon={<Zap className="h-3 w-3" />}>Urgency</Label>
+          <UrgencySlider
+            urgencies={sortedUrgencies}
+            value={draft.urgency_id}
+            onChange={(id) => update("urgency_id", id)}
+          />
+        </div>
+      )}
+
+      {!isNote && (
+        <div>
+          <Label icon={<Tag className="h-3 w-3" />}>
+            Contexts
+            <span className="ml-1.5 font-mono text-[10px] text-muted-foreground/70">
+              {(draft.context_ids || []).length} selected
+            </span>
+          </Label>
+          <FormMultiSelect
+            options={contexts.map((c) => ({
+              id: c.id,
+              label: c.name,
+              color: c.color,
+              icon: c.icon,
+            }))}
+            selectedIds={draft.context_ids || []}
+            onChange={(ids) => update("context_ids", ids)}
+            placeholder="Select contexts"
+          />
+        </div>
+      )}
+
+      {isNote && (
+        <div>
+          <Label icon={<Tag className="h-3 w-3" />}>
+            Tags
+            <span className="ml-1.5 font-mono text-[10px] text-muted-foreground/70">
+              {(draft.tag_ids || []).length} selected
+            </span>
+          </Label>
+          <FormMultiSelect
+            options={tags.map((tg) => ({
+              id: tg.id,
+              label: tg.name,
+              color: tg.color,
+            }))}
+            selectedIds={draft.tag_ids || []}
+            onChange={(ids) => update("tag_ids", ids)}
+            placeholder="Select tags"
+          />
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-4">
+        <div className="flex-1 min-w-[200px]">
+          <Label icon={<FolderKanban className="h-3 w-3" />}>Project</Label>
+          <ProjectSelect
+            projects={projects}
+            value={draft.project_id ?? null}
+            placeholder="No project"
+            noneLabel="No project"
+            className="mt-0"
+            triggerClassName="mt-1.5"
+            onChange={(projId) => {
+              update("project_id", projId)
+              const proj = projId
+                ? projects.find((p) => p.id === projId)
+                : null
+              if (proj?.linked_person_id) {
+                update("person_id", proj.linked_person_id)
+              }
+            }}
+          />
+        </div>
+
+        <div className="flex-1 min-w-[200px]">
+          <div className="flex items-center justify-between">
+            <Label icon={<User className="h-3 w-3" />}>Person</Label>
+            {isProjectShared && (
+              <span className="flex items-center gap-1 text-[10px] font-medium text-blue-500 font-mono animate-fade-in">
+                <Lock className="h-2.5 w-2.5" /> Locked
+              </span>
+            )}
+          </div>
+          <Select
+            disabled={isProjectShared}
+            value={draft.person_id ?? "__none__"}
+            onValueChange={(v) =>
+              update("person_id", v === "__none__" ? null : v)
+            }
+          >
+            <SelectTrigger
+              className={cn(
+                "mt-1.5 w-full border-border bg-background h-11 md:h-9",
+                isProjectShared &&
+                  "opacity-80 cursor-not-allowed bg-muted/20",
+              )}
+            >
+              <SelectValue placeholder="No one" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__" className="py-3 md:py-1.5">
+                <span className="text-muted-foreground">No one</span>
+              </SelectItem>
+              {persons.map((p) => (
+                <SelectItem key={p.id} value={p.id} className="py-3 md:py-1.5">
+                  <span className="flex items-center gap-2">
+                    <span
+                      className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold shrink-0"
+                      style={{
+                        backgroundColor: `color-mix(in oklch, ${p.color} 30%, transparent)`,
+                      }}
+                    >
+                      {p.initials}
+                    </span>
+                    {p.name}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {!isNote && (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label icon={<Calendar className="h-3 w-3" />}>Show on</Label>
+            <FormDateField
+              value={draft.show_on}
+              onChange={(iso) => update("show_on", iso)}
+            />
+          </div>
+
+          <div>
+            <Label icon={<Calendar className="h-3 w-3" />}>Action date</Label>
+            <FormDateField
+              value={draft.action_date}
+              onChange={(iso) => update("action_date", iso)}
+            />
+          </div>
+        </div>
+      )}
+
+      {isNote && (
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-1 min-w-[200px]">
+            <Label icon={<Calendar className="h-3 w-3" />}>
+              Date Override
+            </Label>
+            <FormDateField
+              value={draft.action_date}
+              onChange={(iso) => update("action_date", iso)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  )
 
   return (
     <>
@@ -429,167 +597,6 @@ export function ObjectEditFields({
           className="mt-1.5 resize-none border-border bg-background text-base font-medium leading-snug"
           rows={1}
         />
-      </div>
-
-      <div className="mt-5 grid gap-5">
-        {!isNote && (
-          <div>
-            <Label icon={<Zap className="h-3 w-3" />}>Urgency</Label>
-            <UrgencySlider
-              urgencies={sortedUrgencies}
-              value={draft.urgency_id}
-              onChange={(id) => update("urgency_id", id)}
-            />
-          </div>
-        )}
-
-        {!isNote && (
-          <div>
-            <Label icon={<Tag className="h-3 w-3" />}>
-              Contexts
-              <span className="ml-1.5 font-mono text-[10px] text-muted-foreground/70">
-                {(draft.context_ids || []).length} selected
-              </span>
-            </Label>
-            <FormMultiSelect
-              options={contexts.map((c) => ({
-                id: c.id,
-                label: c.name,
-                color: c.color,
-                icon: c.icon,
-              }))}
-              selectedIds={draft.context_ids || []}
-              onChange={(ids) => update("context_ids", ids)}
-              placeholder="Select contexts"
-            />
-          </div>
-        )}
-
-        {isNote && (
-          <div>
-            <Label icon={<Tag className="h-3 w-3" />}>
-              Tags
-              <span className="ml-1.5 font-mono text-[10px] text-muted-foreground/70">
-                {(draft.tag_ids || []).length} selected
-              </span>
-            </Label>
-            <FormMultiSelect
-              options={tags.map((tg) => ({
-                id: tg.id,
-                label: tg.name,
-                color: tg.color,
-              }))}
-              selectedIds={draft.tag_ids || []}
-              onChange={(ids) => update("tag_ids", ids)}
-              placeholder="Select tags"
-            />
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-4">
-          <div className="flex-1 min-w-[200px]">
-            <Label icon={<FolderKanban className="h-3 w-3" />}>Project</Label>
-            <ProjectSelect
-              projects={projects}
-              value={draft.project_id ?? null}
-              placeholder="No project"
-              noneLabel="No project"
-              className="mt-0"
-              triggerClassName="mt-1.5"
-              onChange={(projId) => {
-                update("project_id", projId)
-                const proj = projId
-                  ? projects.find((p) => p.id === projId)
-                  : null
-                if (proj?.linked_person_id) {
-                  update("person_id", proj.linked_person_id)
-                }
-              }}
-            />
-          </div>
-
-          <div className="flex-1 min-w-[200px]">
-            <div className="flex items-center justify-between">
-              <Label icon={<User className="h-3 w-3" />}>Person</Label>
-              {isProjectShared && (
-                <span className="flex items-center gap-1 text-[10px] font-medium text-blue-500 font-mono animate-fade-in">
-                  <Lock className="h-2.5 w-2.5" /> Locked
-                </span>
-              )}
-            </div>
-            <Select
-              disabled={isProjectShared}
-              value={draft.person_id ?? "__none__"}
-              onValueChange={(v) =>
-                update("person_id", v === "__none__" ? null : v)
-              }
-            >
-              <SelectTrigger
-                className={cn(
-                  "mt-1.5 w-full border-border bg-background h-11 md:h-9",
-                  isProjectShared &&
-                    "opacity-80 cursor-not-allowed bg-muted/20",
-                )}
-              >
-                <SelectValue placeholder="No one" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__" className="py-3 md:py-1.5">
-                  <span className="text-muted-foreground">No one</span>
-                </SelectItem>
-                {persons.map((p) => (
-                  <SelectItem key={p.id} value={p.id} className="py-3 md:py-1.5">
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold shrink-0"
-                        style={{
-                          backgroundColor: `color-mix(in oklch, ${p.color} 30%, transparent)`,
-                        }}
-                      >
-                        {p.initials}
-                      </span>
-                      {p.name}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {!isNote && (
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label icon={<Calendar className="h-3 w-3" />}>Show on</Label>
-              <FormDateField
-                value={draft.show_on}
-                onChange={(iso) => update("show_on", iso)}
-              />
-            </div>
-
-            <div>
-              <Label icon={<Calendar className="h-3 w-3" />}>Action date</Label>
-              <FormDateField
-                value={draft.action_date}
-                onChange={(iso) => update("action_date", iso)}
-              />
-            </div>
-          </div>
-        )}
-
-        {isNote && (
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <Label icon={<Calendar className="h-3 w-3" />}>
-                Date Override
-              </Label>
-              <FormDateField
-                value={draft.action_date}
-                onChange={(iso) => update("action_date", iso)}
-              />
-            </div>
-          </div>
-        )}
       </div>
     </>
   )
