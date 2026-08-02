@@ -74,53 +74,51 @@ function UrgencySlider({
   }
 
   return (
-    <div className="mt-1.5 select-none">
+    <div className="select-none">
       {/* Name row */}
-      <div className="mb-3 flex items-center gap-1.5">
-        <span
-          className="h-2 w-2 shrink-0 rounded-full transition-colors duration-200"
-          style={{ backgroundColor: current.color }}
-        />
-        <span className="text-sm font-semibold text-foreground transition-all duration-200">
+      <div className="mb-2 flex items-center justify-between">
+        <Label icon={<Zap className="h-3 w-3" />}>Urgency</Label>
+        <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <span
+            className="h-1.5 w-1.5 shrink-0 rounded-full transition-colors duration-200"
+            style={{ backgroundColor: current.color }}
+          />
           {current.name}
-        </span>
-        <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-          {sliderVal} / {n}
-        </span>
+        </div>
       </div>
 
       {/* Slider + ticks */}
-      <div className="relative px-2">
+      <div className="relative px-1">
         <SliderPrimitive.Root
           min={1}
           max={n}
           step={1}
           value={[sliderVal]}
           onValueChange={handleChange}
-          className="relative flex h-5 w-full touch-none items-center select-none"
+          className="relative flex h-4 w-full touch-none items-center select-none"
           aria-label="Urgency"
         >
-          <SliderPrimitive.Track className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-muted">
+          <SliderPrimitive.Track className="relative h-1 w-full grow overflow-hidden rounded-full bg-muted">
             <SliderPrimitive.Range
               className="absolute h-full rounded-full transition-colors duration-200"
               style={{ backgroundColor: current.color }}
             />
           </SliderPrimitive.Track>
           <SliderPrimitive.Thumb
-            className="block h-5 w-5 rounded-full border-2 bg-background shadow-md ring-0 transition-all duration-200 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            className="block h-3.5 w-3.5 rounded-full border-2 bg-background shadow-sm ring-0 transition-all duration-200 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
             style={{ borderColor: current.color }}
           />
         </SliderPrimitive.Root>
 
         {/* Tick numbers below the track */}
-        <div className="mt-1.5 flex items-center justify-between">
+        <div className="mt-1 flex items-center justify-between">
           {display.map((u, i) => (
             <button
               key={u.id}
               type="button"
               onClick={() => onChange(u.id)}
               className={cn(
-                "flex h-5 w-5 items-center justify-center rounded-full font-mono text-[11px] font-medium transition-all duration-150",
+                "flex h-4 w-4 items-center justify-center rounded-full font-mono text-[9px] font-medium transition-all duration-150",
                 i === safeIdx
                   ? "scale-110 text-foreground"
                   : "text-muted-foreground hover:text-foreground",
@@ -590,7 +588,6 @@ export function ObjectEditFields({
 
       {!isNote && (
         <div className="mt-5">
-          <Label icon={<Zap className="h-3 w-3" />}>Urgency</Label>
           <UrgencySlider
             urgencies={sortedUrgencies}
             value={draft.urgency_id}
