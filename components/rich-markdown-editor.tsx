@@ -221,6 +221,9 @@ function EditorSurface({
   const [linkUrl, setLinkUrl] = useState("")
   const [linkText, setLinkText] = useState("")
 
+  const isMobile = useIsMobile()
+  const [isFocused, setIsFocused] = useState(false)
+
   useEffect(() => {
     if (!editorRef.current || isFocusedRef.current) return
 
@@ -891,138 +894,96 @@ function EditorSurface({
 
   const toolbarButton = "inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 
+  const showToolbar = !isMobile || isFocused
+
   return (
     <div className={cn("flex min-h-0 flex-col", className)}>
-      <div className="flex flex-wrap items-center gap-0.5 rounded-t-md border border-b-0 border-border bg-muted/30 px-1.5 py-1">
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h1")} className={toolbarButton} title="Heading 1" aria-label="Heading 1">
-          <Heading1 className="h-4 w-4" />
-        </button>
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h2")} className={toolbarButton} title="Heading 2" aria-label="Heading 2">
-          <Heading2 className="h-4 w-4" />
-        </button>
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h3")} className={toolbarButton} title="Heading 3" aria-label="Heading 3">
-          <Heading3 className="h-4 w-4" />
-        </button>
-
-        <span className="mx-1 h-4 w-px bg-border" />
-
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleInlineFormat("bold")} className={toolbarButton} title="Bold" aria-label="Bold">
-          <Bold className="h-4 w-4" />
-        </button>
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleInlineFormat("italic")} className={toolbarButton} title="Italic" aria-label="Italic">
-          <Italic className="h-4 w-4" />
-        </button>
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("insertUnorderedList")} className={toolbarButton} title="Bullet list" aria-label="Bullet list">
-          <List className="h-4 w-4" />
-        </button>
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("indent")} className={toolbarButton} title="Indent" aria-label="Indent">
-          <Indent className="h-4 w-4" />
-        </button>
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("outdent")} className={toolbarButton} title="Outdent" aria-label="Outdent">
-          <Outdent className="h-4 w-4" />
-        </button>
-
-        <span className="mx-1 h-4 w-px bg-border" />
-
-        <button type="button" onClick={() => fileInputRef.current?.click()} className={toolbarButton} title="Insert Image" aria-label="Insert Image">
-          <ImageIcon className="h-4 w-4" />
-        </button>
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          className="hidden" 
-          accept="image/*" 
-          multiple
-          onChange={(e) => {
-            if (e.target.files) {
-              handleImageFiles(Array.from(e.target.files))
-            }
-            e.target.value = ""
-          }} 
-        />
-
-        <span className="mx-1 h-4 w-px bg-border" />
-
-        <Popover
-          open={linkOpen}
-          onOpenChange={(o) => {
-            if (o) prepareLinkPopover()
-            setLinkOpen(o)
-          }}
+      {showToolbar && (
+        <div 
+          className={cn(
+            "flex flex-wrap items-center gap-0.5 border-border bg-muted/30 px-1.5 py-1",
+            isMobile
+              ? "fixed bottom-0 left-0 right-0 z-50 border-t bg-background shadow-[0_-4px_10px_rgba(0,0,0,0.1)]"
+              : "rounded-t-md border border-b-0"
+          )}
         >
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              className={toolbarButton}
-              title="Insert link"
-              aria-label="Insert link"
-            >
-              <LinkIcon className="h-4 w-4" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-72 space-y-2">
-            <div className="space-y-1">
-              <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Text</label>
-              <input
-                value={linkText}
-                onChange={(e) => setLinkText(e.target.value)}
-                placeholder="Link text"
-                className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">URL</label>
-              <input
-                value={linkUrl}
-                onChange={(e) => setLinkUrl(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    insertLink()
-                  }
-                }}
-                placeholder="https://example.com"
-                autoFocus
-                className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setLinkOpen(false)}
-                className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={insertLink}
-                disabled={!linkUrl.trim()}
-                className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Add link
-              </button>
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        <div className="ml-auto flex items-center gap-1">
-          <button type="button" onClick={handleCopyMarkdown} className={toolbarButton} title="Copy as Markdown" aria-label="Copy as Markdown">
-            <Copy className="h-4 w-4" />
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h1")} className={toolbarButton} title="Heading 1" aria-label="Heading 1">
+            <Heading1 className="h-4 w-4" />
           </button>
-          {trailingTool && <div>{trailingTool}</div>}
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h2")} className={toolbarButton} title="Heading 2" aria-label="Heading 2">
+            <Heading2 className="h-4 w-4" />
+          </button>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h3")} className={toolbarButton} title="Heading 3" aria-label="Heading 3">
+            <Heading3 className="h-4 w-4" />
+          </button>
+          <span className="mx-1 h-4 w-px bg-border" />
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleInlineFormat("bold")} className={toolbarButton} title="Bold" aria-label="Bold">
+            <Bold className="h-4 w-4" />
+          </button>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleInlineFormat("italic")} className={toolbarButton} title="Italic" aria-label="Italic">
+            <Italic className="h-4 w-4" />
+          </button>
+          <span className="mx-1 h-4 w-px bg-border" />
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("insertUnorderedList")} className={toolbarButton} title="Bullet list" aria-label="Bullet list">
+            <List className="h-4 w-4" />
+          </button>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("indent")} className={toolbarButton} title="Indent" aria-label="Indent">
+            <Indent className="h-4 w-4" />
+          </button>
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("outdent")} className={toolbarButton} title="Outdent" aria-label="Outdent">
+            <Outdent className="h-4 w-4" />
+          </button>
+          <span className="mx-1 h-4 w-px bg-border" />
+          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => fileInputRef.current?.click()} className={toolbarButton} title="Insert Image" aria-label="Insert Image">
+            <ImageIcon className="h-4 w-4" />
+          </button>
+          <Popover
+            open={linkOpen}
+            onOpenChange={(o) => {
+              if (o) prepareLinkPopover()
+              setLinkOpen(o)
+            }}
+          >
+            <PopoverTrigger asChild>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} className={toolbarButton} title="Insert link" aria-label="Insert link">
+                <LinkIcon className="h-4 w-4" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-72 space-y-2">
+              <div className="space-y-1">
+                <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Text</label>
+                <input value={linkText} onChange={(e) => setLinkText(e.target.value)} placeholder="Link text" className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+              </div>
+              <div className="space-y-1">
+                <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">URL</label>
+                <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); insertLink() } }} placeholder="https://example.com" autoFocus className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <button type="button" onClick={() => setLinkOpen(false)} className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">Cancel</button>
+                <button type="button" onClick={insertLink} className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">Insert</button>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <div className="ml-auto flex items-center gap-1">
+            <button type="button" onClick={handleCopyMarkdown} className={toolbarButton} title="Copy as Markdown" aria-label="Copy as Markdown">
+              <Copy className="h-4 w-4" />
+            </button>
+            {trailingTool && <div>{trailingTool}</div>}
+          </div>
         </div>
-      </div>
+      )}
 
       <div
         ref={editorRef}
         contentEditable
         onFocus={() => {
           isFocusedRef.current = true
+          setIsFocused(true)
         }}
         onBlur={() => {
           isFocusedRef.current = false
+          setIsFocused(false)
           handleInput()
         }}
         onCompositionStart={() => {
@@ -1040,7 +1001,8 @@ function EditorSurface({
         onDrop={handleDrop}
         data-placeholder={placeholder}
         className={cn(
-          "rich-editor prose prose-sm dark:prose-invert max-w-none min-h-0 w-full flex-1 rounded-b-md border border-border bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground/90 overflow-y-auto outline-none transition-colors",
+          "rich-editor prose prose-sm dark:prose-invert max-w-none min-h-0 w-full flex-1 border border-border bg-background p-3 text-sm leading-relaxed text-foreground/90 overflow-y-auto outline-none transition-colors",
+          !isMobile ? "rounded-b-md" : "rounded-md",
           "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus:outline-none focus:ring-1 focus:ring-ring",
           "[&_h1]:text-lg [&_h1]:font-bold [&_h1]:text-foreground [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:font-sans [&_h1]:border-b [&_h1]:border-border/10 [&_h1]:pb-0.5",
           "[&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mt-3 [&_h2]:mb-1.5 [&_h2]:font-sans",

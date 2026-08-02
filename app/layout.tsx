@@ -35,6 +35,7 @@ export const viewport: Viewport = {
   themeColor: "#0b0f1a",
   userScalable: true,
   viewportFit: "cover",
+  interactiveWidget: "resizes-content",
 }
 
 export default function RootLayout({
