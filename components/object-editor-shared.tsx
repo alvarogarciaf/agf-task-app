@@ -413,17 +413,6 @@ export function ObjectEditFields({
     <div className={cn("grid gap-5", !isMobile && "mt-5")}>
       {!isNote && (
         <div>
-          <Label icon={<Zap className="h-3 w-3" />}>Urgency</Label>
-          <UrgencySlider
-            urgencies={sortedUrgencies}
-            value={draft.urgency_id}
-            onChange={(id) => update("urgency_id", id)}
-          />
-        </div>
-      )}
-
-      {!isNote && (
-        <div>
           <Label icon={<Tag className="h-3 w-3" />}>
             Contexts
             <span className="ml-1.5 font-mono text-[10px] text-muted-foreground/70">
@@ -598,6 +587,34 @@ export function ObjectEditFields({
           rows={1}
         />
       </div>
+
+      {!isNote && (
+        <div className="mt-5">
+          <Label icon={<Zap className="h-3 w-3" />}>Urgency</Label>
+          <UrgencySlider
+            urgencies={sortedUrgencies}
+            value={draft.urgency_id}
+            onChange={(id) => update("urgency_id", id)}
+          />
+        </div>
+      )}
+
+      {isMobile ? (
+        <Collapsible className="mt-5 rounded-md border border-border bg-card">
+          <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground [&[data-state=open]>svg]:rotate-180">
+            <div className="flex items-center gap-2">
+              <Settings2 className="h-3.5 w-3.5" />
+              Properties
+            </div>
+            <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="px-4 pb-4 pt-1">
+            {propertiesContent}
+          </CollapsibleContent>
+        </Collapsible>
+      ) : (
+        propertiesContent
+      )}
     </>
   )
 }
