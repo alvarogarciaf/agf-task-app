@@ -35,7 +35,27 @@ import { syncCalendarToStorage } from "@/lib/calendar-sync-client"
 import { createGoogleEvent, updateGoogleEvent, deleteGoogleEvent } from "@/lib/google-calendar"
 import { useTodaySectionFilter, isTaskForTodaySection } from "@/lib/today-filter"
 import { useGoogleCalendar } from "@/components/google-calendar-provider"
+import { useGoogleCalendar } from "@/components/google-calendar-provider"
 import { SaveViewDialog } from "./save-view-dialog"
+
+const CACHE_PREFIX = "tasker_cache_"
+function getCachedData<T>(key: string, defaultVal: T): T {
+  if (typeof window === "undefined") return defaultVal
+  try {
+    const raw = localStorage.getItem(CACHE_PREFIX + key)
+    return raw ? JSON.parse(raw) : defaultVal
+  } catch {
+    return defaultVal
+  }
+}
+function setCachedData(key: string, data: any) {
+  if (typeof window === "undefined") return
+  try {
+    localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(data))
+  } catch (err) {
+    console.warn("Failed to cache data to localStorage", err)
+  }
+}
 
 // Minimal user shape that works with both Firebase User and cached user
 interface AppUser {
@@ -78,16 +98,16 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [initialTagId, setInitialTagId] = useState<string | undefined>()
   const [initialProjectId, setInitialProjectId] = useState<string | undefined>()
 
-  // Data state â€” split tasks into two efficient streams
-  const [inboxTasks, setInboxTasks] = useState<Task[]>([])
-  const [activeTasks, setActiveTasks] = useState<Task[]>([])
-  const [notes, setNotes] = useState<Task[]>([])
-  const [projects, setProjects] = useState<Project[]>([])
-  const [persons, setPersons] = useState<Person[]>([])
-  const [contexts, setContexts] = useState<Context[]>([])
-  const [tags, setTags] = useState<Tag[]>([])
-  const [urgencies, setUrgencies] = useState<UrgencyLevel[]>([])
-  const [savedViews, setSavedViews] = useState<SavedView[]>([])
+  // Data state — split tasks into two efficient streams
+  const [inboxTasks, setInboxTasks] = useState<Task[]>(() => getCachedData("inboxTasks", []))
+  const [activeTasks, setActiveTasks] = useState<Task[]>(() => getCachedData("activeTasks", []))
+  const [notes, setNotes] = useState<Task[]>(() => getCachedData("notes", []))
+  const [projects, setProjects] = useState<Project[]>(() => getCachedData("projects", []))
+  const [persons, setPersons] = useState<Person[]>(() => getCachedData("persons", []))
+  const [contexts, setContexts] = useState<Context[]>(() => getCachedData("contexts", []))
+  const [tags, setTags] = useState<Tag[]>(() => getCachedData("tags", []))
+  const [urgencies, setUrgencies] = useState<UrgencyLevel[]>(() => getCachedData("urgencies", []))
+  const [savedViews, setSavedViews] = useState<SavedView[]>(() => getCachedData("savedViews", []))
   const [editingView, setEditingView] = useState<SavedView | null>(null)
   const [activeSettingsTab, setActiveSettingsTab] = useState<TabKey>(() => {
     if (typeof window === "undefined") return "contexts"
@@ -150,26 +170,59 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   // A unified object is a note when `type === 'note'`; everything else (including
   // legacy docs with a missing type) is treated as a task.
   useEffect(() => {
+    if (!db) return
     const isNote = (t: Task) => t.type === "note"
     const subs = [
       // Inbox: only unprocessed, non-archived tasks (notes never appear in the inbox)
       db.tasks.find({ selector: { archived: false, processed: false } }).$.subscribe(
-        docs => setInboxTasks(docs.map(d => d.toJSON()).filter(t => !isNote(t)))
+        docs => {
+          const data = docs.map(d => d.toJSON()).filter(t => !isNote(t))
+          setInboxTasks(data)
+          setCachedData("inboxTasks", data)
+        }
       ),
       // Non-archived objects split into tasks (Active) and notes
       db.tasks.find({ selector: { archived: false } }).$.subscribe(
         docs => {
           const all = docs.map(d => d.toJSON())
-          setActiveTasks(all.filter(t => !isNote(t)))
-          setNotes(all.filter(isNote))
+          const active = all.filter(t => !isNote(t))
+          const n = all.filter(isNote)
+          setActiveTasks(active)
+          setNotes(n)
+          setCachedData("activeTasks", active)
+          setCachedData("notes", n)
         }
       ),
-      db.projects.find().$.subscribe(docs => setProjects(docs.map(d => d.toJSON()))),
-      db.persons.find().$.subscribe(docs => setPersons(docs.map(d => d.toJSON()))),
-      db.contexts.find().$.subscribe(docs => setContexts(docs.map(d => d.toJSON()))),
-      db.tags.find().$.subscribe(docs => setTags(docs.map(d => d.toJSON()))),
-      db.urgencies.find().$.subscribe(docs => setUrgencies(docs.map(d => d.toJSON()))),
-      db.saved_views.find({ sort: [{ order: 'asc' }] }).$.subscribe(docs => setSavedViews(docs.map(d => d.toJSON()))),
+      db.projects.find().$.subscribe(docs => {
+        const data = docs.map(d => d.toJSON())
+        setProjects(data)
+        setCachedData("projects", data)
+      }),
+      db.persons.find().$.subscribe(docs => {
+        const data = docs.map(d => d.toJSON())
+        setPersons(data)
+        setCachedData("persons", data)
+      }),
+      db.contexts.find().$.subscribe(docs => {
+        const data = docs.map(d => d.toJSON())
+        setContexts(data)
+        setCachedData("contexts", data)
+      }),
+      db.tags.find().$.subscribe(docs => {
+        const data = docs.map(d => d.toJSON())
+        setTags(data)
+        setCachedData("tags", data)
+      }),
+      db.urgencies.find().$.subscribe(docs => {
+        const data = docs.map(d => d.toJSON())
+        setUrgencies(data)
+        setCachedData("urgencies", data)
+      }),
+      db.saved_views.find({ sort: [{ order: 'asc' }] }).$.subscribe(docs => {
+        const data = docs.map(d => d.toJSON())
+        setSavedViews(data)
+        setCachedData("savedViews", data)
+      }),
     ]
     return () => subs.forEach((s) => s.unsubscribe())
   }, [db])
@@ -258,7 +311,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     })
   }
 
-  const handleUpdateTask = async (task: Task) => {
+  const handleUpdateTask = useCallback(async (task: Task) => {
+    if (!db) return
     const doc = await db.tasks.findOne(task.id).exec()
     if (doc) {
       // Resolve project_id using incoming or current database value
@@ -305,9 +359,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         })
       }
     }
-  }
+  }, [db, projects])
 
-  const handleToggleProcessed = async (id: string) => {
+  const handleToggleProcessed = useCallback(async (id: string) => {
+    if (!db) return
     const doc = await db.tasks.findOne(id).exec()
     if (doc) {
       const current = doc.get("processed")
@@ -324,9 +379,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         action: { label: "Undo", onClick: () => handleUndo() },
       })
     }
-  }
+  }, [db, handleUndo])
 
-  const handleToggleStatus = async (id: string) => {
+  const handleToggleStatus = useCallback(async (id: string) => {
+    if (!db) return
     const doc = await db.tasks.findOne(id).exec()
     if (doc) {
       const current = doc.get("status")
@@ -343,9 +399,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         action: { label: "Undo", onClick: () => handleUndo() },
       })
     }
-  }
+  }, [db, handleUndo])
 
-  const handleArchiveTask = async (id: string) => {
+  const handleArchiveTask = useCallback(async (id: string) => {
+    if (!db) return
     const doc = await db.tasks.findOne(id).exec()
     if (doc) {
       const current = doc.get("archived")
@@ -361,9 +418,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         action: { label: "Undo", onClick: () => handleUndo() },
       })
     }
-  }
+  }, [db, handleUndo])
 
-  const handleDeleteTask = async (id: string) => {
+  const handleDeleteTask = useCallback(async (id: string) => {
+    if (!db) return
     const doc = await db.tasks.findOne(id).exec()
     if (doc) {
       const data = doc.toJSON()
@@ -378,7 +436,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         action: { label: "Undo", onClick: () => handleUndo() },
       })
     }
-  }
+  }, [db, handleUndo])
 
   const handleDeleteAllTasks = async () => {
     const all = await db.tasks.find().exec()

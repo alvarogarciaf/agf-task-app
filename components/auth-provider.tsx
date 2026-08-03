@@ -55,20 +55,11 @@ function setCachedUser(user: User | null) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Start with server-safe defaults to avoid hydration mismatch
-  const [user, setUser] = useState<User | CachedUser | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<User | CachedUser | null>(() => getCachedUser())
+  const [loading, setLoading] = useState(() => !getCachedUser())
   const authResolved = useRef(false)
 
-  // Restore cached user synchronously before first paint (avoids flash)
-  useEffect(() => {
-    if (authResolved.current) return
-    const cached = getCachedUser()
-    if (cached) {
-      setUser(cached)
-      setLoading(false)
-    }
-  }, [])
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {

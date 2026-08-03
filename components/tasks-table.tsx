@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect } from "react"
+import { useState, useRef, useCallback, useEffect, memo } from "react"
 import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock, Eye, Pencil, FileText, ArrowLeftRight, ArrowUpRight } from "lucide-react"
 import { ProjectChip, ProjectOptionIcon } from "@/components/project-select"
 import { toast } from "sonner"
@@ -144,7 +144,7 @@ interface TasksTableProps {
   isNested?: boolean
 }
 
-export function TasksTable({
+export const TasksTable = memo(function TasksTable({
   tasks,
   projects,
   persons,
@@ -884,7 +884,7 @@ export function TasksTable({
       />
     </div>
   )
-}
+})
 
 interface CellContext {
   task: Task
@@ -1200,7 +1200,7 @@ function Empty({ align = "center" }: { align?: "left" | "center" }) {
   )
 }
 
-function MobileTaskRow({
+const MobileTaskRow = memo(function MobileTaskRow({
   task,
   project,
   urgency,
@@ -1466,4 +1466,4 @@ function MobileTaskRow({
       </div>
     </div>
   )
-}
+})

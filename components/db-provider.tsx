@@ -13,7 +13,7 @@ import { setupReplication } from "@/lib/db/sync";
 import type { RxDatabase } from "rxdb";
 import type { RxFirestoreReplicationState } from "rxdb/plugins/replication-firestore";
 
-export const DbContext = createContext<RxDatabase | null>(null);
+export const DbContext = createContext<RxDatabase | null | undefined>(undefined);
 
 export type SyncStatus = {
   browserOnline: boolean;
@@ -31,7 +31,7 @@ export const SyncStatusContext = createContext<SyncStatus>(defaultSyncStatus);
 
 export function useDatabase() {
   const context = useContext(DbContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error("useDatabase must be used within a DbProvider");
   }
   return context;
@@ -155,13 +155,7 @@ export function DbProvider({
     throw throwError;
   }
 
-  if (!db) {
-    return (
-      <div className="flex h-screen items-center justify-center text-muted-foreground">
-        Initializing local database…
-      </div>
-    );
-  }
+
 
   return (
     <SyncStatusContext.Provider value={syncStatus}>

@@ -1,6 +1,7 @@
 "use client"
 
-import { useMemo, useState, Suspense } from "react"
+import { Suspense } from "react"
+import dynamic from "next/dynamic"
 import { useAuth } from "@/components/auth-provider"
 import { DbProvider } from "@/components/db-provider"
 import { SignIn } from "@/components/sign-in"
@@ -8,7 +9,7 @@ import { AppContent } from "@/components/app-content"
 import { GoogleCalendarProvider } from "@/components/google-calendar-provider"
 import { MessageSyncProvider } from "@/components/message-sync-provider"
 
-export default function Page() {
+function PageContent() {
   const { user, loading, signOut } = useAuth()
 
   // Loading state while Firebase checks session
@@ -41,3 +42,5 @@ export default function Page() {
     </DbProvider>
   )
 }
+
+export default dynamic(() => Promise.resolve(PageContent), { ssr: false })
