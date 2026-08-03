@@ -34,7 +34,7 @@ export function useDatabase() {
   if (context === undefined) {
     throw new Error("useDatabase must be used within a DbProvider");
   }
-  return context;
+  return context as RxDatabase;
 }
 
 export function useSyncStatus() {
