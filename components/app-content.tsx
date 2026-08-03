@@ -35,7 +35,6 @@ import { syncCalendarToStorage } from "@/lib/calendar-sync-client"
 import { createGoogleEvent, updateGoogleEvent, deleteGoogleEvent } from "@/lib/google-calendar"
 import { useTodaySectionFilter, isTaskForTodaySection } from "@/lib/today-filter"
 import { useGoogleCalendar } from "@/components/google-calendar-provider"
-import { useGoogleCalendar } from "@/components/google-calendar-provider"
 import { SaveViewDialog } from "./save-view-dialog"
 
 const CACHE_PREFIX = "tasker_cache_"
