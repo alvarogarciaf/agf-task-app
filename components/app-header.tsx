@@ -8,6 +8,7 @@ import type { TabToolbarState } from "@/components/tab-toolbar-context"
 import type { ViewKey, Task, Project, Person, Context, Tag, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "./db-provider"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { Switch } from "@/components/ui/switch"
 import { TaskDetailDialog } from "./task-detail-dialog"
 import { Cloud, CloudOff } from "lucide-react"
 import { 
@@ -87,6 +88,7 @@ export function AppHeader({
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchScope, setSearchScope] = useState<"tasks" | "notes" | "all">("tasks")
+  const [includeClosed, setIncludeClosed] = useState(false)
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [detailMode, setDetailMode] = useState<"view" | "edit">("view")
   const [highlightedIdx, setHighlightedIdx] = useState(0)
@@ -140,11 +142,16 @@ export function AppHeader({
     const pool =
       searchScope === "tasks" ? tasks : searchScope === "notes" ? notes : [...tasks, ...notes]
     return pool.filter((t) => {
+      const isNote = t.type === "note"
+      const isClosed = isNote ? t.archived : (t.status === "Done" || t.archived)
+      
+      if (!includeClosed && isClosed) return false
+
       const desc = t.description?.toLowerCase() || ""
       const det = t.details?.toLowerCase() || ""
       return desc.includes(q) || det.includes(q)
     })
-  }, [searchQuery, searchScope, tasks, notes])
+  }, [searchQuery, searchScope, includeClosed, tasks, notes])
 
   useEffect(() => {
     setHighlightedIdx(0)
@@ -360,7 +367,7 @@ export function AppHeader({
           </div>
 
           {/* Scope toggle: Tasks / Notes / All */}
-          <div className="flex items-center gap-1 border-b border-border px-3 py-2">
+          <div className="flex items-center justify-between border-b border-border px-3 py-2">
             <div className="inline-flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5">
               {scopeOptions.map((opt) => (
                 <button
@@ -377,6 +384,10 @@ export function AppHeader({
                 </button>
               ))}
             </div>
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-muted-foreground select-none">
+              <Switch checked={includeClosed} onCheckedChange={setIncludeClosed} />
+              Include closed
+            </label>
           </div>
 
           {/* Results Area */}
