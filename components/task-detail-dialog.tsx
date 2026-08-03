@@ -516,10 +516,13 @@ export function TaskDetailDialog({
             </div>
 
             {/* Edit Mode Footer */}
-            <div className={cn(
-              "flex items-center gap-3 border-t border-border bg-background/40 px-5 py-3",
-              isMobile ? "justify-end" : "justify-between"
-            )}>
+            <div 
+              className={cn(
+                "flex items-center gap-3 border-t border-border bg-background/40 px-5 pt-3 transition-[padding] duration-200",
+                isMobile ? "justify-end" : "justify-between"
+              )}
+              style={{ paddingBottom: "calc(0.75rem + var(--keyboard-toolbar-height, 0px))" }}
+            >
               {!isMobile && (
                 <span className="font-mono text-[10px] text-muted-foreground">
                   <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-primary align-middle" />

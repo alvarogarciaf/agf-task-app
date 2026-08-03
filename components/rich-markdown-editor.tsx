@@ -892,7 +892,8 @@ function EditorSurface({
     }
   }
 
-  const toolbarButton = "inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+  const toolbarButton = "inline-flex h-11 w-11 md:h-7 md:w-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+  const iconClass = "h-5 w-5 md:h-4 md:w-4"
 
   const showToolbar = !isMobile || isFocused
 
@@ -908,34 +909,34 @@ function EditorSurface({
           )}
         >
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h1")} className={toolbarButton} title="Heading 1" aria-label="Heading 1">
-            <Heading1 className="h-4 w-4" />
+            <Heading1 className={iconClass} />
           </button>
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h2")} className={toolbarButton} title="Heading 2" aria-label="Heading 2">
-            <Heading2 className="h-4 w-4" />
+            <Heading2 className={iconClass} />
           </button>
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h3")} className={toolbarButton} title="Heading 3" aria-label="Heading 3">
-            <Heading3 className="h-4 w-4" />
+            <Heading3 className={iconClass} />
           </button>
-          <span className="mx-1 h-4 w-px bg-border" />
+          <span className="mx-1 h-5 w-px bg-border md:h-4" />
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleInlineFormat("bold")} className={toolbarButton} title="Bold" aria-label="Bold">
-            <Bold className="h-4 w-4" />
+            <Bold className={iconClass} />
           </button>
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleInlineFormat("italic")} className={toolbarButton} title="Italic" aria-label="Italic">
-            <Italic className="h-4 w-4" />
+            <Italic className={iconClass} />
           </button>
-          <span className="mx-1 h-4 w-px bg-border" />
+          <span className="mx-1 h-5 w-px bg-border md:h-4" />
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("insertUnorderedList")} className={toolbarButton} title="Bullet list" aria-label="Bullet list">
-            <List className="h-4 w-4" />
+            <List className={iconClass} />
           </button>
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("indent")} className={toolbarButton} title="Indent" aria-label="Indent">
-            <Indent className="h-4 w-4" />
+            <Indent className={iconClass} />
           </button>
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("outdent")} className={toolbarButton} title="Outdent" aria-label="Outdent">
-            <Outdent className="h-4 w-4" />
+            <Outdent className={iconClass} />
           </button>
-          <span className="mx-1 h-4 w-px bg-border" />
+          <span className="mx-1 h-5 w-px bg-border md:h-4" />
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => fileInputRef.current?.click()} className={toolbarButton} title="Insert Image" aria-label="Insert Image">
-            <ImageIcon className="h-4 w-4" />
+            <ImageIcon className={iconClass} />
           </button>
           <Popover
             open={linkOpen}
@@ -946,7 +947,7 @@ function EditorSurface({
           >
             <PopoverTrigger asChild>
               <button type="button" onMouseDown={(e) => e.preventDefault()} className={toolbarButton} title="Insert link" aria-label="Insert link">
-                <LinkIcon className="h-4 w-4" />
+                <LinkIcon className={iconClass} />
               </button>
             </PopoverTrigger>
             <PopoverContent align="start" className="w-72 space-y-2">
@@ -967,7 +968,7 @@ function EditorSurface({
 
           <div className="ml-auto flex items-center gap-1">
             <button type="button" onClick={handleCopyMarkdown} className={toolbarButton} title="Copy as Markdown" aria-label="Copy as Markdown">
-              <Copy className="h-4 w-4" />
+              <Copy className={iconClass} />
             </button>
             {trailingTool && <div>{trailingTool}</div>}
           </div>
@@ -980,10 +981,14 @@ function EditorSurface({
         onFocus={() => {
           isFocusedRef.current = true
           setIsFocused(true)
+          if (isMobile) {
+            document.documentElement.style.setProperty("--keyboard-toolbar-height", "60px")
+          }
         }}
         onBlur={() => {
           isFocusedRef.current = false
           setIsFocused(false)
+          document.documentElement.style.removeProperty("--keyboard-toolbar-height")
           handleInput()
         }}
         onCompositionStart={() => {
