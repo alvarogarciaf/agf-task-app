@@ -845,9 +845,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         return
       }
 
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
+      if (((e.ctrlKey || e.metaKey) || e.altKey) && e.key.toLowerCase() === "n") {
         e.preventDefault()
-        if (e.shiftKey) {
+        if (e.shiftKey || e.altKey) { // Alt+N or Ctrl+Shift+N -> Note
           const event = new CustomEvent('global-create-note', { cancelable: true })
           if (window.dispatchEvent(event)) {
             const navigate = isMobile ? handleNavigate : navigateActiveTab
@@ -856,7 +856,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
               window.dispatchEvent(new CustomEvent('global-create-note', { cancelable: true }))
             }, 100)
           }
-        } else {
+        } else { // Ctrl+N -> Task
           const event = new CustomEvent('global-create-task', { cancelable: true })
           if (window.dispatchEvent(event)) {
             const navigate = isMobile ? handleNavigate : navigateActiveTab
@@ -865,6 +865,19 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
               window.dispatchEvent(new CustomEvent('global-create-task', { cancelable: true }))
             }, 100)
           }
+        }
+        return
+      }
+      
+      if (e.altKey && e.key.toLowerCase() === "t") {
+        e.preventDefault()
+        const event = new CustomEvent('global-create-task', { cancelable: true })
+        if (window.dispatchEvent(event)) {
+          const navigate = isMobile ? handleNavigate : navigateActiveTab
+          navigate("home")
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('global-create-task', { cancelable: true }))
+          }, 100)
         }
         return
       }

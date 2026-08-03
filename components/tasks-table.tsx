@@ -198,6 +198,8 @@ export function TasksTable({
     ? (localStorage.getItem("open_notes_as") as "popup" | "fullscreen") || "popup"
     : "popup"
 
+  const [convertedTaskFallback, setConvertedTaskFallback] = useState<Task | null>(null)
+
   /** Open a task/note, routing to full-screen for notes when the preference is set, or if requested explicitly via newTab. */
   const openObject = useCallback((task: Task, mode: "view" | "edit", newTab = false) => {
     if (newTab && tabObjectCtx?.openObjectInNewTab) {
@@ -207,6 +209,7 @@ export function TasksTable({
     } else {
       setDetailMode(mode)
       setActiveTaskId(task.id)
+      setConvertedTaskFallback(task)
     }
   }, [openNotesAs, tabObjectCtx])
 
@@ -238,7 +241,8 @@ export function TasksTable({
   const isAllSelected = allVisibleIds.length > 0 && allVisibleIds.every(id => selectedIds.has(id))
   const isSomeSelected = allVisibleIds.some(id => selectedIds.has(id)) && !isAllSelected
 
-  const activeTask = activeTaskId ? tasks.find((t) => t.id === activeTaskId) ?? null : null
+  const foundTask = activeTaskId ? tasks.find((t) => t.id === activeTaskId) : null
+  const activeTask = foundTask ?? convertedTaskFallback
 
   // History management for back button on mobile
   useEffect(() => {
@@ -861,14 +865,20 @@ export function TasksTable({
         task={activeTask}
         open={activeTask !== null}
         onOpenChange={(o) => {
-          if (!o) handleCloseTask()
+          if (!o) {
+            handleCloseTask()
+            setConvertedTaskFallback(null)
+          }
         }}
         projects={projects}
         persons={persons}
         contexts={contexts}
         tags={tags}
         urgencies={urgencies}
-        onUpdate={onUpdate}
+        onUpdate={(t) => {
+          setConvertedTaskFallback(t)
+          onUpdate?.(t)
+        }}
         mode={detailMode}
         onModeChange={setDetailMode}
       />

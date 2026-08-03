@@ -1001,12 +1001,12 @@ function EditorSurface({
         onDrop={handleDrop}
         data-placeholder={placeholder}
         className={cn(
-          "rich-editor prose prose-sm dark:prose-invert max-w-none min-h-0 w-full flex-1 border border-border bg-background p-3 text-sm leading-relaxed text-foreground/90 overflow-y-auto outline-none transition-colors",
+          "rich-editor prose prose-sm md:prose-base dark:prose-invert max-w-none min-h-0 w-full flex-1 border border-border bg-background p-3 text-sm md:text-base leading-relaxed text-foreground/90 overflow-y-auto outline-none transition-colors",
           !isMobile ? "rounded-b-md" : "rounded-md",
           "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus:outline-none focus:ring-1 focus:ring-ring",
-          "[&_h1]:text-lg [&_h1]:font-bold [&_h1]:text-foreground [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:font-sans [&_h1]:border-b [&_h1]:border-border/10 [&_h1]:pb-0.5",
-          "[&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mt-3 [&_h2]:mb-1.5 [&_h2]:font-sans",
-          "[&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-foreground [&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:font-sans [&_h3]:uppercase [&_h3]:tracking-wider [&_h3]:text-muted-foreground",
+          "[&_h1]:text-lg md:[&_h1]:text-xl [&_h1]:font-bold [&_h1]:text-foreground [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:font-sans [&_h1]:border-b [&_h1]:border-border/10 [&_h1]:pb-0.5",
+          "[&_h2]:text-base md:[&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mt-3 [&_h2]:mb-1.5 [&_h2]:font-sans",
+          "[&_h3]:text-sm md:[&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-foreground [&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:font-sans [&_h3]:uppercase [&_h3]:tracking-wider [&_h3]:text-muted-foreground",
           "[&_ul]:my-2 [&_ul]:ml-4 [&_ul]:list-disc",
           "[&_ol]:my-2 [&_ol]:ml-4 [&_ol]:list-decimal",
           "[&_li]:leading-relaxed [&_li]:text-sm [&_li]:text-foreground/90",
