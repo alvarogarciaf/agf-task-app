@@ -486,9 +486,28 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     if (typeof window === "undefined") {
       return [createTabFromRoute({ kind: "view", view: "home" })]
     }
+    const cachedTabs = getCachedData<WorkspaceTab[]>("workspaceTabs", [])
+    if (cachedTabs && cachedTabs.length > 0) {
+      return cachedTabs
+    }
     return [createTabFromRoute(routeFromSearchParams(window.location.search))]
   })
-  const [activeTabId, setActiveTabId] = useState(() => tabs[0]?.id ?? "")
+  const [activeTabId, setActiveTabId] = useState(() => {
+    if (typeof window === "undefined") return tabs[0]?.id ?? ""
+    const cachedId = getCachedData<string>("activeTabId", "")
+    if (cachedId && tabs.some(t => t.id === cachedId)) {
+      return cachedId
+    }
+    return tabs[0]?.id ?? ""
+  })
+
+  useEffect(() => {
+    setCachedData("workspaceTabs", tabs)
+  }, [tabs])
+
+  useEffect(() => {
+    setCachedData("activeTabId", activeTabId)
+  }, [activeTabId])
   const [tabToolbar, setTabToolbar] = useState<TabToolbarState>({
     canAdd: false,
     addLabel: "",
