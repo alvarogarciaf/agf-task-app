@@ -178,7 +178,7 @@ export function AppSidebar({
   }
 
   return (
-    <aside className="hidden md:flex pt-safe pb-safe h-screen w-64 max-w-[16rem] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground overflow-hidden">
+    <aside className="hidden md:flex pt-safe pb-safe h-[100dvh] w-64 max-w-[16rem] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground overflow-hidden">
 
       {/* App Branding */}
       <div className="mx-3 my-4 flex items-center gap-2.5 px-3 py-2">

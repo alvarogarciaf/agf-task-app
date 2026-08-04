@@ -70,7 +70,7 @@ export default function GlobalError({
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#0b0f1a] px-6 text-foreground selection:bg-primary/20">
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[#0b0f1a] px-6 text-foreground selection:bg-primary/20">
       <div className="w-full max-w-md rounded-2xl border border-border/80 bg-card p-6 shadow-2xl backdrop-blur-md">
         {/* Header Icon */}
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destructive/15 text-destructive mb-5">

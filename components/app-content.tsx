@@ -1155,7 +1155,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       : "px-4 md:px-6 pt-6 pb-28 md:py-6"
 
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden">
+    <div className="flex h-[100dvh] w-full bg-background overflow-hidden">
       <AppSidebar
         active={sidebarActive.view ?? "home"}
         activeSavedViewId={sidebarActive.savedViewId}

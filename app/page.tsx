@@ -15,7 +15,7 @@ function PageContent() {
   // Loading state while Firebase checks session
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center text-muted-foreground">
+      <div className="flex h-[100dvh] items-center justify-center text-muted-foreground">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           <span className="text-sm">Loading…</span>
