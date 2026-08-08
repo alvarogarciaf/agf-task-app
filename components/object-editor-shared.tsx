@@ -561,8 +561,7 @@ export function ObjectEditFields({
 
   return (
     <>
-      <div>
-        <Label icon={<Zap className="h-3 w-3" />}>Description</Label>
+      <div className="mb-2">
         <Textarea
           ref={descriptionRef}
           value={draft.description}
@@ -581,7 +580,7 @@ export function ObjectEditFields({
             }
           }}
           placeholder="Enter a title or description"
-          className="mt-1.5 resize-none border-border bg-background text-base font-medium leading-snug"
+          className="mt-0 resize-none border-transparent bg-transparent px-0 text-xl font-bold leading-snug tracking-tight text-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
           rows={1}
         />
       </div>
@@ -597,15 +596,15 @@ export function ObjectEditFields({
       )}
 
       {isMobile ? (
-        <Collapsible className="mt-5 rounded-md border border-border bg-card">
-          <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground [&[data-state=open]>svg]:rotate-180">
+        <Collapsible className="mt-4">
+          <CollapsibleTrigger className="flex w-full items-center justify-between py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground [&[data-state=open]>svg]:rotate-180">
             <div className="flex items-center gap-2">
-              <Settings2 className="h-3.5 w-3.5" />
+              <Settings2 className="h-4 w-4" />
               Properties
             </div>
             <ChevronDown className="h-4 w-4 transition-transform duration-200" />
           </CollapsibleTrigger>
-          <CollapsibleContent className="px-4 pb-4 pt-1">
+          <CollapsibleContent className="pb-4 pt-3">
             {propertiesContent}
           </CollapsibleContent>
         </Collapsible>
@@ -634,12 +633,13 @@ export function ObjectDetailsEditor({
 }) {
   return (
     <div ref={containerRef} className={cn(fillHeight && "flex min-h-0 flex-1 flex-col", className)}>
-      <Label icon={<FileText className="h-3 w-3" />}>Details</Label>
+      {/* Removed the Label icon for Details to match the cleaner look, but we can keep it as an option. Since it's a unified layout, we might just omit it. */}
       <RichMarkdownEditor
         value={value}
         onChange={(val) => onChange(val === "" ? undefined : val)}
         placeholder="Add notes, links, or context. Markdown supported."
-        className={cn(fillHeight && "mt-1.5 flex min-h-0 flex-1 flex-col", editorClassName)}
+        className={cn(fillHeight && "flex min-h-0 flex-1 flex-col", editorClassName)}
+        variant="ghost"
       />
     </div>
   )

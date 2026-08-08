@@ -162,251 +162,9 @@ export function TaskDetailDialog({
           {draft.description || "Task details"}
         </DialogTitle>
 
-        {mode === "view" ? (
-          <>
-            {/* View Mode Header */}
-            <div className="flex flex-wrap items-center gap-2 border-b border-border bg-card px-5 py-3 md:gap-3">
-              {isNote ? (
-                <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold leading-none text-primary">
-                  <FileText className="h-3 w-3" />
-                  Note
-                </div>
-              ) : (
-                <>
-                  <div className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold leading-none",
-                    draft.status === "Done"
-                      ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-500"
-                      : "border-blue-500/25 bg-blue-500/10 text-blue-500"
-                  )}>
-                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                    {draft.status === "Done" ? "Done" : "Open"}
-                  </div>
-
-                  <div className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold leading-none",
-                    draft.processed
-                      ? "border-primary/20 bg-primary/10 text-primary"
-                      : "border-amber-500/25 bg-amber-500/10 text-amber-500"
-                  )}>
-                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                    {draft.processed ? "Processed" : "Inbox"}
-                  </div>
-
-                  {urgency && (
-                    <span
-                      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs font-mono uppercase tracking-wider text-muted-foreground"
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: urgency.color }} />
-                      {urgency.name}
-                    </span>
-                  )}
-                </>
-              )}
-
-              <span className="ml-auto font-mono text-[10px] text-muted-foreground hidden sm:inline-block">
-                Created {created.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-              </span>
-
-              {canExpand && (
-                <button
-                  type="button"
-                  onClick={expand}
-                  className="ml-2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  aria-label="Expand to full screen"
-                  title="Expand to full screen"
-                >
-                  <Maximize2 className="h-4 w-4" />
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={cancel}
-                className={cn(
-                  "rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-                  !isMobile && !canExpand && "ml-2"
-                )}
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* View Mode Body */}
-            <div className={cn("overflow-y-auto px-5 py-5 space-y-5", isMobile ? "flex-1" : "max-h-[70vh]")}>
-              {/* Description */}
-              <div className="space-y-1">
-                <h1 className="text-lg font-bold tracking-tight text-foreground leading-snug break-words">
-                  {draft.description}
-                </h1>
-                {isMobile && (
-                  <div className="font-mono text-[10px] text-muted-foreground pt-1">
-                    Created {created.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                  </div>
-                )}
-              </div>
-
-              {/* Properties Grid - Only renders assigned attributes */}
-              {((draft.project_id) || (draft.person_id) || (!isNote && draft.show_on) || (draft.action_date) || (!isNote && draft.context_ids && draft.context_ids.length > 0) || (isNote && draft.tag_ids && draft.tag_ids.length > 0)) && (
-                <div className="grid grid-cols-[120px_1fr] gap-y-3 gap-x-4 rounded-xl border border-border/40 bg-muted/10 p-4 items-center">
-                  {/* Project */}
-                  {selectedProject && (
-                    <>
-                      <Label icon={<FolderKanban className="h-3 w-3" />}>Project</Label>
-                      <div className="text-xs font-semibold text-foreground bg-background border border-border/30 rounded-lg px-2.5 py-1.5 inline-block justify-self-start">
-                        {selectedProject.name}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Person */}
-                  {draft.person_id && (
-                    (() => {
-                      const assignedPerson = persons.find(p => p.id === draft.person_id);
-                      return assignedPerson ? (
-                        <>
-                          <Label icon={<User className="h-3 w-3" />}>Person</Label>
-                          <div className="inline-flex items-center gap-1.5 bg-background border border-border/30 rounded-lg px-2.5 py-1.5 justify-self-start">
-                            <span
-                              className="flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold text-foreground"
-                              style={{
-                                backgroundColor: `color-mix(in oklch, ${assignedPerson.color} 30%, transparent)`,
-                              }}
-                            >
-                              {assignedPerson.initials}
-                            </span>
-                            <span className="text-xs font-semibold text-foreground leading-none">{assignedPerson.name}</span>
-                          </div>
-                        </>
-                      ) : null;
-                    })()
-                  )}
-
-                  {/* Show on */}
-                  {!isNote && draft.show_on && (
-                    <>
-                      <Label icon={<Calendar className="h-3 w-3" />}>Show on</Label>
-                      <div className="text-xs font-semibold text-foreground bg-background border border-border/30 rounded-lg px-2.5 py-1.5 inline-block font-mono justify-self-start">
-                        {new Date(draft.show_on).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Action date (tasks) / Date Override (notes) */}
-                  {draft.action_date && (
-                    <>
-                      <Label icon={<Calendar className="h-3 w-3" />}>{isNote ? "Date Override" : "Action date"}</Label>
-                      <div className="text-xs font-semibold text-foreground bg-background border border-border/30 rounded-lg px-2.5 py-1.5 inline-block font-mono justify-self-start">
-                        {new Date(draft.action_date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Contexts (tasks only) */}
-                  {!isNote && draft.context_ids && draft.context_ids.length > 0 && (
-                    <>
-                      <div className="self-start pt-1.5">
-                        <Label icon={<Tag className="h-3 w-3" />}>Contexts</Label>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 justify-self-start">
-                        {draft.context_ids.map((cid) => {
-                          const ctx = contexts.find(c => c.id === cid);
-                          if (!ctx) return null;
-                          return (
-                            <span
-                              key={ctx.id}
-                              className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary"
-                            >
-                              <span
-                                className="h-1.5 w-1.5 rounded-full"
-                                style={{ backgroundColor: ctx.color }}
-                              />
-                              {ctx.name}
-                            </span>
-                          )
-                        })}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Tags (notes only) */}
-                  {isNote && draft.tag_ids && draft.tag_ids.length > 0 && (
-                    <>
-                      <div className="self-start pt-1.5">
-                        <Label icon={<Tag className="h-3 w-3" />}>Tags</Label>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 justify-self-start">
-                        {draft.tag_ids.map((tid) => {
-                          const tg = tags.find(t => t.id === tid);
-                          if (!tg) return null;
-                          return (
-                            <span
-                              key={tg.id}
-                              className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary"
-                            >
-                              <span
-                                className="h-1.5 w-1.5 rounded-full"
-                                style={{ backgroundColor: tg.color }}
-                              />
-                              {tg.name}
-                            </span>
-                          )
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* Details */}
-              {draft.details && (
-                <div className="space-y-2 border-t border-border/40 pt-4">
-                  <Label icon={<FileText className="h-3 w-3" />}>Details</Label>
-                  <div className="rounded-xl border border-border/30 bg-muted/5 p-4 text-xs leading-relaxed text-foreground/90 font-sans break-words shadow-sm">
-                    {renderMarkdown(draft.details, handleToggleTask)}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* View Mode Footer */}
-            <div className="flex items-center justify-between border-t border-border bg-background/40 px-5 py-3">
-              <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider hidden sm:inline-block">
-                {isNote ? "View note" : "View task"}
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={convertType}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs"
-                  title={isNote ? "Convert this note into a task" : "Convert this task into a note"}
-                >
-                  <ArrowLeftRight className="h-3 w-3" />
-                  {isNote ? "To task" : "To note"}
-                </button>
-                <button
-                  type="button"
-                  onClick={cancel}
-                  className="rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs"
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onModeChange?.("edit")}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 md:px-3 md:py-1.5 md:text-xs"
-                >
-                  <Pencil className="h-3 w-3" />
-                  {isNote ? "Edit note" : "Edit task"}
-                </button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
+        <>
             {/* Edit Mode Header */}
-            <div className="flex items-center gap-3 border-b border-border bg-card px-5 py-3">
+            <div className="flex items-center gap-3 border-b border-border bg-card px-4 md:px-5 py-3">
               {isNote ? (
                 <div className="inline-flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
                   <FileText className="h-3.5 w-3.5" />
@@ -488,7 +246,7 @@ export function TaskDetailDialog({
             </div>
 
             {/* Edit Mode Body */}
-            <div className={cn("overflow-y-auto px-5 py-5", isMobile ? "flex-1" : "max-h-[70vh]")}>
+            <div className={cn("overflow-y-auto px-4 py-4 md:px-5 md:py-5", isMobile ? "flex-1" : "max-h-[70vh]")}>
               <ObjectEditFields
                 draft={draft}
                 setDraft={setDraft}
@@ -518,7 +276,7 @@ export function TaskDetailDialog({
             {/* Edit Mode Footer */}
             <div 
               className={cn(
-                "flex items-center gap-3 border-t border-border bg-background/40 px-5 pt-3 transition-[padding] duration-200",
+                "flex items-center gap-3 border-t border-border bg-background/40 px-4 md:px-5 pt-3 transition-[padding] duration-200",
                 isMobile ? "justify-end" : "justify-between"
               )}
               style={{ paddingBottom: "calc(0.75rem + var(--keyboard-toolbar-height, 0px))" }}
@@ -569,7 +327,6 @@ export function TaskDetailDialog({
               </div>
             </div>
           </>
-        )}
       </DialogContent>
     </Dialog>
   )

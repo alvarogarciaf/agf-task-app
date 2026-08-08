@@ -39,6 +39,7 @@ interface RichMarkdownEditorProps {
   onChange: (val: string) => void
   placeholder?: string
   className?: string
+  variant?: "default" | "ghost"
 }
 
 function escapeHtml(text: string): string {
@@ -194,6 +195,7 @@ interface EditorSurfaceProps {
   className?: string
   autoFocus?: boolean
   trailingTool?: React.ReactNode
+  variant?: "default" | "ghost"
 }
 
 interface CursorTextContext {
@@ -210,6 +212,7 @@ function EditorSurface({
   className,
   autoFocus,
   trailingTool,
+  variant = "default",
 }: EditorSurfaceProps) {
   const editorRef = useRef<HTMLDivElement>(null)
   const isFirstRender = useRef(true)
@@ -968,10 +971,11 @@ function EditorSurface({
       {showToolbar && (
         <div 
           className={cn(
-            "flex flex-wrap items-center gap-0.5 border-border bg-muted/30 px-1.5 py-1",
+            "flex flex-wrap items-center gap-0.5 px-1.5 py-1",
+            variant === "ghost" ? "bg-transparent border-transparent" : "border-border bg-muted/30",
             isMobile
               ? "fixed bottom-0 left-0 right-0 z-50 border-t bg-background shadow-[0_-4px_10px_rgba(0,0,0,0.1)]"
-              : "rounded-t-md border border-b-0"
+              : variant === "ghost" ? "mb-1" : "rounded-t-md border border-b-0"
           )}
         >
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h1")} className={toolbarButton} title="Heading 1" aria-label="Heading 1">
@@ -1072,9 +1076,10 @@ function EditorSurface({
         onDrop={handleDrop}
         data-placeholder={placeholder}
         className={cn(
-          "rich-editor prose prose-sm md:prose-base dark:prose-invert max-w-none min-h-0 w-full flex-1 border border-border bg-background p-3 text-sm md:text-base leading-relaxed text-foreground/90 overflow-y-auto outline-none transition-colors",
-          !isMobile ? "rounded-b-md" : "rounded-md",
-          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus:outline-none focus:ring-1 focus:ring-ring",
+          "rich-editor prose prose-sm md:prose-base dark:prose-invert max-w-none min-h-0 w-full flex-1 border text-sm md:text-base leading-relaxed text-foreground/90 overflow-y-auto outline-none transition-colors",
+          variant === "ghost" ? "border-transparent bg-transparent px-0 py-1.5" : "border-border bg-background p-3",
+          (!isMobile && variant !== "ghost") ? "rounded-b-md" : (variant !== "ghost" ? "rounded-md" : ""),
+          variant !== "ghost" && "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus:outline-none focus:ring-1 focus:ring-ring",
           "[&_h1]:text-lg md:[&_h1]:text-xl [&_h1]:font-bold [&_h1]:text-foreground [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:font-sans [&_h1]:border-b [&_h1]:border-border/10 [&_h1]:pb-0.5",
           "[&_h2]:text-base md:[&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mt-3 [&_h2]:mb-1.5 [&_h2]:font-sans",
           "[&_h3]:text-sm md:[&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-foreground [&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:font-sans [&_h3]:uppercase [&_h3]:tracking-wider [&_h3]:text-muted-foreground",
@@ -1100,6 +1105,7 @@ export function RichMarkdownEditor({
   onChange,
   placeholder,
   className,
+  variant = "default",
 }: RichMarkdownEditorProps) {
   const isMobile = useIsMobile()
   const [expanded, setExpanded] = useState(false)
@@ -1110,6 +1116,7 @@ export function RichMarkdownEditor({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
+        variant={variant}
         className={cn("mt-1.5 min-h-[180px]", className)}
         trailingTool={
           <button
@@ -1125,37 +1132,32 @@ export function RichMarkdownEditor({
       />
 
       <Dialog open={expanded} onOpenChange={setExpanded}>
-        <DialogContent
-          showCloseButton={false}
-          className={cn(
-            "flex flex-col gap-0 overflow-hidden p-0",
-            isMobile
-              ? "fixed inset-0 z-50 h-full w-full max-w-none translate-x-0 translate-y-0 rounded-none border-none"
-              : "h-[88vh] w-[90vw] max-w-none sm:max-w-3xl sm:rounded-lg"
-          )}
-        >
-          <div className="flex items-center justify-between border-b border-border bg-card px-4 py-2.5">
-            <DialogTitle className="text-sm font-semibold">Details</DialogTitle>
+        <DialogContent className={cn(
+          "flex flex-col gap-0 overflow-hidden p-0",
+          isMobile 
+            ? "fixed inset-0 z-50 h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 rounded-none border-none shadow-none" 
+            : "max-h-[85vh] h-[85vh] max-w-3xl sm:rounded-lg"
+        )}>
+          <DialogTitle className="sr-only">Edit Description</DialogTitle>
+          <div className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
+            <span className="font-semibold">Edit Description</span>
             <button
-              type="button"
               onClick={() => setExpanded(false)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-              title="Collapse editor"
-              aria-label="Collapse editor"
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
-              <Minimize2 className="h-3.5 w-3.5" />
-              Collapse
+              <Minimize2 className="h-4 w-4" />
             </button>
           </div>
-          {expanded && (
+          <div className="flex-1 overflow-hidden p-4 md:p-6 pb-20">
             <EditorSurface
               value={value}
               onChange={onChange}
               placeholder={placeholder}
+              variant={variant}
+              className="h-full rounded-md border border-border bg-background"
               autoFocus
-              className="flex-1 p-4"
             />
-          )}
+          </div>
         </DialogContent>
       </Dialog>
     </>
