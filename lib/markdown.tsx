@@ -50,13 +50,16 @@ export function markdownToHtml(md: string): string {
     // Cards [card:Title|Domain|ImageURL](url)
     result = result.replace(/\[card:([^|\]]*)\|([^|\]]*)\|([^\]]*)\]\(([^)]+)\)/g, (match, title, domain, image, url) => {
       const imgHtml = image 
-        ? `<img src="${image}" data-original-src="${image}" class="w-16 h-16 object-cover bg-muted shrink-0" alt="" />`
+        ? `<img src="${image}" data-original-src="${image}" class="w-16 h-16 object-cover bg-muted shrink-0" alt="" onerror="this.style.display='none';" />`
         : `<div class="w-16 h-16 bg-muted shrink-0 flex items-center justify-center text-muted-foreground"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></div>`;
-      return `&#8203;<a href="${url}" target="_blank" rel="noopener noreferrer" class="link-card flex items-center gap-3 bg-muted/30 hover:bg-muted/50 border border-border/50 rounded-lg overflow-hidden my-2 w-full max-w-sm transition-colors decoration-transparent text-foreground" contenteditable="false">` +
+      return `&#8203;<a href="${url}" target="_blank" rel="noopener noreferrer" class="link-card inline-flex items-center gap-3 bg-muted/30 hover:bg-muted/50 border border-border/50 rounded-lg overflow-hidden my-2 w-full max-w-sm transition-colors decoration-transparent text-foreground relative" contenteditable="false">` +
         imgHtml +
-        `<div class="flex flex-col min-w-0 py-2 pr-3 text-left">` +
+        `<div class="flex flex-col min-w-0 py-2 pl-1 pr-9 text-left flex-1 relative">` +
           `<span class="text-sm font-semibold truncate leading-tight">${title || url}</span>` +
           `<span class="text-xs text-muted-foreground truncate leading-tight mt-0.5">${domain}</span>` +
+          `<button type="button" class="dismiss-card absolute top-1 right-1 text-muted-foreground hover:text-foreground p-1.5 rounded hover:bg-foreground/10 z-10" aria-label="Show as link instead" data-url="${url}">` +
+            `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>` +
+          `</button>` +
         `</div>` +
       `</a>&#8203;`;
     });

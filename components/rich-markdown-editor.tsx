@@ -818,6 +818,22 @@ function EditorSurface({
         target.removeAttribute("checked")
       }
       handleInput()
+      return
+    }
+
+    const dismissBtn = target.closest(".dismiss-card") as HTMLButtonElement | null
+    if (dismissBtn) {
+      e.preventDefault()
+      e.stopPropagation()
+      const url = dismissBtn.getAttribute("data-url")
+      if (url) {
+        const linkCard = dismissBtn.closest("a.link-card")
+        if (linkCard) {
+          linkCard.outerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-semibold">${url}</a>`
+          syncMarkdown()
+        }
+      }
+      return
     }
   }
 
