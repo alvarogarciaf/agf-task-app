@@ -1,5 +1,6 @@
 import React from "react"
 import { cn } from "@/lib/utils"
+import { Link as LinkIcon } from "lucide-react"
 
 const TASK_RE = /^[-*]\s+\[([ xX])\]\s?(.*)$/
 
@@ -44,6 +45,20 @@ export function markdownToHtml(md: string): string {
       if (height) style += `height:${height}px;`;
       
       return `<span class="image-resizer" style="display:inline-block; resize:horizontal; overflow:hidden; max-width:100%; min-width:20px; vertical-align: bottom; ${style}"><img src="${url}" data-original-src="${url}" alt="${alt}" class="w-full h-auto object-contain rounded-md" onerror="this.onerror=null; this.src='${fallbackSvg}';" /></span>`;
+    });
+
+    // Cards [card:Title|Domain|ImageURL](url)
+    result = result.replace(/\[card:([^|\]]*)\|([^|\]]*)\|([^\]]*)\]\(([^)]+)\)/g, (match, title, domain, image, url) => {
+      const imgHtml = image 
+        ? `<img src="${image}" data-original-src="${image}" class="w-16 h-16 object-cover bg-muted shrink-0" alt="" />`
+        : `<div class="w-16 h-16 bg-muted shrink-0 flex items-center justify-center text-muted-foreground"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></div>`;
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="link-card flex items-center gap-3 bg-muted/30 hover:bg-muted/50 border border-border/50 rounded-lg overflow-hidden my-2 max-w-sm transition-colors decoration-transparent text-foreground" contenteditable="false">` +
+        imgHtml +
+        `<div class="flex flex-col min-w-0 py-2 pr-3">` +
+          `<span class="text-sm font-semibold truncate leading-tight">${title || url}</span>` +
+          `<span class="text-xs text-muted-foreground truncate leading-tight mt-0.5">${domain}</span>` +
+        `</div>` +
+      `</a>`;
     });
 
     // Links [text](url) - Note: simple regex, but since we run this after images, `![alt](url)` could be problematic if we don't differentiate.
@@ -204,6 +219,16 @@ function nodeToMarkdown(node: Node): string {
       case "i":
         return `*${childContent}*`;
       case "a": {
+        if (el.classList.contains("link-card")) {
+          const href = el.getAttribute("href") || "";
+          const img = el.querySelector("img");
+          const imgUrl = img ? (img.getAttribute("data-original-src") || img.getAttribute("src") || "") : "";
+          const titleEl = el.querySelector(".font-semibold");
+          const title = titleEl ? (titleEl.textContent || "") : "";
+          const domainEl = el.querySelector(".text-muted-foreground:not(div)");
+          const domain = domainEl ? (domainEl.textContent || "") : "";
+          return `[card:${title}|${domain}|${imgUrl}](${href})`;
+        }
         const href = el.getAttribute("href") || "";
         return `[${childContent}](${href})`;
       }
@@ -318,7 +343,31 @@ export function renderMarkdown(
       return parts;
     });
 
-    // 1. Parse Links: [text](url)
+    // 1. Parse Cards: [card:Title|Domain|ImageURL](URL)
+    segments = segments.flatMap(seg => {
+      if (seg.type !== "text") return [seg];
+      const parts: any[] = [];
+      const remaining = seg.content;
+      const cardRegex = /\[card:([^|\]]*)\|([^|\]]*)\|([^\]]*)\]\(([^)]+)\)/g;
+      let match;
+      let lastIndex = 0;
+
+      while ((match = cardRegex.exec(remaining)) !== null) {
+        const textBefore = remaining.substring(lastIndex, match.index);
+        if (textBefore) {
+          parts.push({ type: "text", content: textBefore });
+        }
+        parts.push({ type: "card", title: match[1], domain: match[2], image: match[3], url: match[4] });
+        lastIndex = cardRegex.lastIndex;
+      }
+      const textAfter = remaining.substring(lastIndex);
+      if (textAfter) {
+        parts.push({ type: "text", content: textAfter });
+      }
+      return parts;
+    });
+
+    // 2. Parse Links: [text](url)
     segments = segments.flatMap(seg => {
       if (seg.type !== "text") return [seg];
       const parts: typeof segments = [];
@@ -390,9 +439,33 @@ export function renderMarkdown(
       return parts;
     });
 
-    return segments.map((seg, idx) => {
+    return segments.map((seg: any, idx) => {
       if (seg.type === "bold") {
         return <strong key={idx} className="font-bold text-foreground">{seg.content}</strong>;
+      }
+      if (seg.type === "card") {
+        return (
+          <a
+            key={idx}
+            href={seg.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 bg-muted/30 hover:bg-muted/50 border border-border/50 rounded-lg overflow-hidden my-2 max-w-sm transition-colors decoration-transparent text-foreground select-none"
+            contentEditable={false}
+          >
+            {seg.image ? (
+              <img src={seg.image} className="w-16 h-16 object-cover bg-muted shrink-0" alt="" />
+            ) : (
+              <div className="w-16 h-16 bg-muted shrink-0 flex items-center justify-center text-muted-foreground">
+                <LinkIcon className="w-6 h-6" />
+              </div>
+            )}
+            <div className="flex flex-col min-w-0 py-2 pr-3">
+              <span className="text-sm font-semibold truncate leading-tight">{seg.title || seg.url}</span>
+              <span className="text-xs text-muted-foreground truncate leading-tight mt-0.5">{seg.domain}</span>
+            </div>
+          </a>
+        );
       }
       if (seg.type === "italic") {
         return <em key={idx} className="italic text-foreground/90">{seg.content}</em>;

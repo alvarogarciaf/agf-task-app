@@ -502,11 +502,20 @@ function EditorSurface({
     const ctx = getCursorTextContext()
     if (!ctx || ctx.block.querySelector("input.md-task-box")) return false
 
-    const text = (ctx.block.textContent || "").replace(/\u00A0/g, " ")
-    const match = text.match(/^(\[\]|\[ \])\s(.*)$/)
+    const lineText = (
+      getLineTextBeforeCursor(ctx.block, ctx.range) +
+      getLineTextAfterCursor(ctx.block, ctx.range)
+    ).replace(/\u00A0/g, " ")
+    
+    const match = lineText.match(/^(\[\]|\[ \])\s(.*)$/)
     if (!match) return false
 
-    convertBlockToCheckbox(ctx.block, match[1].length + 1, match[2])
+    let target = ctx.block
+    if (ctx.block.querySelector("br")) {
+      target = isolateLineToParagraph(ctx.block, ctx.range)
+    }
+
+    convertBlockToCheckbox(target, match[1].length + 1, match[2])
     return true
   }
 
@@ -514,8 +523,12 @@ function EditorSurface({
     const ctx = getCursorTextContext()
     if (!ctx || ctx.block.querySelector("input.md-task-box") || ctx.block.closest("ul, ol")) return false
 
-    const text = (ctx.block.textContent || "").replace(/\u00A0/g, " ")
-    const ulMatch = text.match(/^([*\-•])\s+(.*)$/)
+    const lineText = (
+      getLineTextBeforeCursor(ctx.block, ctx.range) +
+      getLineTextAfterCursor(ctx.block, ctx.range)
+    ).replace(/\u00A0/g, " ")
+
+    const ulMatch = lineText.match(/^([*\-•])\s+(.*)$/)
     if (ulMatch) {
       const prefixLen = ulMatch[1].length + 1
       let target = ctx.block
@@ -531,7 +544,7 @@ function EditorSurface({
       return true
     }
 
-    const olMatch = text.match(/^(\d+[\.\)])\s+(.*)$/)
+    const olMatch = lineText.match(/^(\d+[\.\)])\s+(.*)$/)
     if (olMatch) {
       const prefixLen = olMatch[1].length + 1
       let target = ctx.block
@@ -805,6 +818,54 @@ function EditorSurface({
     }
   }
 
+  const handleUrlPaste = async (url: string) => {
+    const id = Math.random().toString(36).substring(2, 9)
+    const placeholderHtml = `<a href="${url}" id="preview-${id}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-semibold" contenteditable="false">[Fetching preview for ${url}...]</a>`
+    document.execCommand("insertHTML", false, placeholderHtml)
+    syncMarkdown()
+
+    try {
+      const res = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`)
+      if (!res.ok) throw new Error("Failed to fetch preview")
+      const data = await res.json()
+
+      let finalImageUrl = ""
+      if (data.imageUrl) {
+        try {
+          const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(data.imageUrl)}`)
+          if (proxyRes.ok) {
+            const blob = await proxyRes.blob()
+            const file = new File([blob], "preview.jpg", { type: blob.type || "image/jpeg" })
+            finalImageUrl = await uploadImage(file)
+          }
+        } catch (e) {
+          console.error("Failed to upload preview image", e)
+        }
+      }
+
+      if (editorRef.current) {
+        const el = editorRef.current.querySelector(`#preview-${id}`)
+        if (el) {
+          const title = (data.title || data.domain || url).replace(/\|/g, "-")
+          const domain = data.domain || url
+          const cardMd = `[card:${title}|${domain}|${finalImageUrl}](${url})`
+          const cardHtml = markdownToHtml(cardMd)
+          el.outerHTML = cardHtml
+          syncMarkdown()
+        }
+      }
+    } catch (e) {
+      console.error(e)
+      if (editorRef.current) {
+        const el = editorRef.current.querySelector(`#preview-${id}`)
+        if (el) {
+          el.outerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-semibold">${url}</a>`
+          syncMarkdown()
+        }
+      }
+    }
+  }
+
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     // Check for images in clipboard
     const items = Array.from(e.clipboardData.items)
@@ -818,6 +879,11 @@ function EditorSurface({
 
     e.preventDefault()
     const text = e.clipboardData.getData("text/plain")
+
+    if (URL_TOKEN_RE.test(text.trim())) {
+      handleUrlPaste(text.trim())
+      return
+    }
 
     const hasMarkdown = /^(#+\s+|\*\s+|-\s+|•\s+|\d+\.\s+)/m.test(text) || /(\*\*|__|\*|_|\[.+\]\(.+\))/.test(text)
 
