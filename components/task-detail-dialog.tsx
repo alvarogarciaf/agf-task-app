@@ -260,8 +260,8 @@ export function TaskDetailDialog({
                 isProjectShared={isProjectShared}
                 descriptionRef={descriptionRef}
                 detailsRef={detailsRef}
-                onSubmit={save}
                 isMobile={isMobile}
+                onSubmit={save}
               />
 
               <div className="mt-5">
