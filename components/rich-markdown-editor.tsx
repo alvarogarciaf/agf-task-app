@@ -831,8 +831,7 @@ function EditorSurface({
       const res = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`)
       if (!res.ok) throw new Error("Failed to fetch preview")
       const data = await res.json()
-
-      let finalImageUrl = ""
+      let finalImageUrl = data.imageUrl || ""
       if (data.imageUrl) {
         try {
           const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(data.imageUrl)}`)
@@ -842,7 +841,8 @@ function EditorSurface({
             finalImageUrl = await uploadImage(file)
           }
         } catch (e) {
-          console.error("Failed to upload preview image", e)
+          console.error("Failed to upload preview image, falling back to original", e)
+          finalImageUrl = data.imageUrl
         }
       }
 

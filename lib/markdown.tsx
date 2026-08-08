@@ -52,13 +52,13 @@ export function markdownToHtml(md: string): string {
       const imgHtml = image 
         ? `<img src="${image}" data-original-src="${image}" class="w-16 h-16 object-cover bg-muted shrink-0" alt="" />`
         : `<div class="w-16 h-16 bg-muted shrink-0 flex items-center justify-center text-muted-foreground"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></div>`;
-      return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="link-card flex items-center gap-3 bg-muted/30 hover:bg-muted/50 border border-border/50 rounded-lg overflow-hidden my-2 max-w-sm transition-colors decoration-transparent text-foreground" contenteditable="false">` +
+      return `&#8203;<a href="${url}" target="_blank" rel="noopener noreferrer" class="link-card flex items-center gap-3 bg-muted/30 hover:bg-muted/50 border border-border/50 rounded-lg overflow-hidden my-2 w-full max-w-sm transition-colors decoration-transparent text-foreground" contenteditable="false">` +
         imgHtml +
-        `<div class="flex flex-col min-w-0 py-2 pr-3">` +
+        `<div class="flex flex-col min-w-0 py-2 pr-3 text-left">` +
           `<span class="text-sm font-semibold truncate leading-tight">${title || url}</span>` +
           `<span class="text-xs text-muted-foreground truncate leading-tight mt-0.5">${domain}</span>` +
         `</div>` +
-      `</a>`;
+      `</a>&#8203;`;
     });
 
     // Links [text](url) - Note: simple regex, but since we run this after images, `![alt](url)` could be problematic if we don't differentiate.
