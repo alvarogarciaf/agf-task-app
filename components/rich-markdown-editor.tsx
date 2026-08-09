@@ -1,11 +1,9 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef, useState, useCallback } from "react"
 import {
   Bold,
-  Heading1,
-  Heading2,
-  Heading3,
+  Heading,
   Italic,
   Link as LinkIcon,
   List,
@@ -226,6 +224,8 @@ function EditorSurface({
 
   const isMobile = useIsMobile()
   const [isFocused, setIsFocused] = useState(false)
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [headingCycleIndex, setHeadingCycleIndex] = useState(0)
 
   useEffect(() => {
     if (!editorRef.current || isFocusedRef.current) return
@@ -980,6 +980,15 @@ function EditorSurface({
   const toolbarButton = "inline-flex h-11 w-11 md:h-7 md:w-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
   const iconClass = "h-5 w-5 md:h-4 md:w-4"
 
+  const headingLevels = ["h1", "h2", "h3"] as const
+  const headingLabels = ["H1", "H2", "H3"]
+
+  const cycleHeading = () => {
+    const level = headingLevels[headingCycleIndex]
+    toggleBlock(level)
+    setHeadingCycleIndex((prev) => (prev + 1) % headingLevels.length)
+  }
+
   const showToolbar = !isMobile || isFocused
 
   return (
@@ -987,30 +996,46 @@ function EditorSurface({
       {showToolbar && (
         <div 
           className={cn(
-            "flex flex-wrap items-center gap-0.5 px-1.5 py-1",
+            "flex items-center gap-0.5 px-1.5 py-1",
             variant === "ghost" ? "bg-transparent border-transparent" : "border-border bg-muted/30",
             isMobile
               ? "fixed bottom-0 left-0 right-0 z-50 border-t bg-background shadow-[0_-4px_10px_rgba(0,0,0,0.1)]"
-              : variant === "ghost" ? "mb-1" : "rounded-t-md border border-b-0"
+              : variant === "ghost" ? "mb-1 flex-wrap" : "rounded-t-md border border-b-0 flex-wrap"
           )}
+          onMouseDown={(e) => {
+            // Prevent toolbar clicks from stealing focus and triggering blur
+            if (isMobile) e.preventDefault()
+          }}
         >
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h1")} className={toolbarButton} title="Heading 1" aria-label="Heading 1">
-            <Heading1 className={iconClass} />
-          </button>
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h2")} className={toolbarButton} title="Heading 2" aria-label="Heading 2">
-            <Heading2 className={iconClass} />
-          </button>
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h3")} className={toolbarButton} title="Heading 3" aria-label="Heading 3">
-            <Heading3 className={iconClass} />
-          </button>
-          <span className="mx-1 h-5 w-px bg-border md:h-4" />
+          {/* Heading: combined into one cycling button on mobile, three separate on desktop */}
+          {isMobile ? (
+            <button type="button" onClick={cycleHeading} className={toolbarButton} title={`Heading (${headingLabels[headingCycleIndex]})`} aria-label="Cycle heading">
+              <span className="relative">
+                <Heading className={iconClass} />
+                <span className="absolute -bottom-0.5 -right-1.5 text-[8px] font-bold leading-none">{headingCycleIndex + 1}</span>
+              </span>
+            </button>
+          ) : (
+            <>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h1")} className={toolbarButton} title="Heading 1" aria-label="Heading 1">
+                <span className="text-xs font-bold">H1</span>
+              </button>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h2")} className={toolbarButton} title="Heading 2" aria-label="Heading 2">
+                <span className="text-xs font-bold">H2</span>
+              </button>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleBlock("h3")} className={toolbarButton} title="Heading 3" aria-label="Heading 3">
+                <span className="text-xs font-bold">H3</span>
+              </button>
+            </>
+          )}
+          <span className="mx-0.5 h-5 w-px bg-border md:mx-1 md:h-4" />
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleInlineFormat("bold")} className={toolbarButton} title="Bold" aria-label="Bold">
             <Bold className={iconClass} />
           </button>
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => toggleInlineFormat("italic")} className={toolbarButton} title="Italic" aria-label="Italic">
             <Italic className={iconClass} />
           </button>
-          <span className="mx-1 h-5 w-px bg-border md:h-4" />
+          <span className="mx-0.5 h-5 w-px bg-border md:mx-1 md:h-4" />
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("insertUnorderedList")} className={toolbarButton} title="Bullet list" aria-label="Bullet list">
             <List className={iconClass} />
           </button>
@@ -1020,37 +1045,40 @@ function EditorSurface({
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("outdent")} className={toolbarButton} title="Outdent" aria-label="Outdent">
             <Outdent className={iconClass} />
           </button>
-          <span className="mx-1 h-5 w-px bg-border md:h-4" />
+          <span className="mx-0.5 h-5 w-px bg-border md:mx-1 md:h-4" />
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => fileInputRef.current?.click()} className={toolbarButton} title="Insert Image" aria-label="Insert Image">
             <ImageIcon className={iconClass} />
           </button>
-          <Popover
-            open={linkOpen}
-            onOpenChange={(o) => {
-              if (o) prepareLinkPopover()
-              setLinkOpen(o)
-            }}
-          >
-            <PopoverTrigger asChild>
-              <button type="button" onMouseDown={(e) => e.preventDefault()} className={toolbarButton} title="Insert link" aria-label="Insert link">
-                <LinkIcon className={iconClass} />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-72 space-y-2">
-              <div className="space-y-1">
-                <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Text</label>
-                <input value={linkText} onChange={(e) => setLinkText(e.target.value)} placeholder="Link text" className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring" />
-              </div>
-              <div className="space-y-1">
-                <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">URL</label>
-                <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); insertLink() } }} placeholder="https://example.com" autoFocus className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring" />
-              </div>
-              <div className="flex justify-end gap-2 pt-1">
-                <button type="button" onClick={() => setLinkOpen(false)} className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">Cancel</button>
-                <button type="button" onClick={insertLink} className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">Insert</button>
-              </div>
-            </PopoverContent>
-          </Popover>
+          {/* Link popover: desktop only */}
+          {!isMobile && (
+            <Popover
+              open={linkOpen}
+              onOpenChange={(o) => {
+                if (o) prepareLinkPopover()
+                setLinkOpen(o)
+              }}
+            >
+              <PopoverTrigger asChild>
+                <button type="button" onMouseDown={(e) => e.preventDefault()} className={toolbarButton} title="Insert link" aria-label="Insert link">
+                  <LinkIcon className={iconClass} />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-72 space-y-2">
+                <div className="space-y-1">
+                  <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Text</label>
+                  <input value={linkText} onChange={(e) => setLinkText(e.target.value)} placeholder="Link text" className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">URL</label>
+                  <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); insertLink() } }} placeholder="https://example.com" autoFocus className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button type="button" onClick={() => setLinkOpen(false)} className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">Cancel</button>
+                  <button type="button" onClick={insertLink} className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">Insert</button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
 
           <div className="ml-auto flex items-center gap-1">
             <button type="button" onClick={handleCopyMarkdown} className={toolbarButton} title="Copy as Markdown" aria-label="Copy as Markdown">
@@ -1065,17 +1093,26 @@ function EditorSurface({
         ref={editorRef}
         contentEditable
         onFocus={() => {
+          if (blurTimeoutRef.current) {
+            clearTimeout(blurTimeoutRef.current)
+            blurTimeoutRef.current = null
+          }
           isFocusedRef.current = true
           setIsFocused(true)
           if (isMobile) {
-            document.documentElement.style.setProperty("--keyboard-toolbar-height", "60px")
+            document.documentElement.style.setProperty("--keyboard-toolbar-height", "48px")
           }
         }}
         onBlur={() => {
           isFocusedRef.current = false
-          setIsFocused(false)
-          document.documentElement.style.removeProperty("--keyboard-toolbar-height")
           handleInput()
+          // Delay hiding toolbar so toolbar button taps don't cause a flash
+          blurTimeoutRef.current = setTimeout(() => {
+            if (!isFocusedRef.current) {
+              setIsFocused(false)
+              document.documentElement.style.removeProperty("--keyboard-toolbar-height")
+            }
+          }, 200)
         }}
         onCompositionStart={() => {
           isComposingRef.current = true
