@@ -580,7 +580,7 @@ export function ObjectEditFields({
             }
           }}
           placeholder="Enter a title or description"
-          className="mt-0 resize-none border-transparent bg-transparent px-0 text-xl font-bold leading-snug tracking-tight text-foreground shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
+          className="mt-0 min-h-0 resize-none border-none bg-transparent px-0 text-xl font-bold leading-snug tracking-tight text-foreground shadow-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-none rounded-none placeholder:text-muted-foreground/50"
           rows={1}
         />
       </div>
@@ -596,18 +596,21 @@ export function ObjectEditFields({
       )}
 
       {isMobile ? (
-        <Collapsible className="mt-4">
-          <CollapsibleTrigger className="flex w-full items-center justify-between py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground [&[data-state=open]>svg]:rotate-180">
-            <div className="flex items-center gap-2">
-              <Settings2 className="h-4 w-4" />
-              Properties
-            </div>
-            <ChevronDown className="h-4 w-4 transition-transform duration-200" />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pb-4 pt-3">
-            {propertiesContent}
-          </CollapsibleContent>
-        </Collapsible>
+        <>
+          <Collapsible className="mt-4">
+            <CollapsibleTrigger className="flex w-full items-center justify-between py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground [&[data-state=open]>svg]:rotate-180">
+              <div className="flex items-center gap-2">
+                <Settings2 className="h-4 w-4" />
+                Properties
+              </div>
+              <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pb-4 pt-3">
+              {propertiesContent}
+            </CollapsibleContent>
+          </Collapsible>
+          <div className="border-b border-border/40 mt-1" />
+        </>
       ) : (
         propertiesContent
       )}

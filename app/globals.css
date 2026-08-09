@@ -180,10 +180,12 @@
 }
 
 /* Custom rich markdown editor placeholder */
-.rich-editor:empty::before {
+.rich-editor:empty::before,
+.rich-editor:has(> p:only-child > br:only-child)::before,
+.rich-editor:has(> div:only-child > br:only-child)::before {
   content: attr(data-placeholder);
-  color: oklch(0.68 0.015 260 / 0.6);
+  color: oklch(0.68 0.015 260 / 0.5);
   pointer-events: none;
   font-style: italic;
+  font-size: 0.875rem;
 }
-
