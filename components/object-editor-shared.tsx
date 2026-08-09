@@ -15,7 +15,6 @@ import {
 import * as SliderPrimitive from "@radix-ui/react-slider"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { Textarea } from "@/components/ui/textarea"
 import { RichMarkdownEditor } from "@/components/rich-markdown-editor"
 import { toggleMarkdownTask } from "@/lib/markdown"
 import { FormMultiSelect } from "@/components/form-multi-select"
@@ -562,11 +561,10 @@ export function ObjectEditFields({
   return (
     <>
       <div className="mb-2">
-        <Textarea
+        <textarea
           ref={descriptionRef}
           value={draft.description}
           onChange={(e) => {
-            // Strip newlines so the field stays single-line
             const cleaned = e.target.value.replace(/[\r\n]/g, "")
             update("description", cleaned)
           }}
@@ -580,8 +578,9 @@ export function ObjectEditFields({
             }
           }}
           placeholder="Enter a title or description"
-          className="mt-0 min-h-0 resize-none border-none bg-transparent px-0 text-xl font-bold leading-snug tracking-tight text-foreground shadow-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-none rounded-none placeholder:text-muted-foreground/50"
+          className="w-full resize-none bg-transparent px-0 py-1 text-xl font-bold leading-snug tracking-tight text-foreground outline-none placeholder:text-muted-foreground/50"
           rows={1}
+          style={{ border: "none", boxShadow: "none", fieldSizing: "content" as any }}
         />
       </div>
 
@@ -609,7 +608,7 @@ export function ObjectEditFields({
               {propertiesContent}
             </CollapsibleContent>
           </Collapsible>
-          <div className="border-b border-border/40 mt-1" />
+          <div className="border-b border-muted-foreground/25 mt-2 mb-1" />
         </>
       ) : (
         propertiesContent
