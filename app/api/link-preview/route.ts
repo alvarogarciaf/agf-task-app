@@ -1,10 +1,21 @@
 import { NextResponse } from "next/server"
 
+function decodeHtmlEntities(text: string): string {
+  const entities: Record<string, string> = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'"
+  }
+  return text.replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g, match => entities[match] || match)
+}
+
 function extractMetaTag(html: string, property: string): string | null {
   const regex1 = new RegExp(`<meta\\s+(?:[^>]*?\\s+)?(?:property|name)=["']${property}["']\\s+(?:[^>]*?\\s+)?content=["']([^"']+)["'][^>]*>`, "i")
   const regex2 = new RegExp(`<meta\\s+(?:[^>]*?\\s+)?content=["']([^"']+)["']\\s+(?:[^>]*?\\s+)?(?:property|name)=["']${property}["'][^>]*>`, "i")
   const match = html.match(regex1) || html.match(regex2)
-  return match ? match[1].trim() : null
+  return match ? decodeHtmlEntities(match[1].trim()) : null
 }
 
 export async function GET(request: Request) {
@@ -33,7 +44,7 @@ export async function GET(request: Request) {
     let title = extractMetaTag(html, "og:title")
     if (!title) {
       const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
-      title = titleMatch ? titleMatch[1].trim() : ""
+      title = titleMatch ? decodeHtmlEntities(titleMatch[1].trim()) : ""
     }
     
     let imageUrl = extractMetaTag(html, "og:image")
