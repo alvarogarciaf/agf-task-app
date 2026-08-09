@@ -821,15 +821,15 @@ function EditorSurface({
       return
     }
 
-    const dismissBtn = target.closest(".dismiss-card") as HTMLButtonElement | null
+    const dismissBtn = target.closest(".dismiss-card") as HTMLElement | null
     if (dismissBtn) {
       e.preventDefault()
       e.stopPropagation()
       const url = dismissBtn.getAttribute("data-url")
       if (url) {
-        const linkCard = dismissBtn.closest("a.link-card")
-        if (linkCard) {
-          linkCard.outerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-semibold">${url}</a>`
+        const wrapper = dismissBtn.closest(".link-card-wrapper")
+        if (wrapper) {
+          wrapper.outerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-semibold">${url}</a>`
           syncMarkdown()
         }
       }

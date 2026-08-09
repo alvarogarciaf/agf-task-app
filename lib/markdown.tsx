@@ -50,18 +50,20 @@ export function markdownToHtml(md: string): string {
     // Cards [card:Title|Domain|ImageURL](url)
     result = result.replace(/\[card:([^|\]]*)\|([^|\]]*)\|([^\]]*)\]\(([^)]+)\)/g, (match, title, domain, image, url) => {
       const imgHtml = image 
-        ? `<img src="${image}" data-original-src="${image}" class="w-16 h-16 object-cover bg-muted shrink-0" alt="" onerror="this.style.display='none';" />`
-        : `<div class="w-16 h-16 bg-muted shrink-0 flex items-center justify-center text-muted-foreground"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></div>`;
-      return `&#8203;<a href="${url}" target="_blank" rel="noopener noreferrer" class="link-card inline-flex items-center gap-3 bg-muted/30 hover:bg-muted/50 border border-border/50 rounded-lg overflow-hidden my-2 w-full max-w-sm transition-colors decoration-transparent text-foreground relative" contenteditable="false">` +
-        imgHtml +
-        `<div class="flex flex-col min-w-0 py-2 pl-1 pr-9 text-left flex-1 relative">` +
-          `<span class="text-sm font-semibold truncate leading-tight">${title || url}</span>` +
-          `<span class="text-xs text-muted-foreground truncate leading-tight mt-0.5">${domain}</span>` +
-          `<button type="button" class="dismiss-card absolute top-1 right-1 text-muted-foreground hover:text-foreground p-1.5 rounded hover:bg-foreground/10 z-10" aria-label="Show as link instead" data-url="${url}">` +
-            `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>` +
-          `</button>` +
-        `</div>` +
-      `</a>&#8203;`;
+        ? `<img src="${image}" data-original-src="${image}" class="w-16 h-16 object-cover bg-muted shrink-0 rounded-l-lg" alt="" onerror="this.style.display='none';" />`
+        : `<div class="w-16 h-16 bg-muted shrink-0 flex items-center justify-center text-muted-foreground rounded-l-lg"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></div>`;
+      return `<div class="link-card-wrapper flex items-center bg-muted/30 border border-border/50 rounded-lg overflow-hidden my-2 max-w-sm relative" contenteditable="false">` +
+        `<a href="${url}" target="_blank" rel="noopener noreferrer" class="link-card flex items-center gap-3 flex-1 min-w-0 decoration-transparent text-foreground hover:bg-muted/50 transition-colors">` +
+          imgHtml +
+          `<div class="flex flex-col min-w-0 py-2 pr-3 text-left">` +
+            `<span class="text-sm font-semibold truncate leading-tight">${title || url}</span>` +
+            `<span class="text-xs text-muted-foreground truncate leading-tight mt-0.5">${domain}</span>` +
+          `</div>` +
+        `</a>` +
+        `<span class="dismiss-card flex items-center justify-center p-1.5 mr-1 cursor-pointer rounded text-muted-foreground hover:text-foreground hover:bg-foreground/10 shrink-0" role="button" tabindex="0" aria-label="Show as link instead" data-url="${url}">` +
+          `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>` +
+        `</span>` +
+      `</div>`;
     });
 
     // Links [text](url) - Note: simple regex, but since we run this after images, `![alt](url)` could be problematic if we don't differentiate.
@@ -201,6 +203,20 @@ function nodeToMarkdown(node: Node): string {
         return `${childContent}`; // `li` will prepend the "* " themselves
       case "p":
       case "div": {
+        // Handle link-card-wrapper div
+        if (el.classList.contains("link-card-wrapper")) {
+          const linkEl = el.querySelector("a.link-card");
+          if (linkEl) {
+            const href = linkEl.getAttribute("href") || "";
+            const img = linkEl.querySelector("img");
+            const imgUrl = img ? (img.getAttribute("data-original-src") || img.getAttribute("src") || "") : "";
+            const titleEl = linkEl.querySelector(".font-semibold");
+            const title = titleEl ? (titleEl.textContent || "") : "";
+            const domainEl = linkEl.querySelector(".text-muted-foreground:not(div)");
+            const domain = domainEl ? (domainEl.textContent || "") : "";
+            return `[card:${title}|${domain}|${imgUrl}](${href})`;
+          }
+        }
         const box = el.querySelector("input.md-task-box") as HTMLInputElement | null;
         if (box) {
           const checked = box.hasAttribute("checked") || box.checked;
@@ -242,6 +258,9 @@ function nodeToMarkdown(node: Node): string {
         return `![${alt}](${originalSrc})`;
       }
       case "span":
+        if (el.classList.contains("dismiss-card")) {
+          return ""; // dismiss button is UI-only, don't serialize
+        }
         if (el.classList.contains("image-resizer")) {
           const img = el.querySelector("img");
           if (img) {
@@ -448,26 +467,36 @@ export function renderMarkdown(
       }
       if (seg.type === "card") {
         return (
-          <a
+          <div
             key={idx}
-            href={seg.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 bg-muted/30 hover:bg-muted/50 border border-border/50 rounded-lg overflow-hidden my-2 max-w-sm transition-colors decoration-transparent text-foreground select-none"
-            contentEditable={false}
+            className="flex items-center bg-muted/30 border border-border/50 rounded-lg overflow-hidden my-2 max-w-sm relative select-none"
           >
-            {seg.image ? (
-              <img src={seg.image} className="w-16 h-16 object-cover bg-muted shrink-0" alt="" />
-            ) : (
-              <div className="w-16 h-16 bg-muted shrink-0 flex items-center justify-center text-muted-foreground">
-                <LinkIcon className="w-6 h-6" />
+            <a
+              href={seg.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="link-card flex items-center gap-3 flex-1 min-w-0 decoration-transparent text-foreground hover:bg-muted/50 transition-colors"
+            >
+              {seg.image ? (
+                <img
+                  src={seg.image}
+                  className="w-16 h-16 object-cover bg-muted shrink-0 rounded-l-lg"
+                  alt=""
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : (
+                <div className="w-16 h-16 bg-muted shrink-0 flex items-center justify-center text-muted-foreground rounded-l-lg">
+                  <LinkIcon className="w-6 h-6" />
+                </div>
+              )}
+              <div className="flex flex-col min-w-0 py-2 pr-3 text-left">
+                <span className="text-sm font-semibold truncate leading-tight">{seg.title || seg.url}</span>
+                <span className="text-xs text-muted-foreground truncate leading-tight mt-0.5">{seg.domain}</span>
               </div>
-            )}
-            <div className="flex flex-col min-w-0 py-2 pr-3">
-              <span className="text-sm font-semibold truncate leading-tight">{seg.title || seg.url}</span>
-              <span className="text-xs text-muted-foreground truncate leading-tight mt-0.5">{seg.domain}</span>
-            </div>
-          </a>
+            </a>
+          </div>
         );
       }
       if (seg.type === "italic") {
