@@ -24,8 +24,8 @@ export function TasksMobileNav({
   const items = [
     { key: "home", label: "Inbox", icon: Home, badge: inboxCount, isSelector: false },
     { key: "today", label: "Today", icon: Calendar, badge: todayCount, isSelector: false },
-    { key: "all", label: "All Tasks", icon: ListTodo, isSelector: false },
-    { key: "contexts", label: "Contexts", icon: Briefcase, isSelector: true },
+    { key: "all", label: "All", icon: ListTodo, isSelector: false },
+    { key: "contexts", label: "Context", icon: Briefcase, isSelector: true },
     { key: "projects", label: "Projects", icon: FolderClosed, isSelector: false },
     { key: "views", label: "Views", icon: Star, isSelector: true },
   ]
@@ -49,7 +49,7 @@ export function TasksMobileNav({
               }
             }}
             className={cn(
-              "relative flex flex-col items-center justify-center w-full h-full gap-1 text-[11px] font-medium transition-colors",
+              "relative flex flex-col items-center justify-center w-full h-full gap-1 text-[11px] font-medium transition-colors min-w-0",
               isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -61,7 +61,7 @@ export function TasksMobileNav({
                 </span>
               )}
             </div>
-            <span>{item.label}</span>
+            <span className="truncate max-w-full px-0.5">{item.label}</span>
           </button>
         )
       })}
@@ -81,8 +81,8 @@ export function NotesMobileNav({
   onOpenSelector,
 }: NotesMobileNavProps) {
   const items = [
-    { key: "notes", label: "All Notes", icon: FileText, isSelector: false },
-    { key: "bookmarks", label: "Bookmarks", icon: Bookmark, isSelector: false },
+    { key: "notes", label: "Notes", icon: FileText, isSelector: false },
+    { key: "bookmarks", label: "Saved", icon: Bookmark, isSelector: false },
     { key: "tags", label: "Tags", icon: Tags, isSelector: true },
     { key: "projects", label: "Projects", icon: FolderClosed, isSelector: false },
   ]
@@ -104,14 +104,14 @@ export function NotesMobileNav({
               }
             }}
             className={cn(
-              "relative flex flex-col items-center justify-center w-full h-full gap-1 text-[11px] font-medium transition-colors",
+              "relative flex flex-col items-center justify-center w-full h-full gap-1 text-[11px] font-medium transition-colors min-w-0",
               isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
             )}
           >
             <div className="relative">
               <Icon className="h-6 w-6" />
             </div>
-            <span>{item.label}</span>
+            <span className="truncate max-w-full px-0.5">{item.label}</span>
           </button>
         )
       })}
