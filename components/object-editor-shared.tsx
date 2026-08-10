@@ -571,7 +571,11 @@ export function ObjectEditFields({
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault()
-              if (onSubmit) onSubmit()
+              if (isNote) {
+                focusDetails()
+              } else {
+                if (onSubmit) onSubmit()
+              }
             } else if (e.key === "Tab") {
               e.preventDefault()
               focusDetails()
