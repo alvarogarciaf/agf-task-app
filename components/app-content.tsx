@@ -1112,7 +1112,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const renderMobileNotesContent = () => (
     <WorkspaceViewContent
       {...workspaceContentProps}
-      route={{ kind: "view", view: activeView === "bookmarks" ? "bookmarks" : "notes" }}
+      route={{ kind: "view", view: activeView === "bookmarks" ? "bookmarks" : activeView === "projects" ? "projects" : "notes" }}
+      defaultProjectTab="notes"
       ui={{
         initialTagId,
         initialProjectId: mobileSection === "notes" ? initialProjectId : undefined,
@@ -1330,14 +1331,11 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                       {renderMobileNotesContent()}
                     </div>
                     <NotesMobileNav
-                      active={mobileSelectorType || (initialTagId ? "tags" : initialProjectId ? "projects" : activeView === "bookmarks" ? "bookmarks" : "notes")}
+                      active={mobileSelectorType || (initialTagId ? "tags" : initialProjectId ? "projects" : activeView === "bookmarks" ? "bookmarks" : activeView === "projects" ? "projects" : "notes")}
                       onChange={(k) => { 
                         setInitialTagId(undefined); 
                         setInitialProjectId(undefined); 
                         handleNavigate(k);
-                        if (k === "projects") {
-                          emblaApi?.scrollTo(0);
-                        }
                       }}
                       onOpenSelector={setMobileSelectorType}
                     />

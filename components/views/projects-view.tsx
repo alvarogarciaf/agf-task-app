@@ -68,6 +68,7 @@ interface ProjectsViewProps {
   onDeleteProject: (id: string) => void
   initialSelectedId?: string
   onSelect?: (id: string | null) => void
+  initialTab?: "tasks" | "notes" | "description"
 }
 
 export function ProjectsView({
@@ -90,6 +91,7 @@ export function ProjectsView({
   onDeleteProject,
   initialSelectedId,
   onSelect,
+  initialTab,
 }: ProjectsViewProps) {
   const db = useDatabase()
   const [selected, setSelected] = useState<string | null>(initialSelectedId || null)
@@ -97,6 +99,12 @@ export function ProjectsView({
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
+
+  const handleToggleMode = () => {
+    const mode = viewMode === "grid" ? "list" : "grid"
+    setViewMode(mode)
+    localStorage.setItem("projects_view_mode", mode)
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem("projects_view_mode")
@@ -202,6 +210,7 @@ export function ProjectsView({
                 setEditingProject(project)
                 setEditorOpen(true)
               }}
+              initialTab={initialTab}
             />
           )
         })()
@@ -500,6 +509,7 @@ function ProjectDetail({
   onEdit,
   onCreate,
   onCreateNote,
+  initialTab,
 }: {
   project: Project
   projects: Project[]
@@ -532,9 +542,10 @@ function ProjectDetail({
   onUpdateProject: (project: Project) => void
   onDeleteProject: (id: string) => void
   onEdit: () => void
+  initialTab?: "tasks" | "notes" | "description"
 }) {
   const db = useDatabase()
-  const [tab, setTab] = useState<"tasks" | "notes" | "description">("tasks")
+  const [tab, setTab] = useState<"tasks" | "notes" | "description">(initialTab || "tasks")
   const projTasks = tasks.filter((t) => t.project_id === project.id && t.processed)
   const projNotes = notes.filter((n) => n.project_id === project.id)
   const open = projTasks.filter((t) => t.status === "Open")

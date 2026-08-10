@@ -83,6 +83,7 @@ interface WorkspaceViewContentProps {
   onInsertUrgency: (u: Omit<UrgencyLevel, "id">) => Promise<void>
   onPatchUrgency: (u: UrgencyLevel) => Promise<void>
   onRemoveUrgency: (id: string) => Promise<void>
+  defaultProjectTab?: "tasks" | "notes" | "description"
 }
 
 export function WorkspaceViewContent({
@@ -127,6 +128,7 @@ export function WorkspaceViewContent({
   onInsertUrgency,
   onPatchUrgency,
   onRemoveUrgency,
+  defaultProjectTab,
 }: WorkspaceViewContentProps) {
   const todayFilter = useTodaySectionFilter()
 
