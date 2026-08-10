@@ -9,6 +9,7 @@ import {
   Users,
   FolderKanban,
   FileText,
+  Bookmark,
   Cloud,
   CloudOff,
   AlertCircle,
@@ -119,6 +120,7 @@ export function AppSidebar({
   ]
   const notesItems: NavItem[] = [
     { key: "notes", label: "Notes", icon: FileText, shortcut: "N" },
+    { key: "bookmarks", label: "Bookmarks", icon: Bookmark },
     { 
       key: "tags", 
       label: "Tags", 

@@ -38,6 +38,7 @@ export const VIEW_TITLES: Record<ViewKey, string> = {
   "saved-view": "Saved View",
   today: "Today",
   notes: "Notes",
+  bookmarks: "Bookmarks",
   tags: "Tags",
 }
 

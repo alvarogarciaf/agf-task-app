@@ -11,6 +11,7 @@ import {
   Users,
   FolderKanban,
   FileText,
+  Bookmark,
   Settings,
   Calendar,
   Star,
@@ -32,6 +33,7 @@ const VIEW_ICONS: Record<ViewKey, React.ComponentType<{ className?: string }>> =
   "saved-view": Star,
   today: Calendar,
   notes: FileText,
+  bookmarks: Bookmark,
   tags: TagIcon,
 }
 

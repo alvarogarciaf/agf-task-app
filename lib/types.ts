@@ -28,6 +28,7 @@ export interface AppObject {
   urgency_id: string
   archived?: boolean
   google_event_id?: string | null
+  bookmarked?: boolean
 }
 
 // `Task` remains the name used across the app; it is now an alias of the
@@ -98,4 +99,5 @@ export type ViewKey =
   | "saved-view"
   | "today"
   | "notes"
+  | "bookmarks"
   | "tags"

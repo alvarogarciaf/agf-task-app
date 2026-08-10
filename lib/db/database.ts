@@ -67,6 +67,11 @@ export const getDatabase = async (userUid: string) => {
             oldDoc.type = oldDoc.type ?? 'task';
             oldDoc.tag_ids = oldDoc.tag_ids ?? [];
             return oldDoc;
+          },
+          // 6: Migrate from version 5 to 6 (add bookmarked)
+          6: (oldDoc: any) => {
+            oldDoc.bookmarked = oldDoc.bookmarked ?? false;
+            return oldDoc;
           }
         }
       },

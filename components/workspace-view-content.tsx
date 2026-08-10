@@ -247,9 +247,10 @@ export function WorkspaceViewContent({
         />
       )
     case "notes":
+    case "bookmarks":
       return (
         <NotesView
-          tasks={notes}
+          tasks={route.view === "bookmarks" ? notes.filter(n => n.bookmarked) : notes}
           projects={projects}
           persons={persons}
           tags={tags}

@@ -11,6 +11,7 @@ import {
   Zap,
   ChevronDown,
   Settings2,
+  Bookmark,
 } from "lucide-react"
 import * as SliderPrimitive from "@radix-ui/react-slider"
 import { toast } from "sonner"
@@ -560,7 +561,7 @@ export function ObjectEditFields({
 
   return (
     <>
-      <div className="mb-2">
+      <div className="mb-2 flex items-start gap-2">
         <textarea
           ref={descriptionRef}
           value={draft.description}
@@ -586,6 +587,22 @@ export function ObjectEditFields({
           rows={1}
           style={{ border: "none", boxShadow: "none", fieldSizing: "content" as any }}
         />
+        {isNote && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              update("bookmarked", !draft.bookmarked)
+            }}
+            className={cn(
+              "mt-1 p-2 rounded-md hover:bg-muted transition-colors shrink-0",
+              draft.bookmarked ? "text-primary" : "text-muted-foreground"
+            )}
+            title={draft.bookmarked ? "Remove Bookmark" : "Add Bookmark"}
+          >
+            <Bookmark className="h-5 w-5" fill={draft.bookmarked ? "currentColor" : "none"} />
+          </button>
+        )}
       </div>
 
       {!isNote && (

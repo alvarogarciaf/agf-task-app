@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, Calendar, Briefcase, FolderClosed, Star, FileText, Tags, ListTodo } from "lucide-react"
+import { Home, Calendar, Briefcase, FolderClosed, Star, FileText, Tags, ListTodo, Bookmark } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ViewKey, SavedView } from "@/lib/types"
 
@@ -82,6 +82,7 @@ export function NotesMobileNav({
 }: NotesMobileNavProps) {
   const items = [
     { key: "notes", label: "All Notes", icon: FileText, isSelector: false },
+    { key: "bookmarks", label: "Bookmarks", icon: Bookmark, isSelector: false },
     { key: "tags", label: "Tags", icon: Tags, isSelector: true },
     { key: "projects", label: "Projects", icon: FolderClosed, isSelector: false },
   ]
