@@ -257,6 +257,23 @@ function EditorSurface({
     }
   }, [value])
 
+  // Handle mobile keyboard dismissal
+  useEffect(() => {
+    if (!isMobile || typeof window === 'undefined' || !window.visualViewport) return;
+    
+    const handleResize = () => {
+      // If visual viewport height is very close to innerHeight, keyboard is likely closed
+      if (window.visualViewport!.height >= window.innerHeight - 100) {
+        if (document.activeElement === editorRef.current) {
+          editorRef.current.blur();
+        }
+      }
+    };
+
+    window.visualViewport.addEventListener('resize', handleResize);
+    return () => window.visualViewport!.removeEventListener('resize', handleResize);
+  }, [isMobile]);
+
   useEffect(() => {
     if (autoFocus && editorRef.current) {
       editorRef.current.focus()
