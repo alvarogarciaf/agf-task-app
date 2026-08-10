@@ -265,7 +265,7 @@ function EditorSurface({
       // If visual viewport height is very close to innerHeight, keyboard is likely closed
       if (window.visualViewport!.height >= window.innerHeight - 100) {
         if (document.activeElement === editorRef.current) {
-          editorRef.current.blur();
+          editorRef.current?.blur();
         }
       }
     };
