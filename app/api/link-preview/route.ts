@@ -27,41 +27,78 @@ export async function GET(request: Request) {
   }
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
-      },
-      signal: AbortSignal.timeout(5000)
-    })
-    
-    if (!res.ok) {
-      return NextResponse.json({ error: "Failed to fetch URL" }, { status: 400 })
+    let html = ""
+    let fetchSuccess = false
+    let title = ""
+    let imageUrl = ""
+    let description = ""
+    let domain = new URL(url).hostname.replace(/^www\./, "")
+
+    try {
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+        },
+        signal: AbortSignal.timeout(5000)
+      })
+      
+      if (res.ok) {
+        html = await res.text()
+        fetchSuccess = true
+      }
+    } catch (e) {
+      console.warn("Primary fetch failed, falling back to Microlink:", e)
     }
 
-    const html = await res.text()
-
-    let title = extractMetaTag(html, "og:title")
-    if (!title) {
-      const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
-      title = titleMatch ? decodeHtmlEntities(titleMatch[1].trim()) : ""
+    if (fetchSuccess && html) {
+      title = extractMetaTag(html, "og:title") || ""
+      if (!title) {
+        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
+        title = titleMatch ? decodeHtmlEntities(titleMatch[1].trim()) : ""
+      }
+      imageUrl = extractMetaTag(html, "og:image") || ""
+      description = extractMetaTag(html, "og:description") || extractMetaTag(html, "description") || ""
+      if (imageUrl) {
+        try {
+          imageUrl = new URL(imageUrl, url).href
+        } catch (e) {}
+      }
     }
-    
-    let imageUrl = extractMetaTag(html, "og:image")
-    let description = extractMetaTag(html, "og:description") || extractMetaTag(html, "description") || ""
 
-    const urlObj = new URL(url)
-    const domain = urlObj.hostname.replace(/^www\./, "")
+    // Fallback to Microlink API if fetch failed or if we got a highly generic title (like Google Maps) with no image
+    if (!fetchSuccess || (!title && !imageUrl) || title === "Google Maps") {
+      try {
+        const mlRes = await fetch(`https://api.microlink.io?url=${encodeURIComponent(url)}`, {
+          signal: AbortSignal.timeout(5000)
+        })
+        if (mlRes.ok) {
+          const mlData = await mlRes.json()
+          if (mlData.status === "success" && mlData.data) {
+            title = mlData.data.title || title
+            description = mlData.data.description || description
+            imageUrl = mlData.data.image?.url || imageUrl
+            domain = mlData.data.publisher || domain
+          }
+        }
+      } catch (e) {
+        console.error("Microlink fallback failed:", e)
+      }
+    }
+
+    if (!title && !fetchSuccess) {
+      return NextResponse.json({ error: "Failed to parse link preview" }, { status: 400 })
+    }
 
     return NextResponse.json({
       title: title || domain,
       description,
       domain,
-      imageUrl: imageUrl ? new URL(imageUrl, url).href : "", 
+      imageUrl,
       url
     })
   } catch (error) {
-    console.error("Link preview error:", error)
-    return NextResponse.json({ error: "Failed to parse link preview" }, { status: 500 })
+    console.error("Error generating link preview:", error)
+    return NextResponse.json({ error: "Failed to generate link preview" }, { status: 500 })
   }
 }
