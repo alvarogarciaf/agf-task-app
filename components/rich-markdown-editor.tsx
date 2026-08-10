@@ -245,14 +245,6 @@ function EditorSurface({
 
     if (isFirstRender.current || htmlToMarkdown(currentHtml) !== htmlToMarkdown(targetHtml)) {
       editorRef.current.innerHTML = targetHtml || "<p><br></p>"
-      
-      // Ensure there is an empty paragraph at the end if the last element is or contains a non-editable card
-      // This allows the user to click below the card and continue typing
-      const lastChild = editorRef.current.lastElementChild
-      if (lastChild && (lastChild.getAttribute("contenteditable") === "false" || lastChild.querySelector('.link-card-wrapper'))) {
-        editorRef.current.insertAdjacentHTML('beforeend', '<p><br></p>')
-      }
-
       isFirstRender.current = false
     }
   }, [value])
@@ -850,6 +842,26 @@ function EditorSurface({
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement
+
+    if (target === editorRef.current) {
+      const lastChild = editorRef.current.lastElementChild;
+      if (lastChild) {
+        const rect = lastChild.getBoundingClientRect();
+        if (e.clientY > rect.bottom) {
+          if (lastChild.tagName === "P" && (lastChild.innerHTML === "<br>" || lastChild.textContent === "")) {
+            placeCaretAtStart(lastChild as HTMLElement);
+          } else {
+            const p = document.createElement("p");
+            p.innerHTML = "<br>";
+            editorRef.current.appendChild(p);
+            placeCaretAtStart(p);
+            syncMarkdown();
+          }
+          return;
+        }
+      }
+    }
+
     if (target instanceof HTMLInputElement && target.classList.contains("md-task-box")) {
       // The native click already toggled `checked`; mirror it onto the
       // attribute so innerHTML serialization (and the markdown) stays in sync.
@@ -941,14 +953,7 @@ function EditorSurface({
           const domain = data.domain || url
           const cardMd = `[card:${title}|${domain}|${finalImageUrl}](${url})`
           const cardHtml = markdownToHtml(cardMd)
-          
-          const isLast = !el.nextSibling
           el.outerHTML = cardHtml
-          
-          if (isLast) {
-            editorRef.current.insertAdjacentHTML('beforeend', '<p><br></p>')
-          }
-          
           syncMarkdown()
         }
       }
@@ -957,13 +962,7 @@ function EditorSurface({
       if (editorRef.current) {
         const el = editorRef.current.querySelector(`#preview-${id}`)
         if (el) {
-          const isLast = !el.nextSibling
           el.outerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-semibold">${url}</a>`
-          
-          if (isLast) {
-            editorRef.current.insertAdjacentHTML('beforeend', '<p><br></p>')
-          }
-          
           syncMarkdown()
         }
       }
