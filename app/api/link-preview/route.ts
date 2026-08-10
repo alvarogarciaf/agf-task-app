@@ -37,7 +37,9 @@ export async function GET(request: Request) {
     try {
       const res = await fetch(url, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+          // Spoof a known social media crawler (WhatsApp) so big sites like Google/Gemini 
+          // serve us the pre-rendered SSR metadata instead of an empty JavaScript payload
+          "User-Agent": "WhatsApp/2.21.12.21 A",
           "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
         },
         signal: AbortSignal.timeout(5000)
