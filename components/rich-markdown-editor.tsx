@@ -227,6 +227,16 @@ function EditorSurface({
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [headingCycleIndex, setHeadingCycleIndex] = useState(0)
 
+  // Floating Context Menu State
+  const [activeLinkMenu, setActiveLinkMenu] = useState<{
+    type: "card" | "link"
+    element: HTMLElement
+    url: string
+    text?: string
+    rect: DOMRect
+  } | null>(null)
+  const [editingLink, setEditingLink] = useState<{ url: string, text: string } | null>(null)
+
   useEffect(() => {
     if (!editorRef.current || isFocusedRef.current) return
 
@@ -821,19 +831,50 @@ function EditorSurface({
       return
     }
 
-    const dismissBtn = target.closest(".dismiss-card") as HTMLElement | null
-    if (dismissBtn) {
+    const cardMenuBtn = target.closest(".card-menu-btn") as HTMLElement | null
+    if (cardMenuBtn) {
       e.preventDefault()
       e.stopPropagation()
-      const url = dismissBtn.getAttribute("data-url")
+      const url = cardMenuBtn.getAttribute("data-url")
       if (url) {
-        const wrapper = dismissBtn.closest(".link-card-wrapper")
+        const wrapper = cardMenuBtn.closest(".link-card-wrapper") as HTMLElement
         if (wrapper) {
-          wrapper.outerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-semibold">${url}</a>`
-          syncMarkdown()
+          const rect = wrapper.getBoundingClientRect()
+          setEditingLink(null)
+          setActiveLinkMenu({
+            type: "card",
+            element: wrapper,
+            url,
+            rect,
+          })
         }
       }
       return
+    }
+
+    const linkEl = target.closest("a:not(.link-card)") as HTMLElement | null
+    if (linkEl) {
+      e.preventDefault()
+      e.stopPropagation()
+      const url = linkEl.getAttribute("href")
+      if (url) {
+        const rect = linkEl.getBoundingClientRect()
+        setEditingLink(null)
+        setActiveLinkMenu({
+          type: "link",
+          element: linkEl,
+          url,
+          text: linkEl.textContent || "",
+          rect,
+        })
+      }
+      return
+    }
+
+    // Close menu if clicking elsewhere in the editor
+    if (activeLinkMenu && !target.closest(".context-menu-popover")) {
+      setActiveLinkMenu(null)
+      setEditingLink(null)
     }
   }
 
@@ -869,7 +910,14 @@ function EditorSurface({
           const domain = data.domain || url
           const cardMd = `[card:${title}|${domain}|${finalImageUrl}](${url})`
           const cardHtml = markdownToHtml(cardMd)
+          
+          const isLast = !el.nextSibling
           el.outerHTML = cardHtml
+          
+          if (isLast) {
+            editorRef.current.insertAdjacentHTML('beforeend', '<p><br></p>')
+          }
+          
           syncMarkdown()
         }
       }
@@ -878,7 +926,13 @@ function EditorSurface({
       if (editorRef.current) {
         const el = editorRef.current.querySelector(`#preview-${id}`)
         if (el) {
+          const isLast = !el.nextSibling
           el.outerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-semibold">${url}</a>`
+          
+          if (isLast) {
+            editorRef.current.insertAdjacentHTML('beforeend', '<p><br></p>')
+          }
+          
           syncMarkdown()
         }
       }
@@ -1149,6 +1203,112 @@ function EditorSurface({
           "[&_.image-resizer]:outline [&_.image-resizer]:outline-transparent hover:[&_.image-resizer]:outline-border/50",
         )}
       />
+
+      {/* Floating Context Menu */}
+      {activeLinkMenu && (
+        <>
+          <div 
+            className="fixed inset-0 z-[99]" 
+            onClick={() => { setActiveLinkMenu(null); setEditingLink(null) }} 
+          />
+          <div
+            className="context-menu-popover fixed z-[100] bg-popover text-popover-foreground rounded-md border shadow-md flex flex-col p-1 w-64 animate-in fade-in zoom-in-95 duration-100"
+            style={{
+              top: Math.min(activeLinkMenu.rect.bottom + 8, typeof window !== 'undefined' ? window.innerHeight - 200 : 0),
+              left: Math.max(16, Math.min(activeLinkMenu.rect.left, typeof window !== 'undefined' ? window.innerWidth - 272 : 0)),
+            }}
+          >
+            {editingLink ? (
+              <div className="p-2 space-y-3">
+                <div className="space-y-1">
+                  <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Text</label>
+                  <input 
+                    value={editingLink.text} 
+                    onChange={(e) => setEditingLink({ ...editingLink, text: e.target.value })} 
+                    className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring" 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">URL</label>
+                  <input 
+                    value={editingLink.url} 
+                    onChange={(e) => setEditingLink({ ...editingLink, url: e.target.value })} 
+                    className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring" 
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button type="button" onClick={() => setEditingLink(null)} className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">Cancel</button>
+                  <button type="button" onClick={() => {
+                    activeLinkMenu.element.textContent = editingLink.text || editingLink.url;
+                    activeLinkMenu.element.setAttribute("href", editingLink.url);
+                    syncMarkdown();
+                    setActiveLinkMenu(null);
+                    setEditingLink(null);
+                  }} className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">Save</button>
+                </div>
+              </div>
+            ) : activeLinkMenu.type === "card" ? (
+              <>
+                <button 
+                  type="button"
+                  className="flex items-center gap-2 rounded-sm px-2 py-3 md:py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                  onClick={() => {
+                    activeLinkMenu.element.outerHTML = `<a href="${activeLinkMenu.url}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-semibold">${activeLinkMenu.url}</a>`;
+                    syncMarkdown();
+                    setActiveLinkMenu(null);
+                  }}
+                >
+                  <span className="flex-1 text-left">Show link only</span>
+                </button>
+                <button 
+                  type="button"
+                  className="flex items-center gap-2 rounded-sm px-2 py-3 md:py-1.5 text-sm outline-none transition-colors hover:bg-destructive/10 text-destructive cursor-pointer"
+                  onClick={() => {
+                    activeLinkMenu.element.remove();
+                    syncMarkdown();
+                    setActiveLinkMenu(null);
+                  }}
+                >
+                  <span className="flex-1 text-left">Delete link</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button 
+                  type="button"
+                  className="flex items-center gap-2 rounded-sm px-2 py-3 md:py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                  onClick={() => {
+                    window.open(activeLinkMenu.url, "_blank");
+                    setActiveLinkMenu(null);
+                  }}
+                >
+                  <span className="flex-1 text-left">Follow link</span>
+                </button>
+                <button 
+                  type="button"
+                  className="flex items-center gap-2 rounded-sm px-2 py-3 md:py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                  onClick={() => {
+                    setEditingLink({ url: activeLinkMenu.url, text: activeLinkMenu.text || "" });
+                  }}
+                >
+                  <span className="flex-1 text-left">Edit link</span>
+                </button>
+                <button 
+                  type="button"
+                  className="flex items-center gap-2 rounded-sm px-2 py-3 md:py-1.5 text-sm outline-none transition-colors hover:bg-destructive/10 text-destructive cursor-pointer"
+                  onClick={() => {
+                    activeLinkMenu.element.remove();
+                    syncMarkdown();
+                    setActiveLinkMenu(null);
+                  }}
+                >
+                  <span className="flex-1 text-left">Delete link</span>
+                </button>
+              </>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }
