@@ -834,6 +834,21 @@ function EditorSurface({
 
   const handleBeforeInput = (e: React.FormEvent<HTMLDivElement>) => {
     const inputEvent = e.nativeEvent as InputEvent
+    
+    // Support Android keyboard paste suggestions which arrive as insertText / insertFromPaste / insertReplacementText
+    if (
+      (inputEvent.inputType === "insertText" || 
+       inputEvent.inputType === "insertFromPaste" || 
+       inputEvent.inputType === "insertReplacementText") && 
+      inputEvent.data
+    ) {
+      if (URL_TOKEN_RE.test(inputEvent.data.trim())) {
+        e.preventDefault()
+        handleUrlPaste(inputEvent.data.trim())
+        return
+      }
+    }
+
     if (inputEvent.inputType !== "insertText" || inputEvent.data !== " ") return
     if (applySpaceShortcuts()) {
       e.preventDefault()

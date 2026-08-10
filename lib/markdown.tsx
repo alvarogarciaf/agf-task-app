@@ -52,7 +52,7 @@ export function markdownToHtml(md: string): string {
       const imgHtml = image 
         ? `<img src="${image}" data-original-src="${image}" class="w-16 h-16 object-cover bg-muted shrink-0 rounded-l-lg" alt="" onerror="this.style.display='none';" />`
         : `<span class="w-16 h-16 bg-muted shrink-0 flex items-center justify-center text-muted-foreground rounded-l-lg"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></span>`;
-      return `<span class="link-card-wrapper flex items-center bg-muted/30 border border-border/50 rounded-lg overflow-hidden my-2 max-w-sm relative" contenteditable="false">` +
+      return `<span class="link-card-wrapper inline-flex align-middle items-center bg-muted/30 border border-border/50 rounded-lg overflow-hidden m-0.5 max-w-[calc(100%-1rem)] relative" contenteditable="false">` +
         `<a href="${url}" target="_blank" rel="noopener noreferrer" class="link-card flex items-center gap-3 flex-1 min-w-0 decoration-transparent text-foreground hover:bg-muted/50 transition-colors">` +
           imgHtml +
           `<span class="flex flex-col min-w-0 py-2 pr-3 text-left">` +
