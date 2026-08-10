@@ -467,7 +467,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   }
 
   const handleAddTag = async (t: Omit<Tag, "id">) => {
-    await db.tags.insert({ id: crypto.randomUUID(), ...t })
+    const id = crypto.randomUUID()
+    await db.tags.insert({ id, ...t })
+    return id
   }
 
   const handleUpdateTag = async (t: Tag) => {
@@ -1062,7 +1064,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       if (doc) await doc.remove()
     },
     onInsertContext: async (c: Omit<Context, "id">) => {
-      await db.contexts.insert({ id: crypto.randomUUID(), ...c })
+      const id = crypto.randomUUID()
+      await db.contexts.insert({ id, ...c })
+      return id
     },
     onPatchContext: async (c: Context) => {
       const doc = await db.contexts.findOne(c.id).exec()
@@ -1357,6 +1361,16 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                   else { handleNavigate("notes"); setInitialProjectId(id) }
                 }}
                 onSelectTag={(id) => { handleNavigate("notes"); setInitialTagId(id) }}
+                onAddContext={async (name) => {
+                  const id = await workspaceContentProps.onInsertContext({ name, icon: "briefcase", color: "#6b7280" })
+                  handleNavigate("all")
+                  setInitialContextId(id)
+                }}
+                onAddTag={async (name) => {
+                  const id = await handleAddTag({ name, icon: "tag", color: "#6b7280" })
+                  handleNavigate("notes")
+                  setInitialTagId(id)
+                }}
                 onSelectView={(id) => { handleNavigate("saved-view", id) }}
               />
             </div>

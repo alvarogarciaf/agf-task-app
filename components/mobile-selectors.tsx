@@ -1,6 +1,6 @@
 "use client"
 
-import { X, FolderClosed, Briefcase, TagIcon, Star } from "lucide-react"
+import { X, FolderClosed, Briefcase, TagIcon, Star, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Context, Project, Tag, SavedView } from "@/lib/types"
 import { ICONS } from "@/lib/constants"
@@ -13,6 +13,8 @@ interface MobileSelectorProps {
   onSelectProject: (id: string) => void
   onSelectTag: (id: string) => void
   onSelectView: (id: string) => void
+  onAddContext?: (name: string) => void
+  onAddTag?: (name: string) => void
   contexts: Context[]
   projects: Project[]
   tags: Tag[]
@@ -27,6 +29,8 @@ export function MobileSelector({
   onSelectProject,
   onSelectTag,
   onSelectView,
+  onAddContext,
+  onAddTag,
   contexts,
   projects,
   tags,
@@ -46,9 +50,26 @@ export function MobileSelector({
 
   const renderContent = () => {
     if (type === "contexts") {
-      if (contexts.length === 0) return <div className="p-8 text-center text-muted-foreground italic text-sm">No contexts found</div>
       return (
         <div className="flex flex-col">
+          {onAddContext && (
+            <button
+              onClick={() => {
+                const name = window.prompt("Enter new context name:")
+                if (name && name.trim()) {
+                  onAddContext(name.trim())
+                  onClose()
+                }
+              }}
+              className="flex items-center gap-3 p-4 border-b border-border hover:bg-accent transition-colors text-left text-primary"
+            >
+              <div className="flex items-center justify-center w-5 h-5 bg-primary/10 rounded-full">
+                <Plus className="w-4 h-4" />
+              </div>
+              <span className="text-[15px] font-medium flex-1">Add Context</span>
+            </button>
+          )}
+          {contexts.length === 0 && !onAddContext && <div className="p-8 text-center text-muted-foreground italic text-sm">No contexts found</div>}
           {contexts.map(c => {
             const Icon = ICONS[c.icon] || Briefcase
             return (
@@ -80,9 +101,26 @@ export function MobileSelector({
     }
 
     if (type === "tags") {
-      if (tags.length === 0) return <div className="p-8 text-center text-muted-foreground italic text-sm">No tags found</div>
       return (
         <div className="flex flex-col">
+          {onAddTag && (
+            <button
+              onClick={() => {
+                const name = window.prompt("Enter new tag name:")
+                if (name && name.trim()) {
+                  onAddTag(name.trim())
+                  onClose()
+                }
+              }}
+              className="flex items-center gap-3 p-4 border-b border-border hover:bg-accent transition-colors text-left text-primary"
+            >
+              <div className="flex items-center justify-center w-5 h-5 bg-primary/10 rounded-full">
+                <Plus className="w-4 h-4" />
+              </div>
+              <span className="text-[15px] font-medium flex-1">Add Tag</span>
+            </button>
+          )}
+          {tags.length === 0 && !onAddTag && <div className="p-8 text-center text-muted-foreground italic text-sm">No tags found</div>}
           {tags.map(t => {
             const Icon = ICONS[t.icon] || TagIcon
             return (

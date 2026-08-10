@@ -69,7 +69,7 @@ interface WorkspaceViewContentProps {
   onAddProject: (p: Omit<Project, "id">) => Promise<void>
   onUpdateProject: (p: Project) => Promise<void>
   onDeleteProject: (id: string) => Promise<void>
-  onAddTag: (t: Omit<Tag, "id">) => Promise<void>
+  onAddTag: (t: Omit<Tag, "id">) => Promise<string>
   onUpdateTag: (t: Tag) => Promise<void>
   onDeleteTag: (id: string) => Promise<void>
   onDeleteAllTasks: () => Promise<void>
@@ -77,7 +77,7 @@ interface WorkspaceViewContentProps {
   onInsertPerson: (p: Omit<Person, "id">) => Promise<void>
   onPatchPerson: (p: Person) => Promise<void>
   onRemovePerson: (id: string) => Promise<void>
-  onInsertContext: (c: Omit<Context, "id">) => Promise<void>
+  onInsertContext: (c: Omit<Context, "id">) => Promise<string>
   onPatchContext: (c: Context) => Promise<void>
   onRemoveContext: (id: string) => Promise<void>
   onInsertUrgency: (u: Omit<UrgencyLevel, "id">) => Promise<void>
