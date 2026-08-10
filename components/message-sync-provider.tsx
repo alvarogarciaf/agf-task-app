@@ -30,6 +30,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
   // Function to hash the shared portion of a task
   const getSharedTaskHash = (task: Partial<Task>) => {
     return objectHash({
+      type: task.type,
       description: task.description,
       details: task.details,
       date_created: task.date_created,
@@ -120,6 +121,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
 
                   if (existingTask) {
                     await existingTask.patch({
+                      type: msg.task.type ?? existingTask.type,
                       description: msg.task.description,
                       details: msg.task.details,
                       date_created: msg.task.date_created,
@@ -135,7 +137,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                     const defaultUrgency = await db.urgencies.findOne().exec();
                     await db.tasks.insert({
                       id: msg.task.id,
-                      type: "task",
+                      type: msg.task.type ?? "task",
                       description: msg.task.description!,
                       details: msg.task.details,
                       date_created: msg.task.date_created!,
@@ -279,6 +281,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
             fromUid: uid,
             task: {
               id: taskData.id,
+              type: taskData.type ?? "task",
               description: taskData.description,
               details: taskData.details ?? null,
               date_created: taskData.date_created,
