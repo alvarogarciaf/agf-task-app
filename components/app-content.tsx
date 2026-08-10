@@ -1211,6 +1211,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                 ? activeTab.route.view
                 : "home"
           }
+          hideMobileTitle={
+            isMobile && !!initialProjectId
+          }
           savedViewName={
             isMobile
               ? savedViews.find((v) => v.id === activeSavedViewId)?.name
@@ -1229,9 +1232,6 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           urgencies={urgencies}
           onUpdateTask={handleUpdateTask}
           desktopTabs={!isMobile}
-          hideMobileTitle={
-            isMobile && !!initialProjectId && (activeView === "all" || mobileSection === "notes")
-          }
           tabBar={
             !isMobile ? (
               <WorkspaceTabBar
