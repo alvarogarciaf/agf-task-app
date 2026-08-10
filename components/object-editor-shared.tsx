@@ -170,6 +170,7 @@ function toPlain(t: Task | null) {
     action_date: data.action_date,
     processed: data.processed,
     status: data.status,
+    bookmarked: data.bookmarked,
     context_ids: [...(data.context_ids || [])].sort(),
     tag_ids: [...(data.tag_ids || [])].sort(),
   }
@@ -300,9 +301,10 @@ export function useObjectDraft({
       const next = { ...prev, [key]: value }
       
       // Immediately autosave non-text fields. Text fields are debounced.
-      if (autosave && key !== "details" && key !== "description") {
+      // Bookmarks always autosave immediately even if autosave is false (e.g. in modal)
+      if ((autosave && key !== "details" && key !== "description") || key === "bookmarked") {
         onUpdate({ ...next, processed: isAutoProcessing ? true : next.processed })
-        setAutosaveStatus("saved")
+        if (autosave) setAutosaveStatus("saved")
       }
       
       return next
