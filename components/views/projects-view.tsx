@@ -268,7 +268,7 @@ export function ProjectsView({
           <div className={cn(
             "grid gap-3",
             viewMode === "grid" 
-              ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+              ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
               : "sm:grid-cols-2 lg:grid-cols-3"
           )}>
         {filtered.map((p) => {
@@ -353,9 +353,6 @@ export function ProjectsView({
                      <span className="flex items-center gap-1">
                         <ListChecks className="h-3.5 w-3.5" /> {pct}%
                      </span>
-                   </div>
-                   <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-background/50 backdrop-blur">
-                     <div className="h-full bg-primary transition-all duration-500" style={{ width: `${pct}%` }} />
                    </div>
                 </div>
               </div>
@@ -464,31 +461,14 @@ export function ProjectsView({
                 </div>
               </div>
               <div>
-                {p.details ? (
+            {p.details ? (
                   <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{p.details}</p>
                 ) : null}
               </div>
 
-              <div className="mt-auto">
-                <div className="mb-1 flex items-center justify-between font-mono text-[10px] text-muted-foreground">
-                  <span>
-                    {done}/{projTasks.length} done
-                  </span>
-                  <span>{pct}%</span>
-                </div>
-                <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-all",
-                      p.status === "Ongoing" ? "bg-primary" : "bg-muted-foreground/40",
-                    )}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <Circle className="h-3 w-3" />
-                  {open} open · click to drill in
-                </div>
+              <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <Circle className="h-3 w-3" />
+                {open} open · {done} done · click to drill in
               </div>
             </div>
           )

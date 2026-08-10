@@ -1331,7 +1331,14 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                     </div>
                     <NotesMobileNav
                       active={mobileSelectorType || (initialTagId ? "tags" : initialProjectId ? "projects" : activeView === "bookmarks" ? "bookmarks" : "notes")}
-                      onChange={(k) => { setInitialTagId(undefined); setInitialProjectId(undefined); handleNavigate(k) }}
+                      onChange={(k) => { 
+                        setInitialTagId(undefined); 
+                        setInitialProjectId(undefined); 
+                        handleNavigate(k);
+                        if (k === "projects") {
+                          emblaApi?.scrollTo(0);
+                        }
+                      }}
                       onOpenSelector={setMobileSelectorType}
                     />
                   </div>
