@@ -245,6 +245,14 @@ function EditorSurface({
 
     if (isFirstRender.current || htmlToMarkdown(currentHtml) !== htmlToMarkdown(targetHtml)) {
       editorRef.current.innerHTML = targetHtml || "<p><br></p>"
+      
+      // Ensure there is an empty paragraph at the end if the last element is non-editable (like a card)
+      // This allows the user to click below the card and continue typing
+      const lastChild = editorRef.current.lastElementChild
+      if (lastChild && lastChild.getAttribute("contenteditable") === "false") {
+        editorRef.current.insertAdjacentHTML('beforeend', '<p><br></p>')
+      }
+
       isFirstRender.current = false
     }
   }, [value])
