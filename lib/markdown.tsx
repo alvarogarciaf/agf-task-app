@@ -63,7 +63,7 @@ export function markdownToHtml(md: string): string {
         `<span class="card-menu-btn flex items-center justify-center p-1.5 mr-1 cursor-pointer rounded text-muted-foreground hover:text-foreground hover:bg-foreground/10 shrink-0" role="button" tabindex="0" aria-label="Menu" data-url="${url}">` +
           `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>` +
         `</span>` +
-      `</span>`;
+      `</span>&#8203;`;
     });
 
     // Links [text](url) - Note: simple regex, but since we run this after images, `![alt](url)` could be problematic if we don't differentiate.
@@ -178,7 +178,7 @@ function nodeToMarkdown(node: Node): string {
   let result = "";
 
   if (node.nodeType === Node.TEXT_NODE) {
-    return node.nodeValue || "";
+    return (node.nodeValue || "").replace(/\u200b/g, "");
   }
 
   if (node.nodeType === Node.ELEMENT_NODE) {

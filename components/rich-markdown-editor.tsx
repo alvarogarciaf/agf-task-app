@@ -967,7 +967,7 @@ function EditorSurface({
           const title = (data.title || data.domain || url).replace(/\|/g, "-")
           const domain = data.domain || url
           const cardMd = `[card:${title}|${domain}|${finalImageUrl}](${url})`
-          const cardHtml = markdownToHtml(cardMd)
+          const cardHtml = markdownToHtml(cardMd).replace(/^<p[^>]*>/, "").replace(/<\/p>$/, "")
           el.outerHTML = cardHtml
           syncMarkdown()
         }
@@ -1204,6 +1204,7 @@ function EditorSurface({
         }}
         onBlur={() => {
           isFocusedRef.current = false
+          syncMarkdown()
           handleInput()
           // Delay hiding toolbar so toolbar button taps don't cause a flash
           blurTimeoutRef.current = setTimeout(() => {
