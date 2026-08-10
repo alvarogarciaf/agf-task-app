@@ -49,6 +49,9 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
       details: project.details,
       status: project.status,
       linked_person_id: project.linked_person_id,
+      icon: project.icon,
+      color: project.color,
+      background_image: project.background_image,
     });
   };
 
@@ -178,6 +181,9 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                     details: msg.project.details,
                     status: msg.project.status as any,
                     linked_person_id: incomingLinkedPersonId,
+                    icon: msg.project.icon ?? null,
+                    color: msg.project.color ?? null,
+                    background_image: msg.project.background_image ?? null,
                   };
 
                   const hash = getSharedProjectHash(localProjRepresent);
@@ -401,6 +407,9 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
               details: projectData.details ?? null,
               status: projectData.status,
               linked_person_id: projectData.linked_person_id ? person.id : null,
+              icon: projectData.icon ?? null,
+              color: projectData.color ?? null,
+              background_image: projectData.background_image ?? null,
             },
             timestamp: serverTimestamp()
           });
