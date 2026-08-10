@@ -1112,7 +1112,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const renderMobileNotesContent = () => (
     <WorkspaceViewContent
       {...workspaceContentProps}
-      route={{ kind: "view", view: "notes" }}
+      route={{ kind: "view", view: activeView === "bookmarks" ? "bookmarks" : "notes" }}
       ui={{
         initialTagId,
         initialProjectId: mobileSection === "notes" ? initialProjectId : undefined,
@@ -1205,7 +1205,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             isMobile
               ? (mobileSection === "tasks" 
                   ? (activeView === "all" && initialContextId ? "contexts" : activeView === "all" && initialProjectId ? "projects" : activeView)
-                  : (initialTagId ? "tags" : initialProjectId ? "projects" : "notes")) as ViewKey
+                  : (initialTagId ? "tags" : initialProjectId ? "projects" : activeView === "bookmarks" ? "bookmarks" : "notes")) as ViewKey
               : activeTab.route.kind === "view"
                 ? activeTab.route.view
                 : "home"
@@ -1330,7 +1330,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                       {renderMobileNotesContent()}
                     </div>
                     <NotesMobileNav
-                      active={mobileSelectorType || (initialTagId ? "tags" : initialProjectId ? "projects" : "notes")}
+                      active={mobileSelectorType || (initialTagId ? "tags" : initialProjectId ? "projects" : activeView === "bookmarks" ? "bookmarks" : "notes")}
                       onChange={(k) => { setInitialTagId(undefined); setInitialProjectId(undefined); handleNavigate(k) }}
                       onOpenSelector={setMobileSelectorType}
                     />
