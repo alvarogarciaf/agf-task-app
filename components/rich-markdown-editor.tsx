@@ -246,10 +246,10 @@ function EditorSurface({
     if (isFirstRender.current || htmlToMarkdown(currentHtml) !== htmlToMarkdown(targetHtml)) {
       editorRef.current.innerHTML = targetHtml || "<p><br></p>"
       
-      // Ensure there is an empty paragraph at the end if the last element is non-editable (like a card)
+      // Ensure there is an empty paragraph at the end if the last element is or contains a non-editable card
       // This allows the user to click below the card and continue typing
       const lastChild = editorRef.current.lastElementChild
-      if (lastChild && lastChild.getAttribute("contenteditable") === "false") {
+      if (lastChild && (lastChild.getAttribute("contenteditable") === "false" || lastChild.querySelector('.link-card-wrapper'))) {
         editorRef.current.insertAdjacentHTML('beforeend', '<p><br></p>')
       }
 
@@ -261,13 +261,19 @@ function EditorSurface({
   useEffect(() => {
     if (!isMobile || typeof window === 'undefined' || !window.visualViewport) return;
     
+    let previousHeight = window.visualViewport.height;
+
     const handleResize = () => {
-      // If visual viewport height is very close to innerHeight, keyboard is likely closed
-      if (window.visualViewport!.height >= window.innerHeight - 100) {
+      const currentHeight = window.visualViewport!.height;
+      
+      // If the height increased by a large amount (e.g., > 100px), the keyboard likely closed
+      if (currentHeight - previousHeight > 100) {
         if (document.activeElement === editorRef.current) {
           editorRef.current?.blur();
         }
       }
+      
+      previousHeight = currentHeight;
     };
 
     window.visualViewport.addEventListener('resize', handleResize);

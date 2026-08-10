@@ -225,6 +225,7 @@ export function WorkspaceViewContent({
           onUpdateProject={onUpdateProject}
           onDeleteProject={onDeleteProject}
           initialSelectedId={ui.initialProjectId}
+          onSelect={(id) => onUpdateUi?.({ initialProjectId: id || undefined })}
         />
       )
     case "contexts":

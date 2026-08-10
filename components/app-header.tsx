@@ -58,6 +58,7 @@ interface AppHeaderProps {
   tabPortalContainer?: HTMLElement | null
   onExpandFullScreen?: (taskId: string, mode: "view" | "edit") => void
   mobileCenterContent?: React.ReactNode
+  hideMobileTitle?: boolean
 }
 
 export function AppHeader({
@@ -81,6 +82,7 @@ export function AppHeader({
   tabPortalContainer = null,
   onExpandFullScreen,
   mobileCenterContent,
+  hideMobileTitle,
 }: AppHeaderProps) {
   const title = view === "saved-view" ? savedViewName || "Saved View" : TITLES[view]
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -314,7 +316,7 @@ export function AppHeader({
       </div>
 
       {/* Second row for Mobile Title */}
-      {!desktopTabs && (
+      {!desktopTabs && !hideMobileTitle && (
         <div className="flex items-center px-4 pb-2 md:hidden">
           <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
         </div>

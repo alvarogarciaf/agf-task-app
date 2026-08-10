@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ArrowLeft, FolderKanban, FileText, ListChecks, Circle, Dot, Plus, Trash2, StickyNote, Pencil, LayoutGrid, List, Image as ImageIcon, Loader2 } from "lucide-react"
+import { ArrowLeft, FolderKanban, FileText, ListChecks, Circle, Dot, Plus, Trash2, StickyNote, Pencil, LayoutGrid, List, Image as ImageIcon, Loader2, Star } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useDatabase } from "@/components/db-provider"
 import { FilteredTasks } from "@/components/filtered-tasks"
 import { TaskDetailDialog } from "@/components/task-detail-dialog"
 import {
@@ -66,6 +67,7 @@ interface ProjectsViewProps {
   onUpdateProject: (project: Project) => void
   onDeleteProject: (id: string) => void
   initialSelectedId?: string
+  onSelect?: (id: string | null) => void
 }
 
 export function ProjectsView({
@@ -87,7 +89,9 @@ export function ProjectsView({
   onUpdateProject,
   onDeleteProject,
   initialSelectedId,
+  onSelect,
 }: ProjectsViewProps) {
+  const db = useDatabase()
   const [selected, setSelected] = useState<string | null>(initialSelectedId || null)
   const [statusFilter, setStatusFilter] = useState<"Ongoing" | "Closed" | "All">("Ongoing")
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
@@ -111,15 +115,19 @@ export function ProjectsView({
     const urlProj = params.get("project")
     if (urlProj) {
       setSelected(urlProj)
+      onSelect?.(urlProj)
     } else {
       setSelected(initialSelectedId || null)
+      onSelect?.(initialSelectedId || null)
     }
   }, [initialSelectedId])
 
   useEffect(() => {
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search)
-      setSelected(params.get("project") || initialSelectedId || null)
+      const id = params.get("project") || initialSelectedId || null
+      setSelected(id)
+      onSelect?.(id)
     }
     window.addEventListener("popstate", handlePopState)
     return () => window.removeEventListener("popstate", handlePopState)
@@ -127,6 +135,7 @@ export function ProjectsView({
 
   const handleSelect = (id: string | null) => {
     setSelected(id)
+    onSelect?.(id)
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search)
       if (id) {
@@ -371,6 +380,32 @@ export function ProjectsView({
                       <Edit2 className="h-3.5 w-3.5 mr-2" />
                       Edit
                     </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={async () => {
+                        if (!db) return
+                        const existing = await db.saved_views.find().exec()
+                        const maxOrder = existing.reduce((max, v) => Math.max(max, v.order || 0), -1)
+                        await db.saved_views.insert({
+                          id: crypto.randomUUID(),
+                          name: p.name,
+                          icon: p.icon || "FolderKanban",
+                          color: p.color || "",
+                          context_ids: [],
+                          project_id: p.id,
+                          show_status: "open",
+                          is_grouped_by_project: false,
+                          show_hidden_by_show_on: false,
+                          sort_key: "date_created",
+                          sort_direction: "desc",
+                          date_created: new Date().toISOString(),
+                          order: maxOrder + 1,
+                        })
+                        toast.success("Added to Views")
+                      }}
+                    >
+                      <Star className="h-3.5 w-3.5 mr-2" />
+                      Add to Views
+                    </DropdownMenuItem>
                     {(() => {
                       const hasItems = tasks.some((t) => t.project_id === p.id) || notes.some((n) => n.project_id === p.id)
                       return (
@@ -518,6 +553,7 @@ function ProjectDetail({
   onDeleteProject: (id: string) => void
   onEdit: () => void
 }) {
+  const db = useDatabase()
   const [tab, setTab] = useState<"tasks" | "notes" | "description">("tasks")
   const projTasks = tasks.filter((t) => t.project_id === project.id && t.processed)
   const projNotes = notes.filter((n) => n.project_id === project.id)
@@ -587,6 +623,35 @@ function ProjectDetail({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            title="Save to Favorite Views"
+            onClick={async () => {
+              if (!db) return
+              const existing = await db.saved_views.find().exec()
+              const maxOrder = existing.reduce((max, v) => Math.max(max, v.order || 0), -1)
+              await db.saved_views.insert({
+                id: crypto.randomUUID(),
+                name: project.name,
+                icon: project.icon || "FolderKanban",
+                color: project.color || "",
+                context_ids: [],
+                project_id: project.id,
+                show_status: "open",
+                is_grouped_by_project: false,
+                show_hidden_by_show_on: false,
+                sort_key: "date_created",
+                sort_direction: "desc",
+                date_created: new Date().toISOString(),
+                order: maxOrder + 1,
+              })
+              toast.success("Added to Views")
+            }}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Star className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Add to Views</span>
+          </button>
           <button
             type="button"
             onClick={onEdit}

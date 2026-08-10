@@ -1228,6 +1228,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           urgencies={urgencies}
           onUpdateTask={handleUpdateTask}
           desktopTabs={!isMobile}
+          hideMobileTitle={
+            isMobile && !!initialProjectId && (activeView === "all" || mobileSection === "notes")
+          }
           tabBar={
             !isMobile ? (
               <WorkspaceTabBar
