@@ -640,6 +640,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   }, [])
 
   const handleNavigate = (view: ViewKey, savedViewId?: string, settingsTab?: TabKey, objectId?: string, uiPatch?: Partial<TabUiState>) => {
+    if (typeof window !== "undefined" && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+
     let finalView = view
     let finalSavedViewId = savedViewId
     let finalUiPatch = uiPatch || {}
@@ -712,6 +716,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
 
   const navigateActiveTab = useCallback(
     (view: ViewKey, savedViewId?: string, settingsTab?: TabKey, objectId?: string, uiPatch?: Partial<TabUiState>) => {
+      if (typeof window !== "undefined" && document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur()
+      }
+
       let finalView = view
       let finalSavedViewId = savedViewId
       let finalUiPatch = uiPatch || {}
