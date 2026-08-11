@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback, useEffect, memo } from "react"
 import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock, Eye, Pencil, FileText, ArrowLeftRight, ArrowUpRight } from "lucide-react"
 import { ProjectChip, ProjectOptionIcon } from "@/components/project-select"
 import { toast } from "sonner"
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Checkbox } from "@/components/ui/checkbox"
@@ -161,7 +161,7 @@ function SortableTableRow(props: any) {
         return React.cloneElement(child as any, {
           children: (
             <div className="flex items-center gap-1">
-              <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-1 shrink-0"><MoreVertical className="h-4 w-4" /></div>
+              <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-1 shrink-0 touch-none"><MoreVertical className="h-4 w-4" /></div>
               {(child as any).props.children}
             </div>
           )
@@ -170,8 +170,13 @@ function SortableTableRow(props: any) {
       return child;
     });
   }
+  const bindProps = props.isMobile && props.showDragHandle ? { ...attributes, ...listeners } : {};
 
-  return <tr ref={setNodeRef} style={style} className={props.className}>{renderedChildren}</tr>;
+  return (
+    <tr ref={setNodeRef} style={style} className={props.className} {...bindProps}>
+      {renderedChildren}
+    </tr>
+  );
 }
 
 export const TasksTable = memo(function TasksTable({
@@ -271,18 +276,28 @@ export const TasksTable = memo(function TasksTable({
   const allVisibleIds = tasks.map(t => t.id)
   const isAllSelected = allVisibleIds.length > 0 && allVisibleIds.every(id => selectedIds.has(id))
   const isSomeSelected = allVisibleIds.some(id => selectedIds.has(id)) && !isAllSelected
+  const [optimisticTasks, setOptimisticTasks] = useState(tasks)
+  useEffect(() => {
+    setOptimisticTasks(tasks)
+  }, [tasks])
 
   const foundTask = activeTaskId ? tasks.find((t) => t.id === activeTaskId) : null
   const activeTask = foundTask ?? convertedTaskFallback
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
   const handleDragEndRow = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
+      setOptimisticTasks((prev) => {
+        const oldIndex = prev.findIndex(t => t.id === active.id)
+        const newIndex = prev.findIndex(t => t.id === over.id)
+        return arrayMove(prev, oldIndex, newIndex)
+      })
       onReorderTasks?.(active.id as string, over.id as string);
     }
   }
@@ -627,16 +642,21 @@ export const TasksTable = memo(function TasksTable({
                 })}
               </tr>
             </thead>
-            <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={optimisticTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
 <tbody className="bg-card">
-              {tasks.map((task) => {
+              {optimisticTasks.map((task) => {
                 const project = projects.find((p) => p.id === task.project_id)
                 const person = persons.find((p) => p.id === task.person_id)
                 const tCtx = contexts.filter((c) => (task.context_ids || []).includes(c.id))
                 const tTags = tags.filter((tg) => (task.tag_ids || []).includes(tg.id))
                 const urgency = urgencies.find((u) => u.id === task.urgency_id)
                 return (
-                  <SortableTableRow key={task.id} task={task} showDragHandle={sortConfig?.key === "urgency"} className={cn(
+                  <SortableTableRow 
+                    key={task.id} 
+                    task={task} 
+                    showDragHandle={sortConfig?.key === "urgency"} 
+                    isMobile={isMobile}
+                    className={cn(
                       "group border-b border-border/60 last:border-b-0 transition-colors hover:bg-muted/30 select-none",
                       selectedIds.has(task.id) && "bg-primary/5 hover:bg-primary/10"
                     )}

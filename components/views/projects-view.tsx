@@ -232,7 +232,12 @@ export function ProjectsView({
     setEditingProject(null)
   }
 
-  
+  const [optimisticProjects, setOptimisticProjects] = useState(projects)
+
+  useEffect(() => {
+    setOptimisticProjects(projects)
+  }, [projects])
+
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
@@ -242,11 +247,17 @@ export function ProjectsView({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
+      setOptimisticProjects((prev) => {
+        const sorted = [...prev].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        const oldIndex = sorted.findIndex(p => p.id === active.id)
+        const newIndex = sorted.findIndex(p => p.id === over.id)
+        return arrayMove(sorted, oldIndex, newIndex).map((p, i) => ({ ...p, order: i }))
+      })
       onReorderProjects?.(active.id as string, over.id as string);
     }
   };
 
-  const filtered = projects.filter((p) => statusFilter === "All" || p.status === statusFilter).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  const filtered = optimisticProjects.filter((p) => statusFilter === "All" || p.status === statusFilter).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   
 
   return (
