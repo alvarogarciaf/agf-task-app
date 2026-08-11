@@ -143,7 +143,25 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     return () => window.removeEventListener("popstate", handlePopState)
   }, [])
 
-
+  // Auto-upgrade project bookmarks to native project view
+  useEffect(() => {
+    if (activeView === "saved-view" && activeSavedViewId && savedViews.length > 0) {
+      const sv = savedViews.find(v => v.id === activeSavedViewId)
+      if (sv && sv.project_id && sv.context_ids.length === 0 && !sv.person_id) {
+        setActiveView("projects")
+        setActiveSavedViewId(null)
+        setInitialProjectId(sv.project_id)
+        
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search)
+          params.set("view", "projects")
+          params.delete("savedViewId")
+          const newUrl = `${window.location.pathname}?${params.toString()}`
+          window.history.replaceState(null, "", newUrl)
+        }
+      }
+    }
+  }, [activeView, activeSavedViewId, savedViews])
 
   // Global Backspace navigation when not in an input
   useEffect(() => {
@@ -614,25 +632,40 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   tabsRef.current = tabs
   const activeTabIdRef = useRef(activeTabId)
   activeTabIdRef.current = activeTabId
+  const savedViewsRef = useRef(savedViews)
+  savedViewsRef.current = savedViews
 
   const resetToolbar = useCallback(() => {
     setTabToolbar({ canAdd: false, addLabel: "", onAdd: null })
   }, [])
 
   const handleNavigate = (view: ViewKey, savedViewId?: string, settingsTab?: TabKey, objectId?: string, uiPatch?: Partial<TabUiState>) => {
-    setInitialContextId(uiPatch?.initialContextId ?? undefined)
-    setInitialPersonId(uiPatch?.initialPersonId ?? undefined)
-    setInitialTagId(uiPatch?.initialTagId ?? undefined)
-    setInitialProjectId(uiPatch?.initialProjectId ?? undefined)
-    setActiveView(view)
-    setActiveSavedViewId(savedViewId || null)
+    let finalView = view
+    let finalSavedViewId = savedViewId
+    let finalUiPatch = uiPatch || {}
+
+    if (view === "saved-view" && savedViewId) {
+      const sv = savedViewsRef.current.find(v => v.id === savedViewId)
+      if (sv && sv.project_id && sv.context_ids.length === 0 && !sv.person_id) {
+        finalView = "projects"
+        finalSavedViewId = undefined
+        finalUiPatch = { ...finalUiPatch, initialProjectId: sv.project_id }
+      }
+    }
+
+    setInitialContextId(finalUiPatch.initialContextId ?? undefined)
+    setInitialPersonId(finalUiPatch.initialPersonId ?? undefined)
+    setInitialTagId(finalUiPatch.initialTagId ?? undefined)
+    setInitialProjectId(finalUiPatch.initialProjectId ?? undefined)
+    setActiveView(finalView)
+    setActiveSavedViewId(finalSavedViewId || null)
     if (settingsTab) setActiveSettingsTab(settingsTab)
     setMobileSelectorType(null)
 
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search)
-      params.set("view", view)
-      if (savedViewId) params.set("savedViewId", savedViewId)
+      params.set("view", finalView)
+      if (finalSavedViewId) params.set("savedViewId", finalSavedViewId)
       else params.delete("savedViewId")
       if (settingsTab) params.set("tab", settingsTab)
       else params.delete("tab")
@@ -679,11 +712,24 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
 
   const navigateActiveTab = useCallback(
     (view: ViewKey, savedViewId?: string, settingsTab?: TabKey, objectId?: string, uiPatch?: Partial<TabUiState>) => {
-      navigateTab(activeTabId, view, savedViewId, settingsTab, true, objectId, uiPatch)
+      let finalView = view
+      let finalSavedViewId = savedViewId
+      let finalUiPatch = uiPatch || {}
+
+      if (view === "saved-view" && savedViewId) {
+        const sv = savedViewsRef.current.find(v => v.id === savedViewId)
+        if (sv && sv.project_id && sv.context_ids.length === 0 && !sv.person_id) {
+          finalView = "projects"
+          finalSavedViewId = undefined
+          finalUiPatch = { ...finalUiPatch, initialProjectId: sv.project_id }
+        }
+      }
+
+      navigateTab(activeTabId, finalView, finalSavedViewId, settingsTab, true, objectId, finalUiPatch)
       syncUrlToRoute({
         kind: "view",
-        view,
-        savedViewId: savedViewId ?? null,
+        view: finalView,
+        savedViewId: finalSavedViewId ?? null,
         settingsTab,
       })
     },
