@@ -1443,6 +1443,8 @@ const MobileTaskRow = memo(function MobileTaskRow({
             {...listeners} 
             className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-muted active:bg-muted cursor-grab active:cursor-grabbing touch-none"
             onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
           >
             <GripVertical className="h-4 w-4" />
           </div>
