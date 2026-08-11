@@ -611,22 +611,41 @@ function EditorSurface({
     const { block, range, textBefore } = ctx
 
     const tokenMatch = textBefore.match(/(\S+)$/)
-    if (tokenMatch && !isInsideAnchor(range.startContainer)) {
+    const anchor = getEnclosingAnchor(range.startContainer)
+    if (tokenMatch && (!anchor || anchor.getAttribute("contenteditable") !== "false")) {
       const token = tokenMatch[1]
       if (URL_TOKEN_RE.test(token)) {
         const tokenStart = textBefore.length - token.length
         const startPos = locateTextPosition(block, tokenStart)
-        if (!startPos || isInsideAnchor(startPos.node)) return false
+        if (!startPos) return false
+
+        const startAnchor = getEnclosingAnchor(startPos.node)
+        if (startAnchor && startAnchor.getAttribute("contenteditable") === "false") {
+          return false
+        }
 
         const deleteRange = document.createRange()
-        deleteRange.setStart(startPos.node, startPos.offset)
-        deleteRange.setEnd(range.startContainer, range.startOffset)
+        if (startAnchor && startAnchor.textContent?.trim() === token) {
+          deleteRange.selectNode(startAnchor)
+        } else {
+          deleteRange.setStart(startPos.node, startPos.offset)
+          deleteRange.setEnd(range.startContainer, range.startOffset)
+        }
         deleteRange.deleteContents()
 
         const sel = window.getSelection()
         if (sel) {
           const caret = document.createRange()
-          caret.setStart(startPos.node, startPos.offset)
+          // If we deleted the anchor, startPos.node might be detached.
+          // But since we just inserted the URL placeholder, we can just let handleUrlPaste
+          // put the cursor in the right place, or place it at the end of the block for now.
+          // Actually, if we deleted the anchor, we can't use startPos.node.
+          // Let's rely on the browser's selection which is usually right before the space, 
+          // or we can just fall back to the block.
+          // Since handleUrlPaste uses document.execCommand("insertHTML"), it will insert at the current cursor!
+          // So we need to make sure the cursor is where we deleted.
+          // When we deleteContents(), the range collapses to the deletion point!
+          caret.setStart(deleteRange.startContainer, deleteRange.startOffset)
           caret.collapse(true)
           sel.removeAllRanges()
           sel.addRange(caret)
@@ -684,22 +703,32 @@ function EditorSurface({
     // Extract the word immediately before the space
     const textWithoutSpace = textBefore.slice(0, -1)
     const tokenMatch = textWithoutSpace.match(/(\S+)$/)
-    if (tokenMatch && !isInsideAnchor(range.startContainer)) {
+    const anchor = getEnclosingAnchor(range.startContainer)
+    if (tokenMatch && (!anchor || anchor.getAttribute("contenteditable") !== "false")) {
       const token = tokenMatch[1]
       if (URL_TOKEN_RE.test(token)) {
         const tokenStart = textWithoutSpace.length - token.length
         const startPos = locateTextPosition(block, tokenStart)
-        if (!startPos || isInsideAnchor(startPos.node)) return false
+        if (!startPos) return false
+
+        const startAnchor = getEnclosingAnchor(startPos.node)
+        if (startAnchor && startAnchor.getAttribute("contenteditable") === "false") {
+          return false
+        }
 
         const deleteRange = document.createRange()
-        deleteRange.setStart(startPos.node, startPos.offset)
-        deleteRange.setEnd(range.startContainer, range.startOffset)
+        if (startAnchor && startAnchor.textContent?.trim() === token) {
+          deleteRange.selectNode(startAnchor)
+        } else {
+          deleteRange.setStart(startPos.node, startPos.offset)
+          deleteRange.setEnd(range.startContainer, range.startOffset)
+        }
         deleteRange.deleteContents()
 
         const sel = window.getSelection()
         if (sel) {
           const caret = document.createRange()
-          caret.setStart(startPos.node, startPos.offset)
+          caret.setStart(deleteRange.startContainer, deleteRange.startOffset)
           caret.collapse(true)
           sel.removeAllRanges()
           sel.addRange(caret)
@@ -721,22 +750,32 @@ function EditorSurface({
     const { block, range, textBefore, textAfter } = ctx
 
     const tokenMatch = textBefore.match(/(\S+)$/)
-    if (tokenMatch && !isInsideAnchor(range.startContainer)) {
+    const anchor = getEnclosingAnchor(range.startContainer)
+    if (tokenMatch && (!anchor || anchor.getAttribute("contenteditable") !== "false")) {
       const token = tokenMatch[1]
       if (URL_TOKEN_RE.test(token)) {
         const tokenStart = textBefore.length - token.length
         const startPos = locateTextPosition(block, tokenStart)
-        if (!startPos || isInsideAnchor(startPos.node)) return false
+        if (!startPos) return false
+
+        const startAnchor = getEnclosingAnchor(startPos.node)
+        if (startAnchor && startAnchor.getAttribute("contenteditable") === "false") {
+          return false
+        }
 
         const deleteRange = document.createRange()
-        deleteRange.setStart(startPos.node, startPos.offset)
-        deleteRange.setEnd(range.startContainer, range.startOffset)
+        if (startAnchor && startAnchor.textContent?.trim() === token) {
+          deleteRange.selectNode(startAnchor)
+        } else {
+          deleteRange.setStart(startPos.node, startPos.offset)
+          deleteRange.setEnd(range.startContainer, range.startOffset)
+        }
         deleteRange.deleteContents()
 
         const sel = window.getSelection()
         if (sel) {
           const caret = document.createRange()
-          caret.setStart(startPos.node, startPos.offset)
+          caret.setStart(deleteRange.startContainer, deleteRange.startOffset)
           caret.collapse(true)
           sel.removeAllRanges()
           sel.addRange(caret)
@@ -805,15 +844,15 @@ function EditorSurface({
     return false
   }
 
-  const isInsideAnchor = (n: Node | null): boolean => {
+  const getEnclosingAnchor = (n: Node | null): HTMLAnchorElement | null => {
     let cur: Node | null = n
     while (cur && cur !== editorRef.current) {
       if (cur.nodeType === Node.ELEMENT_NODE && (cur as HTMLElement).tagName === "A") {
-        return true
+        return cur as HTMLAnchorElement
       }
       cur = cur.parentNode
     }
-    return false
+    return null
   }
 
   const placeCaretAtStart = (el: Node) => {
