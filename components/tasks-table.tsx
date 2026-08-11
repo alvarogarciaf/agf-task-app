@@ -158,7 +158,7 @@ function SortableTableRow(props: any) {
   if (props.showDragHandle) {
     renderedChildren = React.Children.map(props.children, (child, index) => {
       if (index === 0) {
-        return React.cloneElement(child as React.ReactElement, {
+        return React.cloneElement(child as any, {
           children: (
             <div className="flex items-center gap-1">
               <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-1 shrink-0"><MoreVertical className="h-4 w-4" /></div>

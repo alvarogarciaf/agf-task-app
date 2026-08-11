@@ -443,6 +443,41 @@ export function FilteredTasks({
     })
   }
 
+  const handleReorderTasks = async (activeId: string, overId: string) => {
+    if (!db) return
+    let taskList = filtered
+    if (groupedByProject) {
+      const group = groupedByProject.find((g) => g.tasks.some((t) => t.id === activeId))
+      if (group && group.tasks.some((t) => t.id === overId)) {
+        taskList = group.tasks
+      } else {
+        return // dragging across groups not supported here
+      }
+    }
+    
+    const oldIndex = taskList.findIndex((t) => t.id === activeId)
+    const newIndex = taskList.findIndex((t) => t.id === overId)
+    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return
+
+    const newItems = Array.from(taskList)
+    const [moved] = newItems.splice(oldIndex, 1)
+    newItems.splice(newIndex, 0, moved)
+
+    try {
+      const updates = newItems.map((item, index) => {
+        if (item.order !== index) {
+          return db.tasks.findOne(item.id).exec().then((doc) => {
+            if (doc) return doc.incrementalPatch({ order: index })
+          })
+        }
+        return Promise.resolve()
+      })
+      await Promise.all(updates)
+    } catch (err) {
+      console.error("Failed to reorder tasks", err)
+    }
+  }
+
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0 || !onDeleteTask) return
 
@@ -968,6 +1003,7 @@ export function FilteredTasks({
                   onToggleSelection={handleToggleSelection}
                   onToggleAll={handleToggleAllSelection}
                   onBulkDelete={handleBulkDelete}
+                  onReorderTasks={handleReorderTasks}
                   hideToolbar
                   isNested={true}
                 />
@@ -1003,6 +1039,7 @@ export function FilteredTasks({
             onToggleSelection={handleToggleSelection}
             onToggleAll={handleToggleAllSelection}
             onBulkDelete={handleBulkDelete}
+            onReorderTasks={handleReorderTasks}
             hideToolbar
           />
         )}

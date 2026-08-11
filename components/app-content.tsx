@@ -461,10 +461,50 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }
   }
 
-  const handleDeleteProject = async (id: string) => {
-    const doc = await db.projects.findOne(id).exec()
-    if (doc) await doc.remove()
-  }
+  const handleDeleteProject = useCallback(
+    async (id: string) => {
+      if (!db) return
+      try {
+        const doc = await db.projects.findOne(id).exec()
+        if (doc) await doc.remove()
+        
+        // Ensure no task continues linked to a deleted project
+        const tasksToUpdate = await db.tasks.find({ selector: { project_id: id } }).exec()
+        await Promise.all(tasksToUpdate.map(t => t.incrementalPatch({ project_id: null })))
+      } catch (err) {
+        console.error("Failed to delete project", err)
+      }
+    },
+    [db],
+  )
+
+  const handleReorderProjects = useCallback(
+    async (activeId: string, overId: string) => {
+      if (!db) return
+      const oldIndex = projects.findIndex(p => p.id === activeId)
+      const newIndex = projects.findIndex(p => p.id === overId)
+      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return
+
+      const newItems = Array.from(projects)
+      const [moved] = newItems.splice(oldIndex, 1)
+      newItems.splice(newIndex, 0, moved)
+
+      try {
+        const updates = newItems.map((item, index) => {
+          if (item.order !== index) {
+            return db.projects.findOne(item.id).exec().then(doc => {
+              if (doc) return doc.incrementalPatch({ order: index })
+            })
+          }
+          return Promise.resolve()
+        })
+        await Promise.all(updates)
+      } catch (err) {
+        console.error("Failed to reorder projects", err)
+      }
+    },
+    [db, projects],
+  )
 
   const handleAddTag = async (t: Omit<Tag, "id">) => {
     const id = crypto.randomUUID()
@@ -1044,6 +1084,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     onAddProject: handleAddProject,
     onUpdateProject: handleUpdateProject,
     onDeleteProject: handleDeleteProject,
+    onReorderProjects: handleReorderProjects,
     onAddTag: handleAddTag,
     onUpdateTag: handleUpdateTag,
     onDeleteTag: handleDeleteTag,

@@ -1,6 +1,30 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
+
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  TouchSensor,
+  MouseSensor,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+
 import { ArrowLeft, FolderKanban, FileText, ListChecks, Circle, Dot, Plus, Trash2, StickyNote, Pencil, LayoutGrid, List, Image as ImageIcon, Loader2, Star } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useDatabase } from "@/components/db-provider"
@@ -67,9 +91,47 @@ interface ProjectsViewProps {
   onAddProject: (project: Omit<Project, "id">) => void
   onUpdateProject: (project: Project) => void
   onDeleteProject: (id: string) => void
+  onReorderProjects?: (activeId: string, overId: string) => void
   initialSelectedId?: string
   onSelect?: (id: string | null) => void
   initialTab?: "tasks" | "notes" | "description"
+}
+
+
+function SortableProjectItem(props: any) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : undefined, position: 'relative' as const, zIndex: isDragging ? 1 : 0 };
+  
+  const { viewMode, isMobile } = props;
+  let children = props.children;
+  
+  if (viewMode === 'list') {
+    children = React.Children.map(props.children, (child, index) => {
+      if (index === 0) {
+        return React.cloneElement(child as any, {
+          children: (
+            <div className="flex items-center gap-1 w-full">
+              {!isMobile && (
+                <div {...attributes} {...listeners} onClick={e => e.stopPropagation()} className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-1 shrink-0">
+                  <GripVertical className="h-4 w-4" />
+                </div>
+              )}
+              {(child as any).props.children}
+            </div>
+          )
+        });
+      }
+      return child;
+    });
+  }
+
+  const bindProps = (isMobile || viewMode === 'grid') ? { ...attributes, ...listeners } : {};
+
+  return (
+    <div ref={setNodeRef} style={style} className={props.className} onClick={props.onClick} {...bindProps}>
+      {children}
+    </div>
+  );
 }
 
 export function ProjectsView({
@@ -90,6 +152,7 @@ export function ProjectsView({
   onAddProject,
   onUpdateProject,
   onDeleteProject,
+  onReorderProjects,
   initialSelectedId,
   onSelect,
   initialTab,
@@ -100,6 +163,7 @@ export function ProjectsView({
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const isMobile = useIsMobile()
 
   const handleToggleMode = () => {
     const mode = viewMode === "grid" ? "list" : "grid"
@@ -168,7 +232,22 @@ export function ProjectsView({
     setEditingProject(null)
   }
 
-  const filtered = projects.filter((p) => statusFilter === "All" || p.status === statusFilter)
+  
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      onReorderProjects?.(active.id as string, over.id as string);
+    }
+  };
+
+  const filtered = projects.filter((p) => statusFilter === "All" || p.status === statusFilter).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  
 
   return (
     <>
@@ -275,13 +354,17 @@ export function ProjectsView({
             </div>
           </div>
 
-          <div className={cn(
-            "grid gap-3",
-            viewMode === "grid" 
-              ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-              : "sm:grid-cols-2 lg:grid-cols-3"
-          )}>
-        {filtered.map((p) => {
+          
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={filtered.map(p => p.id)} strategy={viewMode === "grid" ? rectSortingStrategy : verticalListSortingStrategy}>
+              <div className={cn(
+                "grid gap-3",
+                viewMode === "grid" 
+                  ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+                  : "sm:grid-cols-2 lg:grid-cols-3"
+              )}>
+                {filtered.map((p) => {
+
           const projTasks = tasks.filter((t) => t.project_id === p.id && t.processed)
           const open = projTasks.filter((t) => t.status === "Open").length
           const done = projTasks.filter((t) => t.status === "Done").length
@@ -290,10 +373,14 @@ export function ProjectsView({
           
           if (viewMode === "grid") {
             return (
-              <div
+              <SortableProjectItem
+                id={p.id}
                 key={p.id}
                 onClick={() => handleSelect(p.id)}
                 className="group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition-all hover:border-primary/50 hover:shadow-md aspect-[16/9]"
+                viewMode={viewMode}
+                isMobile={isMobile}
+              
               >
                 {/* Background Layer */}
                 <div 
@@ -365,15 +452,19 @@ export function ProjectsView({
                      </span>
                    </div>
                 </div>
-              </div>
+              </SortableProjectItem>
             )
           }
 
           return (
-            <div
+            <SortableProjectItem
+              id={p.id}
               key={p.id}
               onClick={() => handleSelect(p.id)}
               className="group relative flex cursor-pointer flex-col gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-primary/40"
+              viewMode={viewMode}
+              isMobile={isMobile}
+            
             >
               <div className="absolute top-2 right-2 z-10" onClick={(e) => e.stopPropagation()}>
                 <DropdownMenu>
@@ -480,10 +571,12 @@ export function ProjectsView({
                 <Circle className="h-3 w-3" />
                 {open} open · {done} done · click to drill in
               </div>
-            </div>
+            </SortableProjectItem>
           )
         })}
-      </div>
+              </div>
+            </SortableContext>
+          </DndContext>
     </div>
   )}
 </>
