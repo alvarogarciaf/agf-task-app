@@ -1,9 +1,12 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect, memo } from "react"
+import React, { useState, useRef, useCallback, useEffect, memo } from "react"
 import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock, Eye, Pencil, FileText, ArrowLeftRight, ArrowUpRight } from "lucide-react"
 import { ProjectChip, ProjectOptionIcon } from "@/components/project-select"
 import { toast } from "sonner"
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import {
@@ -142,6 +145,33 @@ interface TasksTableProps {
   onToggleAll?: (ids: string[]) => void
   onBulkDelete?: () => void
   isNested?: boolean
+  onReorderTasks?: (activeId: string, overId: string) => void
+}
+
+
+function SortableTableRow(props: any) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.task.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : undefined, position: 'relative' as const, zIndex: isDragging ? 1 : 0 };
+  
+  // Create an enhanced children block where we inject the listeners into the first td if dragHandle is requested
+  let renderedChildren = props.children;
+  if (props.showDragHandle) {
+    renderedChildren = React.Children.map(props.children, (child, index) => {
+      if (index === 0) {
+        return React.cloneElement(child as React.ReactElement, {
+          children: (
+            <div className="flex items-center gap-1">
+              <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-1 shrink-0"><MoreVertical className="h-4 w-4" /></div>
+              {(child as any).props.children}
+            </div>
+          )
+        });
+      }
+      return child;
+    });
+  }
+
+  return <tr ref={setNodeRef} style={style} className={props.className}>{renderedChildren}</tr>;
 }
 
 export const TasksTable = memo(function TasksTable({
@@ -175,6 +205,7 @@ export const TasksTable = memo(function TasksTable({
   onToggleAll,
   onBulkDelete,
   isNested = false,
+  onReorderTasks,
 }: TasksTableProps) {
   const internalColumnState = useTableColumns<TaskColumnKey>(
     storageKey, DEFAULT_ORDER, DEFAULT_VISIBILITY,
@@ -243,6 +274,18 @@ export const TasksTable = memo(function TasksTable({
 
   const foundTask = activeTaskId ? tasks.find((t) => t.id === activeTaskId) : null
   const activeTask = foundTask ?? convertedTaskFallback
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+
+  const handleDragEndRow = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      onReorderTasks?.(active.id as string, over.id as string);
+    }
+  }
 
   // History management for back button on mobile
   useEffect(() => {
@@ -522,7 +565,8 @@ export const TasksTable = memo(function TasksTable({
             })}
           </div>
           <div className="hidden md:block overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndRow}>
+<table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-card">
               <tr className="border-b border-border">
                 <th className="w-10 px-3 py-2 text-left align-middle select-none">
@@ -583,7 +627,8 @@ export const TasksTable = memo(function TasksTable({
                 })}
               </tr>
             </thead>
-            <tbody>
+            <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+<tbody className="bg-card">
               {tasks.map((task) => {
                 const project = projects.find((p) => p.id === task.project_id)
                 const person = persons.find((p) => p.id === task.person_id)
@@ -591,9 +636,7 @@ export const TasksTable = memo(function TasksTable({
                 const tTags = tags.filter((tg) => (task.tag_ids || []).includes(tg.id))
                 const urgency = urgencies.find((u) => u.id === task.urgency_id)
                 return (
-                  <tr
-                    key={task.id}
-                    className={cn(
+                  <SortableTableRow key={task.id} task={task} showDragHandle={sortConfig?.key === "urgency"} className={cn(
                       "group border-b border-border/60 last:border-b-0 transition-colors hover:bg-muted/30 select-none",
                       selectedIds.has(task.id) && "bg-primary/5 hover:bg-primary/10"
                     )}
@@ -851,11 +894,13 @@ export const TasksTable = memo(function TasksTable({
                         </DropdownMenu>
                       </div>
                     </td>
-                  </tr>
+                    </SortableTableRow>
                 )
               })}
             </tbody>
+</SortableContext>
           </table>
+</DndContext>
           </div>
         </>
       )}

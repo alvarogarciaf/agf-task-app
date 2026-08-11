@@ -29,6 +29,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Switch } from "@/components/ui/switch"
 import { MoreVertical, Edit2 } from "lucide-react"
 import { ICON_OPTIONS, ICONS, COLOR_PALETTE } from "@/lib/constants"
 import type { Context, Person, Project, Tag, Task, UrgencyLevel, ProjectStatus } from "@/lib/types"
@@ -832,6 +833,7 @@ function ProjectEditor({
   const [color, setColor] = useState<string>(COLOR_PALETTE[0])
   const [backgroundImage, setBackgroundImage] = useState<string>("")
   const [isUploading, setIsUploading] = useState(false)
+  const [orderDependent, setOrderDependent] = useState<boolean>(false)
 
 
   useEffect(() => {
@@ -843,6 +845,7 @@ function ProjectEditor({
       setIcon(project?.icon ?? DEFAULT_PROJECT_ICON)
       setColor(project?.color ?? COLOR_PALETTE[0])
       setBackgroundImage(project?.background_image ?? "")
+      setOrderDependent(project?.order_dependent ?? false)
 
     }
   }, [open, project])
@@ -858,6 +861,7 @@ function ProjectEditor({
       icon,
       color,
       background_image: backgroundImage.trim() || null,
+      order_dependent: orderDependent,
     } as any)
   }
 
@@ -1036,6 +1040,19 @@ function ProjectEditor({
                 </p>
               </div>
             </div>
+          </div>
+          <div className="flex items-center justify-between rounded-lg border border-border p-3 shadow-sm">
+            <div className="space-y-0.5">
+              <Label htmlFor="order-dependent">Order Dependent</Label>
+              <p className="text-[11px] text-muted-foreground leading-tight">
+                When enabled, only the first open task is visible throughout the app until completed.
+              </p>
+            </div>
+            <Switch
+              id="order-dependent"
+              checked={orderDependent}
+              onCheckedChange={setOrderDependent}
+            />
           </div>
         </div>
 

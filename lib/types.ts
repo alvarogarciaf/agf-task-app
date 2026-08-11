@@ -29,6 +29,7 @@ export interface AppObject {
   archived?: boolean
   google_event_id?: string | null
   bookmarked?: boolean
+  order?: number
 }
 
 // `Task` remains the name used across the app; it is now an alias of the
@@ -44,6 +45,8 @@ export interface Project {
   icon?: string | null
   color?: string | null
   background_image?: string | null
+  order_dependent?: boolean
+  order?: number
 }
 
 export interface Person {

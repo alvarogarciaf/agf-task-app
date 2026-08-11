@@ -325,12 +325,13 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                 if (!subsSnap.empty) {
                   const subscriptions = subsSnap.docs.map((d) => d.data());
                   const senderName = user?.displayName || user?.email || "Someone";
+                  const itemType = taskData.type === "note" ? "note" : "task";
                   fetch("/api/notifications/push", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                       subscriptions,
-                      title: `New task added by ${senderName}`,
+                      title: `New ${itemType} added by ${senderName}`,
                       body: taskData.description || "",
                     }),
                   }).catch((e) => console.warn("[Sync] Push notification failed:", e));

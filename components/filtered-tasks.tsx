@@ -202,6 +202,27 @@ export function FilteredTasks({
     })
   }, [initialContextId, initialContextIds, initialTagId, initialTagIds, initialPersonId, initialProjectId, initialShowStatus, initialIsGroupedByProject, initialShowHiddenByShowOn, initialSortKey, initialSortDirection])
 
+  const firstOpenTaskIds = useMemo(() => {
+    const map = new Set<string>()
+    const orderDependentProjects = projects.filter(p => p.order_dependent)
+    for (const project of orderDependentProjects) {
+      const openTasks = tasks.filter(t => t.project_id === project.id && t.status === "Open")
+      if (openTasks.length > 0) {
+        openTasks.sort((a, b) => {
+          const urgencyA = urgencies.find(u => u.id === a.urgency_id)?.order ?? 999
+          const urgencyB = urgencies.find(u => u.id === b.urgency_id)?.order ?? 999
+          if (urgencyA !== urgencyB) return urgencyA - urgencyB
+          const orderA = a.order ?? 0
+          const orderB = b.order ?? 0
+          if (orderA !== orderB) return orderA - orderB
+          return new Date(a.date_created).getTime() - new Date(b.date_created).getTime()
+        })
+        map.add(openTasks[0].id)
+      }
+    }
+    return map
+  }, [tasks, projects, urgencies])
+
   const filtered = useMemo(() => {
     return tasks
       .filter((t) => {
@@ -220,6 +241,21 @@ export function FilteredTasks({
       .filter((t) => {
         if (!projectId) return true
         return t.project_id === projectId
+      })
+      .filter((t) => {
+        // Order-dependent project logic
+        if (!t.project_id) return true
+        const project = projects.find(p => p.id === t.project_id)
+        if (!project?.order_dependent) return true
+        
+        // If explicitly filtering by this project, show all tasks
+        if (projectId === t.project_id) return true
+        
+        // Otherwise, if the task is Open, only show it if it's the first one
+        if (t.status === "Open") {
+          return firstOpenTaskIds.has(t.id)
+        }
+        return true
       })
       .filter((t) => {
         // Notes have no inbox/processed/status semantics in the UI.
@@ -262,6 +298,11 @@ export function FilteredTasks({
         if (key === "urgency") {
           valA = urgencies.find((u) => u.id === a.urgency_id)?.order ?? 999
           valB = urgencies.find((u) => u.id === b.urgency_id)?.order ?? 999
+          if (valA === valB) {
+            const orderA = a.order ?? 0
+            const orderB = b.order ?? 0
+            if (orderA !== orderB) return direction === "asc" ? (orderA - orderB) : (orderB - orderA)
+          }
         } else if (key === "date_created") {
           valA = new Date(a.date_created).getTime()
           valB = new Date(b.date_created).getTime()
@@ -308,6 +349,8 @@ export function FilteredTasks({
     contexts,
     showHiddenByShowOn,
     allowUnprocessed,
+    autoFocusTaskId,
+    firstOpenTaskIds,
   ])
 
   const groupedByProject = useMemo(() => {

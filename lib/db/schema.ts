@@ -3,7 +3,7 @@ import type { Task, Project, Person, Context } from '../types';
 
 export const taskSchemaLiteral = {
   title: 'task schema',
-  version: 6,
+  version: 7,
   description: 'describes a task or note (unified object)',
   primaryKey: 'id',
   type: 'object',
@@ -31,8 +31,9 @@ export const taskSchemaLiteral = {
     archived: { type: 'boolean', default: false },
     google_event_id: { type: ['string', 'null'] },
     bookmarked: { type: 'boolean', default: false },
+    order: { type: 'number', default: 0 },
   },
-  required: ['id', 'description', 'date_created', 'context_ids', 'processed', 'status', 'urgency_id'],
+  required: ['id', 'description', 'date_created', 'context_ids', 'processed', 'status', 'urgency_id', 'order'],
   indexes: ['date_created', 'processed'],
 } as const;
 
@@ -58,7 +59,7 @@ export type UrgencyDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof urg
 
 export const projectSchemaLiteral = {
   title: 'project schema',
-  version: 3,
+  version: 4,
   description: 'describes a project',
   primaryKey: 'id',
   type: 'object',
@@ -73,8 +74,11 @@ export const projectSchemaLiteral = {
     linked_person_id: { type: ['string', 'null'] },
     icon: { type: ['string', 'null'] },
     color: { type: ['string', 'null'] },
+    background_image: { type: ['string', 'null'] },
+    order_dependent: { type: 'boolean', default: false },
+    order: { type: 'number', default: 0 },
   },
-  required: ['id', 'name', 'status'],
+  required: ['id', 'name', 'status', 'order_dependent', 'order'],
 } as const;
 export const projectSchemaTyped = toTypedRxJsonSchema(projectSchemaLiteral);
 export type ProjectDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof projectSchemaTyped>;

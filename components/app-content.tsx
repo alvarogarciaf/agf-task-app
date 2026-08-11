@@ -1205,10 +1205,11 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       />
 
       <div className="flex min-w-0 h-full flex-1 flex-col overflow-hidden">
-        <AppHeader
-          view={
-            isMobile
-              ? (mobileSection === "tasks" 
+        {(!isMobile || !(activeView === "projects" && !!initialProjectId)) && (
+          <AppHeader
+            view={
+              isMobile
+                ? (mobileSection === "tasks" 
                   ? (activeView === "all" && initialContextId ? "contexts" : activeView === "all" && initialProjectId ? "projects" : activeView)
                   : (initialTagId ? "tags" : initialProjectId ? "projects" : activeView === "bookmarks" ? "bookmarks" : "notes")) as ViewKey
               : activeTab.route.kind === "view"
@@ -1293,6 +1294,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             </div>
           }
         />
+        )}
 
         <main
           className={cn(

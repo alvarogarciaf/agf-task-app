@@ -72,6 +72,11 @@ export const getDatabase = async (userUid: string) => {
           6: (oldDoc: any) => {
             oldDoc.bookmarked = oldDoc.bookmarked ?? false;
             return oldDoc;
+          },
+          // 7: Migrate from version 6 to 7 (add order)
+          7: (oldDoc: any) => {
+            oldDoc.order = oldDoc.order ?? 0;
+            return oldDoc;
           }
         }
       },
@@ -92,6 +97,13 @@ export const getDatabase = async (userUid: string) => {
           3: (oldDoc: any) => {
             oldDoc.icon = oldDoc.icon ?? null;
             oldDoc.color = oldDoc.color ?? null;
+            return oldDoc;
+          },
+          // 4: Add order_dependent, order and background_image fields
+          4: (oldDoc: any) => {
+            oldDoc.order_dependent = oldDoc.order_dependent ?? false;
+            oldDoc.order = oldDoc.order ?? 0;
+            oldDoc.background_image = oldDoc.background_image ?? null;
             return oldDoc;
           }
         }
