@@ -481,11 +481,12 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const handleReorderProjects = useCallback(
     async (activeId: string, overId: string) => {
       if (!db) return
-      const oldIndex = projects.findIndex(p => p.id === activeId)
-      const newIndex = projects.findIndex(p => p.id === overId)
+      const sortedProjects = [...projects].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      const oldIndex = sortedProjects.findIndex(p => p.id === activeId)
+      const newIndex = sortedProjects.findIndex(p => p.id === overId)
       if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return
 
-      const newItems = Array.from(projects)
+      const newItems = Array.from(sortedProjects)
       const [moved] = newItems.splice(oldIndex, 1)
       newItems.splice(newIndex, 0, moved)
 
@@ -1147,9 +1148,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       }}
       onNavigate={handleNavigate}
       onUpdateUi={(patch) => {
-        if (patch.initialContextId !== undefined) setInitialContextId(patch.initialContextId)
-        if (patch.initialPersonId !== undefined) setInitialPersonId(patch.initialPersonId)
-        if (patch.initialProjectId !== undefined) setInitialProjectId(patch.initialProjectId)
+        if ("initialContextId" in patch) setInitialContextId(patch.initialContextId)
+        if ("initialPersonId" in patch) setInitialPersonId(patch.initialPersonId)
+        if ("initialProjectId" in patch) setInitialProjectId(patch.initialProjectId)
       }}
     />
   )
@@ -1165,8 +1166,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       }}
       onNavigate={handleNavigate}
       onUpdateUi={(patch) => {
-        if (patch.initialTagId !== undefined) setInitialTagId(patch.initialTagId)
-        if (patch.initialProjectId !== undefined) setInitialProjectId(patch.initialProjectId)
+        if ("initialTagId" in patch) setInitialTagId(patch.initialTagId)
+        if ("initialProjectId" in patch) setInitialProjectId(patch.initialProjectId)
       }}
     />
   )
