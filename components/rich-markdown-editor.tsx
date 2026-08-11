@@ -620,29 +620,16 @@ function EditorSurface({
         deleteRange.setEnd(range.startContainer, range.startOffset)
         deleteRange.deleteContents()
 
-        const anchor = document.createElement("a")
-        anchor.href = normalizeUrl(token)
-        anchor.target = "_blank"
-        anchor.rel = "noopener noreferrer"
-        anchor.className = "text-primary hover:underline font-semibold"
-        anchor.textContent = token
-
-        deleteRange.insertNode(anchor)
-        const spaceNode = document.createTextNode(" ")
-        anchor.after(spaceNode)
-        if (textAfter) {
-          spaceNode.after(document.createTextNode(textAfter))
-        }
-
         const sel = window.getSelection()
         if (sel) {
           const caret = document.createRange()
-          caret.setStart(spaceNode, 1)
+          caret.setStart(startPos.node, startPos.offset)
           caret.collapse(true)
           sel.removeAllRanges()
           sel.addRange(caret)
         }
-        syncMarkdown()
+        
+        handleUrlPaste(normalizeUrl(token), true)
         return true
       }
     }
@@ -936,9 +923,10 @@ function EditorSurface({
     }
   }
 
-  const handleUrlPaste = async (url: string) => {
+  const handleUrlPaste = async (url: string, addSpace = false) => {
     const id = Math.random().toString(36).substring(2, 9)
-    const placeholderHtml = `<a href="${url}" id="preview-${id}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-semibold" contenteditable="false">[Fetching preview for ${url}...]</a>`
+    const spaceHtml = addSpace ? "&nbsp;" : ""
+    const placeholderHtml = `<a href="${url}" id="preview-${id}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-semibold" contenteditable="false">[Fetching preview for ${url}...]</a>${spaceHtml}`
     document.execCommand("insertHTML", false, placeholderHtml)
     syncMarkdown()
 
