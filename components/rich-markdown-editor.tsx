@@ -604,6 +604,42 @@ function EditorSurface({
     return false
   }
 
+  const applyEnterShortcuts = (): boolean => {
+    const ctx = getCursorTextContext()
+    if (!ctx) return false
+
+    const { block, range, textBefore } = ctx
+
+    const tokenMatch = textBefore.match(/(\S+)$/)
+    if (tokenMatch && !isInsideAnchor(range.startContainer)) {
+      const token = tokenMatch[1]
+      if (URL_TOKEN_RE.test(token)) {
+        const tokenStart = textBefore.length - token.length
+        const startPos = locateTextPosition(block, tokenStart)
+        if (!startPos || isInsideAnchor(startPos.node)) return false
+
+        const deleteRange = document.createRange()
+        deleteRange.setStart(startPos.node, startPos.offset)
+        deleteRange.setEnd(range.startContainer, range.startOffset)
+        deleteRange.deleteContents()
+
+        const sel = window.getSelection()
+        if (sel) {
+          const caret = document.createRange()
+          caret.setStart(startPos.node, startPos.offset)
+          caret.collapse(true)
+          sel.removeAllRanges()
+          sel.addRange(caret)
+        }
+        
+        handleUrlPaste(normalizeUrl(token), false)
+        return true
+      }
+    }
+
+    return false
+  }
+
   const fixupHrAfterInput = (): boolean => {
     const ctx = getCursorTextContext()
     if (!ctx || ctx.block.querySelector("input.md-task-box") || ctx.block.closest("ul, ol")) return false
@@ -690,7 +726,7 @@ function EditorSurface({
       if (URL_TOKEN_RE.test(token)) {
         const tokenStart = textBefore.length - token.length
         const startPos = locateTextPosition(block, tokenStart)
-        if (!startPos) return false
+        if (!startPos || isInsideAnchor(startPos.node)) return false
 
         const deleteRange = document.createRange()
         deleteRange.setStart(startPos.node, startPos.offset)
@@ -838,6 +874,9 @@ function EditorSurface({
     }
 
     if (e.key === "Enter") {
+      // Convert any trailing URL before inserting line break
+      applyEnterShortcuts()
+
       // Ctrl/Cmd+Enter -> soft line break within the current paragraph.
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault()
@@ -930,6 +969,11 @@ function EditorSurface({
         handleUrlPaste(inputEvent.data.trim())
         return
       }
+    }
+
+    if (inputEvent.inputType === "insertLineBreak" || inputEvent.inputType === "insertParagraph") {
+      applyEnterShortcuts()
+      return
     }
 
     if (inputEvent.inputType !== "insertText" || inputEvent.data !== " ") return
