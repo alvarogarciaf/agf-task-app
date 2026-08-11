@@ -69,6 +69,7 @@ interface WorkspaceViewContentProps {
   onAddProject: (p: Omit<Project, "id">) => Promise<void>
   onUpdateProject: (p: Project) => Promise<void>
   onDeleteProject: (id: string) => Promise<void>
+  onReorderProjects?: (activeId: string, overId: string) => Promise<void>
   onAddTag: (t: Omit<Tag, "id">) => Promise<string>
   onUpdateTag: (t: Tag) => Promise<void>
   onDeleteTag: (id: string) => Promise<void>
@@ -114,6 +115,7 @@ export function WorkspaceViewContent({
   onAddProject,
   onUpdateProject,
   onDeleteProject,
+  onReorderProjects,
   onAddTag,
   onUpdateTag,
   onDeleteTag,
@@ -226,6 +228,7 @@ export function WorkspaceViewContent({
           onAddProject={onAddProject}
           onUpdateProject={onUpdateProject}
           onDeleteProject={onDeleteProject}
+          onReorderProjects={onReorderProjects}
           initialSelectedId={ui.initialProjectId}
           initialTab={defaultProjectTab}
           onSelect={(id) => onUpdateUi?.({ initialProjectId: id || undefined })}

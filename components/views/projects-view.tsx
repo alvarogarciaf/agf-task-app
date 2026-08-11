@@ -453,7 +453,7 @@ export function ProjectsView({
                         ) : null
                       })()}
                    </div>
-                   <h3 className="text-lg font-bold tracking-tight text-foreground line-clamp-1 mb-1">{p.name}</h3>
+                   <h3 className="text-base font-bold tracking-tight text-foreground line-clamp-1 mb-1">{p.name}</h3>
                    <div className="flex items-center gap-3 text-xs text-muted-foreground font-medium drop-shadow-sm">
                      <span className="flex items-center gap-1">
                         <Circle className="h-3 w-3" /> {open} open
@@ -472,7 +472,7 @@ export function ProjectsView({
               id={p.id}
               key={p.id}
               onClick={() => handleSelect(p.id)}
-              className="group relative flex cursor-pointer flex-col gap-3 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-primary/40"
+              className="group relative flex cursor-pointer flex-col gap-2 rounded-lg border border-border bg-card p-3 text-left transition-all hover:border-primary/40"
               viewMode={viewMode}
               isMobile={isMobile}
             
@@ -578,7 +578,7 @@ export function ProjectsView({
                 ) : null}
               </div>
 
-              <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <Circle className="h-3 w-3" />
                 {open} open · {done} done · click to drill in
               </div>
