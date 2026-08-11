@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useCallback, useEffect, memo } from "react"
-import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock, Eye, Pencil, FileText, ArrowLeftRight, ArrowUpRight } from "lucide-react"
+import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock, Eye, Pencil, FileText, ArrowLeftRight, ArrowUpRight, GripVertical } from "lucide-react"
 import { ProjectChip, ProjectOptionIcon } from "@/components/project-select"
 import { toast } from "sonner"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
@@ -150,7 +150,7 @@ interface TasksTableProps {
 
 
 function SortableTableRow(props: any) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.task.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `d-${props.task.id}` });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : undefined, position: 'relative' as const, zIndex: isDragging ? 1 : 0 };
   
   // Create an enhanced children block where we inject the listeners into the first td if dragHandle is requested
@@ -293,12 +293,16 @@ export const TasksTable = memo(function TasksTable({
   const handleDragEndRow = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
+      const activeId = active.id.toString().replace(/^[md]-/, '');
+      const overId = over.id.toString().replace(/^[md]-/, '');
+      if (activeId === overId) return;
+
       setOptimisticTasks((prev) => {
-        const oldIndex = prev.findIndex(t => t.id === active.id)
-        const newIndex = prev.findIndex(t => t.id === over.id)
+        const oldIndex = prev.findIndex(t => t.id === activeId)
+        const newIndex = prev.findIndex(t => t.id === overId)
         return arrayMove(prev, oldIndex, newIndex)
       })
-      onReorderTasks?.(active.id as string, over.id as string);
+      onReorderTasks?.(activeId, overId);
     }
   }
 
@@ -519,7 +523,7 @@ export const TasksTable = memo(function TasksTable({
           <p className="mt-1 text-xs text-muted-foreground">{emptyHint}</p>
         </div>
       ) : (
-        <>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndRow}>
           <div className={cn(
             "md:hidden flex w-full min-w-0 flex-col space-y-2",
             isNested ? "p-0 bg-transparent" : "px-3.5 py-3 bg-muted/10"
@@ -545,12 +549,13 @@ export const TasksTable = memo(function TasksTable({
                 </div>
               </div>
             )}
-            {tasks.map((task) => {
-              const urgency = urgencies?.find((u) => u.id === task.urgency_id)
-              const project = projects.find((p) => p.id === task.project_id)
-              return (
-                <MobileTaskRow
-                  key={task.id}
+            <SortableContext items={optimisticTasks.map(t => `m-${t.id}`)} strategy={verticalListSortingStrategy}>
+              {tasks.map((task) => {
+                const urgency = urgencies?.find((u) => u.id === task.urgency_id)
+                const project = projects.find((p) => p.id === task.project_id)
+                return (
+                  <MobileTaskRow
+                    key={`m-${task.id}`}
                   task={task}
                   project={project}
                   urgency={urgency}
@@ -575,12 +580,13 @@ export const TasksTable = memo(function TasksTable({
                   }}
                   isSelected={selectedIds.has(task.id)}
                   onToggleSelection={() => onToggleSelection?.(task.id)}
+                  showDragHandle={sortConfig?.key === "urgency"}
                 />
               )
             })}
+            </SortableContext>
           </div>
           <div className="hidden md:block overflow-x-auto">
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndRow}>
 <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-card">
               <tr className="border-b border-border">
@@ -642,7 +648,7 @@ export const TasksTable = memo(function TasksTable({
                 })}
               </tr>
             </thead>
-            <SortableContext items={optimisticTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={optimisticTasks.map(t => `d-${t.id}`)} strategy={verticalListSortingStrategy}>
 <tbody className="bg-card">
               {optimisticTasks.map((task) => {
                 const project = projects.find((p) => p.id === task.project_id)
@@ -918,11 +924,10 @@ export const TasksTable = memo(function TasksTable({
                 )
               })}
             </tbody>
-</SortableContext>
+            </SortableContext>
           </table>
-</DndContext>
           </div>
-        </>
+        </DndContext>
       )}
 
 
@@ -1280,6 +1285,7 @@ const MobileTaskRow = memo(function MobileTaskRow({
   onToggleSelection,
   inboxMode = false,
   notesMode = false,
+  showDragHandle = false,
 }: {
   task: Task
   project?: Project
@@ -1295,7 +1301,17 @@ const MobileTaskRow = memo(function MobileTaskRow({
   onToggleSelection: () => void
   inboxMode?: boolean
   notesMode?: boolean
+  showDragHandle?: boolean
 }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `m-${task.id}` });
+  const style = { 
+    transform: CSS.Transform.toString(transform), 
+    transition, 
+    opacity: isDragging ? 0.4 : undefined, 
+    position: 'relative' as const, 
+    zIndex: isDragging ? 1 : 0 
+  };
+
   const [longPressTriggered, setLongPressTriggered] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -1320,16 +1336,19 @@ const MobileTaskRow = memo(function MobileTaskRow({
 
   const [menuOpen, setMenuOpen] = useState(false)
   const touchStartY = useRef<number | null>(null)
-  const isDragging = useRef(false)
+  const isMenuDragging = useRef(false)
 
   return (
     <div 
+      ref={setNodeRef}
+      style={style}
       className={cn(
         "relative flex min-h-[48px] items-center gap-3 rounded-xl border pl-4 pr-2.5 py-2 transition-all active:scale-[0.98] select-none shadow-sm",
         isSelected 
           ? "border-primary bg-primary/5 ring-1 ring-primary/20" 
           : "border-border/80 bg-card hover:border-border",
-        task.status === "Done" ? "opacity-65 bg-muted/20" : ""
+        task.status === "Done" ? "opacity-65 bg-muted/20" : "",
+        isDragging && "shadow-lg border-primary/30 bg-background/50"
       )}
       onClick={(e) => {
         if (!longPressTriggered) {
@@ -1418,19 +1437,30 @@ const MobileTaskRow = memo(function MobileTaskRow({
           </span>
         )}
 
+        {showDragHandle && (
+          <div 
+            {...attributes} 
+            {...listeners} 
+            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-muted active:bg-muted cursor-grab active:cursor-grabbing touch-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="h-4 w-4" />
+          </div>
+        )}
+
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <div
             onPointerDown={(e) => {
               touchStartY.current = e.clientY
-              isDragging.current = false
+              isMenuDragging.current = false
             }}
             onPointerMove={(e) => {
               if (touchStartY.current !== null && Math.abs(e.clientY - touchStartY.current) > 8) {
-                isDragging.current = true
+                isMenuDragging.current = true
               }
             }}
             onPointerUp={() => {
-              if (!isDragging.current) {
+              if (!isMenuDragging.current) {
                 setMenuOpen((prev) => !prev)
               }
               touchStartY.current = null
