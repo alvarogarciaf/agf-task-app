@@ -143,6 +143,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     return () => window.removeEventListener("popstate", handlePopState)
   }, [])
 
+
+
   // Global Backspace navigation when not in an input
   useEffect(() => {
     const handleBackspace = (e: KeyboardEvent) => {
@@ -564,6 +566,19 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [mobileSection, setMobileSection] = useState<"tasks" | "notes">("tasks")
   const [mobileSelectorType, setMobileSelectorType] = useState<"contexts" | "projects" | "tags" | "views" | null>(null)
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, watchDrag: isMobile })
+
+  useEffect(() => {
+    const handler = (e: CustomEvent<"tasks" | "notes">) => {
+      const section = e.detail
+      if (section === "tasks" && emblaApi) {
+        emblaApi.scrollTo(0)
+      } else if (section === "notes" && emblaApi) {
+        emblaApi.scrollTo(1)
+      }
+    }
+    window.addEventListener("mobile-section-change", handler as EventListener)
+    return () => window.removeEventListener("mobile-section-change", handler as EventListener)
+  }, [emblaApi])
 
   useEffect(() => {
     if (!emblaApi) return
@@ -1140,6 +1155,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         savedViewId: activeSavedViewId,
         settingsTab: activeSettingsTab,
       }}
+      defaultProjectTab="tasks"
       ui={{
         initialContextId,
         initialPersonId,

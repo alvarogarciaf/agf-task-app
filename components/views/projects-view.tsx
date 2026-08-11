@@ -656,37 +656,17 @@ function ProjectDetail({
     : null
   
   const isMobile = useIsMobile()
-  const [touchStartX, setTouchStartX] = useState<number | null>(null)
-  
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStartX(e.targetTouches[0].clientX)
-  }
-  
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX === null) return
-    const touchEndX = e.changedTouches[0].clientX
-    const distance = touchStartX - touchEndX
-    
-    // threshold for swipe
-    if (Math.abs(distance) > 60) {
-      if (distance > 0) {
-        // Swipe left (next tab)
-        if (tab === "tasks") setTab("notes")
-        else if (tab === "notes" && !isMobile) setTab("description")
-      } else {
-        // Swipe right (prev tab)
-        if (tab === "notes") setTab("tasks")
-        else if (tab === "description") setTab("notes")
-      }
+  const handleTabChange = (newTab: "tasks" | "notes" | "description") => {
+    if (isMobile && (newTab === "tasks" || newTab === "notes")) {
+      window.dispatchEvent(new CustomEvent("mobile-section-change", { detail: newTab }))
+    } else {
+      setTab(newTab)
     }
-    setTouchStartX(null)
   }
 
   return (
     <div 
       className="px-4 pt-3 pb-24 md:px-6 md:pt-4 md:pb-6"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
     >
       <button
         type="button"
@@ -829,13 +809,13 @@ function ProjectDetail({
       </div>
 
       <div className="mt-3 flex items-center gap-1 border-b border-border">
-        <TabButton active={tab === "tasks"} onClick={() => setTab("tasks")} icon={ListChecks}>
+        <TabButton active={tab === "tasks"} onClick={() => handleTabChange("tasks")} icon={ListChecks}>
           Tasks
           <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
             {projTasks.length}
           </span>
         </TabButton>
-        <TabButton active={tab === "notes"} onClick={() => setTab("notes")} icon={StickyNote}>
+        <TabButton active={tab === "notes"} onClick={() => handleTabChange("notes")} icon={StickyNote}>
           Notes
           <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
             {projNotes.length}
@@ -844,7 +824,7 @@ function ProjectDetail({
         {!isMobile && (
           <TabButton
             active={tab === "description"}
-            onClick={() => setTab("description")}
+            onClick={() => handleTabChange("description")}
             icon={FileText}
           >
             Description
