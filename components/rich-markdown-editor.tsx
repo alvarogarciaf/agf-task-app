@@ -308,6 +308,10 @@ function EditorSurface({
       syncMarkdown()
       return
     }
+    if (fixupLinkAfterInput()) {
+      syncMarkdown()
+      return
+    }
     syncMarkdown()
   }
 
@@ -342,10 +346,10 @@ function EditorSurface({
     syncMarkdown()
   }
 
-  const toggleBlock = (tag: "h1" | "h2" | "h3") => {
+  const toggleBlock = (tag: "h1" | "h2" | "h3" | "p") => {
     editorRef.current?.focus()
     const current = (document.queryCommandValue("formatBlock") || "").toLowerCase()
-    document.execCommand("formatBlock", false, current.includes(tag) ? "p" : tag)
+    document.execCommand("formatBlock", false, current.includes(tag) && tag !== "p" ? "p" : tag)
     handleInput()
   }
 
@@ -632,6 +636,46 @@ function EditorSurface({
       return true
     }
 
+    return false
+  }
+
+  const fixupLinkAfterInput = (): boolean => {
+    const ctx = getCursorTextContext()
+    if (!ctx) return false
+
+    const { block, range, textBefore } = ctx
+    
+    // Check if the last character is a space (can be regular space or non-breaking)
+    if (!textBefore.endsWith(" ") && !textBefore.endsWith("\u00A0")) return false
+
+    // Extract the word immediately before the space
+    const textWithoutSpace = textBefore.slice(0, -1)
+    const tokenMatch = textWithoutSpace.match(/(\S+)$/)
+    if (tokenMatch && !isInsideAnchor(range.startContainer)) {
+      const token = tokenMatch[1]
+      if (URL_TOKEN_RE.test(token)) {
+        const tokenStart = textWithoutSpace.length - token.length
+        const startPos = locateTextPosition(block, tokenStart)
+        if (!startPos) return false
+
+        const deleteRange = document.createRange()
+        deleteRange.setStart(startPos.node, startPos.offset)
+        deleteRange.setEnd(range.startContainer, range.startOffset)
+        deleteRange.deleteContents()
+
+        const sel = window.getSelection()
+        if (sel) {
+          const caret = document.createRange()
+          caret.setStart(startPos.node, startPos.offset)
+          caret.collapse(true)
+          sel.removeAllRanges()
+          sel.addRange(caret)
+        }
+        
+        handleUrlPaste(normalizeUrl(token), true)
+        return true
+      }
+    }
     return false
   }
 
@@ -1122,8 +1166,8 @@ function EditorSurface({
   const toolbarButton = "inline-flex h-11 w-11 md:h-7 md:w-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
   const iconClass = "h-5 w-5 md:h-4 md:w-4"
 
-  const headingLevels = ["h1", "h2", "h3"] as const
-  const headingLabels = ["H1", "H2", "H3"]
+  const headingLevels = ["h1", "h2", "h3", "p"] as const
+  const headingLabels = ["H1", "H2", "H3", "T"]
 
   const cycleHeading = () => {
     const level = headingLevels[headingCycleIndex]
