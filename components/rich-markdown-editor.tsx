@@ -291,27 +291,24 @@ function EditorSurface({
   }
 
   const handleInput = () => {
-    if (!editorRef.current || isComposingRef.current) return
-    if (fixupHeadingAfterInput()) {
+    if (!editorRef.current) return
+
+    // Run fixups before checking isComposing. On Android Gboard, composition 
+    // often stays active even after typing a space. We want these shortcut 
+    // conversions to happen immediately (which intentionally breaks composition).
+    let fixedUp = false
+    if (fixupHeadingAfterInput()) fixedUp = true
+    else if (fixupCheckboxAfterInput()) fixedUp = true
+    else if (fixupHrAfterInput()) fixedUp = true
+    else if (fixupListAfterInput()) fixedUp = true
+    else if (fixupLinkAfterInput()) fixedUp = true
+
+    if (fixedUp) {
       syncMarkdown()
       return
     }
-    if (fixupCheckboxAfterInput()) {
-      syncMarkdown()
-      return
-    }
-    if (fixupHrAfterInput()) {
-      syncMarkdown()
-      return
-    }
-    if (fixupListAfterInput()) {
-      syncMarkdown()
-      return
-    }
-    if (fixupLinkAfterInput()) {
-      syncMarkdown()
-      return
-    }
+
+    if (isComposingRef.current) return
     syncMarkdown()
   }
 
@@ -656,7 +653,7 @@ function EditorSurface({
       if (URL_TOKEN_RE.test(token)) {
         const tokenStart = textWithoutSpace.length - token.length
         const startPos = locateTextPosition(block, tokenStart)
-        if (!startPos) return false
+        if (!startPos || isInsideAnchor(startPos.node)) return false
 
         const deleteRange = document.createRange()
         deleteRange.setStart(startPos.node, startPos.offset)
