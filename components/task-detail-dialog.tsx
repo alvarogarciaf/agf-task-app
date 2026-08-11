@@ -78,6 +78,7 @@ export function TaskDetailDialog({
     setAutoProcess,
     sortedUrgencies,
     save,
+    saveWithoutClose,
     cancel,
     convertType,
     handleToggleTask,
@@ -87,6 +88,7 @@ export function TaskDetailDialog({
     urgencies,
     onUpdate,
     onClose: () => onOpenChange(false),
+    autosave: true,
   })
 
   const descriptionRef = useRef<HTMLTextAreaElement>(null)
@@ -313,11 +315,11 @@ export function TaskDetailDialog({
                   onClick={cancel}
                   className="rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs"
                 >
-                  Cancel
+                  {dirty ? "Cancel" : "Close"}
                 </button>
                 <button
                   type="button"
-                  onClick={save}
+                  onClick={saveWithoutClose}
                   disabled={!dirty || !(draft.description || "").trim()}
                   className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 md:px-3 md:py-1.5 md:text-xs"
                 >

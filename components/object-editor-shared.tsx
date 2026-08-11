@@ -327,6 +327,14 @@ export function useObjectDraft({
     onClose()
   }
 
+  function saveWithoutClose() {
+    if (!draft) return
+    const finalDraft = { ...draft }
+    if (isAutoProcessing) finalDraft.processed = true
+    onUpdate(finalDraft)
+    // Don't close
+  }
+
   function cancel() {
     setDraft(getFullPlainTask(task))
     onClose()
@@ -360,6 +368,7 @@ export function useObjectDraft({
     setAutoProcess,
     sortedUrgencies,
     save,
+    saveWithoutClose,
     cancel,
     convertType,
     handleToggleTask,
