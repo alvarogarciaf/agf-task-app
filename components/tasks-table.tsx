@@ -218,11 +218,37 @@ export const TasksTable = memo(function TasksTable({
   const { order, visibility, toggle, reorder, reset } = columnState || internalColumnState
   const [dragKey, setDragKey] = useState<TaskColumnKey | null>(null)
   const [dropTarget, setDropTarget] = useState<TaskColumnKey | null>(null)
-  const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("activeTaskId") || null
+    }
+    return null
+  })
+  
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (activeTaskId) sessionStorage.setItem("activeTaskId", activeTaskId)
+      else sessionStorage.removeItem("activeTaskId")
+    }
+  }, [activeTaskId])
+
   // In the inbox, tapping a task should jump straight into editing (triage flow);
   // everywhere else the default open action shows the read-only view first.
   const defaultOpenMode: "view" | "edit" = inboxMode ? "edit" : "view"
-  const [detailMode, setDetailMode] = useState<"view" | "edit">(defaultOpenMode)
+  
+  const [detailMode, setDetailMode] = useState<"view" | "edit">(() => {
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("detailMode")
+      if (saved === "view" || saved === "edit") return saved
+    }
+    return defaultOpenMode
+  })
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("detailMode", detailMode)
+    }
+  }, [detailMode])
   const [selectedCell, setSelectedCell] = useState<{ taskId: string; column: TaskColumnKey } | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const cellRefs = useRef<Record<string, HTMLTableCellElement | null>>({})
