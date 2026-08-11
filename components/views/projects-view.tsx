@@ -640,6 +640,12 @@ function ProjectDetail({
 }) {
   const db = useDatabase()
   const [tab, setTab] = useState<"tasks" | "notes" | "description">(initialTab || "tasks")
+  
+  useEffect(() => {
+    if (initialTab) {
+      setTab(initialTab)
+    }
+  }, [initialTab])
   const projTasks = tasks.filter((t) => t.project_id === project.id && t.processed)
   const projNotes = notes.filter((n) => n.project_id === project.id)
   const open = projTasks.filter((t) => t.status === "Open")
@@ -648,9 +654,40 @@ function ProjectDetail({
   const linkedPerson = project.linked_person_id
     ? persons.find((per) => per.id === project.linked_person_id)
     : null
+  
+  const isMobile = useIsMobile()
+  const [touchStartX, setTouchStartX] = useState<number | null>(null)
+  
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.targetTouches[0].clientX)
+  }
+  
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null) return
+    const touchEndX = e.changedTouches[0].clientX
+    const distance = touchStartX - touchEndX
+    
+    // threshold for swipe
+    if (Math.abs(distance) > 60) {
+      if (distance > 0) {
+        // Swipe left (next tab)
+        if (tab === "tasks") setTab("notes")
+        else if (tab === "notes" && !isMobile) setTab("description")
+      } else {
+        // Swipe right (prev tab)
+        if (tab === "notes") setTab("tasks")
+        else if (tab === "description") setTab("notes")
+      }
+    }
+    setTouchStartX(null)
+  }
 
   return (
-    <div className="px-4 pt-3 pb-24 md:px-6 md:pt-4 md:pb-6">
+    <div 
+      className="px-4 pt-3 pb-24 md:px-6 md:pt-4 md:pb-6"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <button
         type="button"
         onClick={onBack}
@@ -804,13 +841,15 @@ function ProjectDetail({
             {projNotes.length}
           </span>
         </TabButton>
-        <TabButton
-          active={tab === "description"}
-          onClick={() => setTab("description")}
-          icon={FileText}
-        >
-          Description
-        </TabButton>
+        {!isMobile && (
+          <TabButton
+            active={tab === "description"}
+            onClick={() => setTab("description")}
+            icon={FileText}
+          >
+            Description
+          </TabButton>
+        )}
       </div>
 
       {tab === "tasks" && (

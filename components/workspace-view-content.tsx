@@ -227,6 +227,7 @@ export function WorkspaceViewContent({
           onUpdateProject={onUpdateProject}
           onDeleteProject={onDeleteProject}
           initialSelectedId={ui.initialProjectId}
+          initialTab={defaultProjectTab}
           onSelect={(id) => onUpdateUi?.({ initialProjectId: id || undefined })}
         />
       )
