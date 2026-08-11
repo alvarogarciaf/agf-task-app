@@ -14,9 +14,9 @@ function isBlockLine(trimmed: string): boolean {
     trimmed.startsWith("# ") ||
     trimmed.startsWith("## ") ||
     trimmed.startsWith("### ") ||
-    trimmed.startsWith("* ") ||
     trimmed.startsWith("- ") ||
-    trimmed.startsWith("• ")
+    trimmed.startsWith("• ") ||
+    trimmed === "---"
   )
 }
 
@@ -110,6 +110,10 @@ export function markdownToHtml(md: string): string {
       }
       html += `<li class="leading-relaxed">${parseInline(trimmed.substring(2))}</li>`;
       i++;
+    } else if (trimmed === "---") {
+      flushList();
+      html += `<hr class="my-4 border-t border-border/40" />`;
+      i++;
     } else if (trimmed === "") {
       flushList();
       html += "<p><br></p>";
@@ -151,8 +155,8 @@ export function markdownToPlainText(md: string): string {
     if (!line) return ""
 
     line = line.replace(/^#{1,3}\s+/, "")
-    line = line.replace(TASK_RE, "$2")
     line = line.replace(/^[-*•]\s+/, "")
+    if (line === "---") line = "—"
 
     return stripInline(line)
   })
@@ -230,6 +234,8 @@ function nodeToMarkdown(node: Node): string {
       }
       case "br":
         return "  \n";
+      case "hr":
+        return "---\n\n";
       case "input":
         return "";
       case "strong":

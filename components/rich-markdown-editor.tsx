@@ -300,6 +300,10 @@ function EditorSurface({
       syncMarkdown()
       return
     }
+    if (fixupHrAfterInput()) {
+      syncMarkdown()
+      return
+    }
     if (fixupListAfterInput()) {
       syncMarkdown()
       return
@@ -599,6 +603,38 @@ function EditorSurface({
     return false
   }
 
+  const fixupHrAfterInput = (): boolean => {
+    const ctx = getCursorTextContext()
+    if (!ctx || ctx.block.querySelector("input.md-task-box") || ctx.block.closest("ul, ol")) return false
+
+    const lineText = (
+      getLineTextBeforeCursor(ctx.block, ctx.range) +
+      getLineTextAfterCursor(ctx.block, ctx.range)
+    ).replace(/\u00A0/g, " ")
+
+    const match = lineText.match(/^---\s+(.*)$/)
+    if (match) {
+      const prefixLen = 4 // "--- "
+      let target = ctx.block
+      if (ctx.block.querySelector("br")) {
+        target = isolateLineToParagraph(ctx.block, ctx.range)
+      }
+      
+      const hr = document.createElement("hr")
+      hr.className = "my-4 border-t border-border/40"
+      target.parentNode?.insertBefore(hr, target)
+      
+      removeBlockPrefix(target, prefixLen)
+      if (!target.textContent && !target.querySelector("br")) {
+        target.appendChild(document.createElement("br"))
+      }
+      placeCaretAtStart(target)
+      return true
+    }
+
+    return false
+  }
+
   const applySpaceShortcuts = (): boolean => {
     if (isComposingRef.current) return false
 
@@ -666,6 +702,25 @@ function EditorSurface({
       }
       placeCaretAtStart(target)
       document.execCommand("insertUnorderedList", false)
+      syncMarkdown()
+      return true
+    }
+
+    if (lineBefore === "---") {
+      let target = block
+      if (block.querySelector("input.md-task-box") || block.querySelector("br")) {
+        target = isolateLineToParagraph(block, range)
+      }
+      
+      const hr = document.createElement("hr")
+      hr.className = "my-4 border-t border-border/40"
+      target.parentNode?.insertBefore(hr, target)
+      
+      removeBlockPrefix(target, lineBefore.length)
+      if (!target.textContent && !target.querySelector("br")) {
+        target.appendChild(document.createElement("br"))
+      }
+      placeCaretAtStart(target)
       syncMarkdown()
       return true
     }
