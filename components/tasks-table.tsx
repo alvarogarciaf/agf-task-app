@@ -161,7 +161,7 @@ function SortableTableRow(props: any) {
         return React.cloneElement(child as any, {
           children: (
             <div className="flex items-center gap-1">
-              <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-1 shrink-0 touch-none"><MoreVertical className="h-4 w-4" /></div>
+              <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-1 shrink-0 touch-none"><GripVertical className="h-4 w-4" /></div>
               {(child as any).props.children}
             </div>
           )
