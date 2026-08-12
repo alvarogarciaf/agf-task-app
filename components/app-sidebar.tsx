@@ -17,6 +17,7 @@ import {
   Calendar,
   ChevronRight,
   ChevronDown,
+  Plus,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ViewKey, SavedView, Project, Context, Tag, Person } from "@/lib/types"
@@ -80,6 +81,8 @@ interface AppSidebarProps {
   } | null
   onSignOut?: () => void
   showUserMenu?: boolean
+  onAddContext?: (name: string) => void
+  onAddTag?: (name: string) => void
 }
 
 export function AppSidebar({
@@ -104,6 +107,8 @@ export function AppSidebar({
   user,
   onSignOut,
   showUserMenu = false,
+  onAddContext,
+  onAddTag,
 }: AppSidebarProps) {
   const showActive = sidebarSelectionActive
   const items: NavItem[] = [
@@ -206,6 +211,8 @@ export function AppSidebar({
                 else if (item.key === "projects") onChange("projects", undefined, undefined, undefined, { initialProjectId: subId })
                 else onChange(item.key, undefined, undefined, subId)
               }}
+              onAddItem={item.key === "contexts" ? onAddContext : undefined}
+              addItemLabel={item.key === "contexts" ? "Add Context" : undefined}
             />
           ))}
         </NavGroup>
@@ -226,6 +233,8 @@ export function AppSidebar({
                 else if (item.key === "projects") onChange("projects", undefined, undefined, undefined, { initialProjectId: subId })
                 else onChange(item.key, undefined, undefined, subId)
               }}
+              onAddItem={item.key === "tags" ? onAddTag : undefined}
+              addItemLabel={item.key === "tags" ? "Add Tag" : undefined}
             />
           ))}
         </NavGroup>
@@ -413,6 +422,8 @@ function NavLink({
   isExpanded,
   onExpandToggle,
   onSubItemClick,
+  onAddItem,
+  addItemLabel,
 }: {
   item: NavItem
   active: boolean
@@ -428,6 +439,8 @@ function NavLink({
   isExpanded?: boolean
   onExpandToggle?: () => void
   onSubItemClick?: (id: string) => void
+  onAddItem?: (name: string) => void
+  addItemLabel?: string
 }) {
   const Icon = item.icon
   return (
@@ -534,8 +547,7 @@ function NavLink({
           )}
         </div>
 
-        {/* Expanded SubItems */}
-        {isExpanded && item.subItems && item.subItems.length > 0 && (
+        {isExpanded && item.subItems && (
           <ul className="mt-0.5 flex flex-col gap-0.5 pl-7 md:pl-2 pb-1">
             {item.subItems.map((sub) => (
               <li key={sub.id}>
@@ -562,6 +574,24 @@ function NavLink({
                 </button>
               </li>
             ))}
+            {onAddItem && (
+              <li>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const name = window.prompt(`Enter new ${addItemLabel?.replace("Add ", "").toLowerCase() || "item"} name:`)
+                    if (name && name.trim()) {
+                      onAddItem(name.trim())
+                    }
+                  }}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-[13px] text-primary hover:bg-sidebar-accent/60 transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate text-left">{addItemLabel || "Add Item"}</span>
+                </button>
+              </li>
+            )}
           </ul>
         )}
       </div>

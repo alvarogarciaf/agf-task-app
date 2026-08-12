@@ -1314,6 +1314,12 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         user={user}
         onSignOut={onSignOut}
         showUserMenu={!isMobile}
+        onAddContext={async (name) => {
+          await workspaceContentProps.onInsertContext({ name, icon: "briefcase", color: "#6b7280" })
+        }}
+        onAddTag={async (name) => {
+          await handleAddTag({ name, icon: "tag", color: "#6b7280" })
+        }}
       />
 
       <div className="flex min-w-0 h-full flex-1 flex-col overflow-hidden">
