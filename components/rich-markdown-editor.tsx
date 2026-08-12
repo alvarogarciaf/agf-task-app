@@ -1102,6 +1102,44 @@ function EditorSurface({
     }
   }
 
+  const resizeImageToThumbnail = (blob: Blob, maxSize: number): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        try {
+          let w = img.naturalWidth
+          let h = img.naturalHeight
+          if (w > maxSize || h > maxSize) {
+            if (w > h) {
+              h = Math.round((h / w) * maxSize)
+              w = maxSize
+            } else {
+              w = Math.round((w / h) * maxSize)
+              h = maxSize
+            }
+          }
+          const canvas = document.createElement("canvas")
+          canvas.width = w
+          canvas.height = h
+          const ctx = canvas.getContext("2d")
+          if (!ctx) { reject(new Error("Canvas not supported")); return }
+          ctx.drawImage(img, 0, 0, w, h)
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.7)
+          resolve(dataUrl)
+        } catch (err) {
+          reject(err)
+        } finally {
+          URL.revokeObjectURL(img.src)
+        }
+      }
+      img.onerror = () => {
+        URL.revokeObjectURL(img.src)
+        reject(new Error("Failed to load image for thumbnail"))
+      }
+      img.src = URL.createObjectURL(blob)
+    })
+  }
+
   const handleUrlPaste = async (url: string, addSpace = false) => {
     const id = Math.random().toString(36).substring(2, 9)
     const spaceHtml = addSpace ? "&nbsp;" : ""
@@ -1119,11 +1157,10 @@ function EditorSurface({
           const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(data.imageUrl)}`)
           if (proxyRes.ok) {
             const blob = await proxyRes.blob()
-            const file = new File([blob], "preview.jpg", { type: blob.type || "image/jpeg" })
-            finalImageUrl = await uploadImage(file)
+            finalImageUrl = await resizeImageToThumbnail(blob, 128)
           }
         } catch (e) {
-          console.error("Failed to upload preview image, falling back to original", e)
+          console.error("Failed to generate preview thumbnail, falling back to original", e)
           finalImageUrl = data.imageUrl
         }
       }
