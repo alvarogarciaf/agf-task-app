@@ -9,6 +9,7 @@ import { isTaskVisibleByShowOnRule } from "@/lib/show-on-filter"
 import { useAuth } from "@/components/auth-provider"
 import { firestoreDb } from "@/lib/firebase/config"
 import { collection, query, where, onSnapshot, doc, deleteDoc, setDoc, serverTimestamp } from "firebase/firestore"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface HomeViewProps {
   projects: Project[]
@@ -119,9 +120,13 @@ export function HomeView({
   const inbox = tasks  // Already filtered to !processed && !archived by RxDB query
   const inboxHasShowOnVisible = inbox.some(isTaskVisibleByShowOnRule)
 
+  const isMobile = useIsMobile()
+
   useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
+    if (!isMobile) {
+      inputRef.current?.focus()
+    }
+  }, [isMobile])
 
   function toggleContext(id: string) {
     setContextIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]))
