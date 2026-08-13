@@ -90,7 +90,7 @@ export function AppHeader({
 
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchScope, setSearchScope] = useState<"tasks" | "notes" | "all">("tasks")
+  const [searchScope, setSearchScope] = useState<"tasks" | "notes" | "all">("all")
   const [includeClosed, setIncludeClosed] = useState(false)
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [detailMode, setDetailMode] = useState<"view" | "edit">("view")
@@ -104,11 +104,7 @@ export function AppHeader({
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault()
-        if (e.shiftKey) {
-          setSearchScope("notes")
-        } else {
-          setSearchScope("tasks")
-        }
+        setSearchScope("all")
         setSearchOpen(true)
       }
     }
@@ -128,14 +124,14 @@ export function AppHeader({
   // search notes first, everything else searches tasks first.
   useEffect(() => {
     if (searchOpen) {
-      setSearchScope(view === "notes" || view === "tags" ? "notes" : "tasks")
+      setSearchScope("all")
       setTimeout(() => {
         searchInputRef.current?.focus()
       }, 80)
     } else {
       setSearchQuery("")
     }
-  }, [searchOpen, view])
+  }, [searchOpen])
 
   // Filter objects by case-insensitive query matches in description or details,
   // scoped to tasks, notes, or both.

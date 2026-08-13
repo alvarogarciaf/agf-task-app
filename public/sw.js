@@ -1,4 +1,4 @@
-const CACHE_NAME = "tasker-agf-v1786582002945";
+const CACHE_NAME = "tasker-agf-v1786582090350";
 const PRECACHE_URLS = ["/", "/manifest.json", "/logo.svg"];
 
 // Detect localhost to bypass caching for development HMR
