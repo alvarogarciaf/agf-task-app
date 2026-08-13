@@ -1444,7 +1444,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                       active={mobileSelectorType || (activeView === "saved-view" ? "views" : (activeView === "all" && initialContextId) ? "contexts" : (activeView === "all" && initialProjectId) ? "projects" : activeView)}
                       activeSavedViewId={activeSavedViewId}
                       onChange={handleNavigate}
-                      onOpenSelector={setMobileSelectorType}
+                      onOpenSelector={(type) => setMobileSelectorType((prev) => (prev === type ? null : type))}
                       inboxCount={inboxCount}
                       todayCount={todayCount}
                     />
@@ -1461,7 +1461,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                         setInitialProjectId(undefined); 
                         handleNavigate(k);
                       }}
-                      onOpenSelector={setMobileSelectorType}
+                      onOpenSelector={(type) => setMobileSelectorType((prev) => (prev === type ? null : type))}
                     />
                   </div>
                 </div>
