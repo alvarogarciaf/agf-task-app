@@ -12,6 +12,7 @@ import { MobileSelector } from "@/components/mobile-selectors"
 import { WorkspaceViewContent } from "@/components/workspace-view-content"
 import { WorkspaceTabBar } from "@/components/workspace-tab-bar"
 import { ObjectFullScreenView } from "@/components/object-full-screen-view"
+import { ProjectHeader, ProjectEditor } from "@/components/views/projects-view"
 import { Search } from "lucide-react"
 import useEmblaCarousel from "embla-carousel-react"
 import { TabPortalProvider } from "@/components/tab-portal-context"
@@ -544,6 +545,11 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   }
 
   const isMobile = useIsMobile()
+
+  const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const currentProject = useMemo(() => {
+    return initialProjectId ? projects.find((p) => p.id === initialProjectId) || null : null
+  }, [projects, initialProjectId])
 
   const [tabs, setTabs] = useState<WorkspaceTab[]>(() => {
     if (typeof window === "undefined") {
@@ -1422,6 +1428,24 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         >
           {isMobile ? (
             <div className="flex flex-col h-full w-full">
+              {activeView === "projects" && initialProjectId && currentProject && (
+                <div className="px-4 pt-3 border-b border-border bg-background">
+                  <ProjectHeader
+                    project={currentProject}
+                    projects={projects}
+                    tasks={activeTasks}
+                    notes={notes}
+                    persons={persons}
+                    onBack={() => setInitialProjectId(undefined)}
+                    onUpdateProject={handleUpdateProject}
+                    onDeleteProject={(id) => {
+                      handleDeleteProject(id)
+                      setInitialProjectId(undefined)
+                    }}
+                    onEdit={() => setEditingProject(currentProject)}
+                  />
+                </div>
+              )}
               {/* Mobile Floating Search Button */}
               <div className="fixed bottom-[148px] right-4 z-50 flex flex-col items-end gap-3 md:hidden">
                 <button
@@ -1588,6 +1612,18 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         onSave={handleUpdateSavedView}
         editingView={editingView}
       />
+      {editingProject && (
+        <ProjectEditor
+          open={!!editingProject}
+          onOpenChange={(open) => !open && setEditingProject(null)}
+          project={editingProject}
+          onSave={async (updated) => {
+            await handleUpdateProject(updated as Project)
+            setEditingProject(null)
+          }}
+          persons={persons}
+        />
+      )}
     </div>
   )
 }

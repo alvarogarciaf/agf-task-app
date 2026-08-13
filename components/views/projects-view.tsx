@@ -594,69 +594,28 @@ export function ProjectsView({
   )
 }
 
-function ProjectDetail({
+export function ProjectHeader({
   project,
   projects,
   tasks,
   notes,
   persons,
-  contexts,
-  tags,
   onBack,
-  onToggleProcessed,
-  onToggleStatus,
-  onUpdate,
-  onArchiveTask,
-  onDeleteTask,
-  urgencies,
   onUpdateProject,
   onDeleteProject,
   onEdit,
-  onCreate,
-  onCreateNote,
-  initialTab,
 }: {
   project: Project
   projects: Project[]
   tasks: Task[]
   notes: Task[]
   persons: Person[]
-  contexts: Context[]
-  tags: Tag[]
-  urgencies: UrgencyLevel[]
   onBack: () => void
-  onToggleProcessed: (id: string) => void
-  onToggleStatus: (id: string) => void
-  onUpdate: (task: Task) => void
-  onArchiveTask?: (id: string) => void
-  onDeleteTask?: (id: string) => void
-  onCreate?: (input: {
-    description: string
-    contextIds: string[]
-    projectId: string | null
-    personId: string | null
-    processed: boolean
-  }) => Promise<string | void>
-  onCreateNote?: (input: {
-    description: string
-    contextIds: string[]
-    projectId: string | null
-    personId: string | null
-    processed: boolean
-  }) => Promise<string | void>
   onUpdateProject: (project: Project) => void
   onDeleteProject: (id: string) => void
   onEdit: () => void
-  initialTab?: "tasks" | "notes" | "description"
 }) {
   const db = useDatabase()
-  const [tab, setTab] = useState<"tasks" | "notes" | "description">(initialTab || "tasks")
-  
-  useEffect(() => {
-    if (initialTab) {
-      setTab(initialTab)
-    }
-  }, [initialTab])
   const projTasks = tasks.filter((t) => t.project_id === project.id && t.processed)
   const projNotes = notes.filter((n) => n.project_id === project.id)
   const open = projTasks.filter((t) => t.status === "Open")
@@ -665,20 +624,9 @@ function ProjectDetail({
   const linkedPerson = project.linked_person_id
     ? persons.find((per) => per.id === project.linked_person_id)
     : null
-  
-  const isMobile = useIsMobile()
-  const handleTabChange = (newTab: "tasks" | "notes" | "description") => {
-    if (isMobile && (newTab === "tasks" || newTab === "notes")) {
-      window.dispatchEvent(new CustomEvent("mobile-section-change", { detail: newTab }))
-    } else {
-      setTab(newTab)
-    }
-  }
 
   return (
-    <div 
-      className="px-4 pt-3 pb-24 md:px-6 md:pt-4 md:pb-6"
-    >
+    <>
       <button
         type="button"
         onClick={onBack}
@@ -818,6 +766,108 @@ function ProjectDetail({
           })()}
         </div>
       </div>
+    </>
+  )
+}
+
+function ProjectDetail({
+  project,
+  projects,
+  tasks,
+  notes,
+  persons,
+  contexts,
+  tags,
+  onBack,
+  onToggleProcessed,
+  onToggleStatus,
+  onUpdate,
+  onArchiveTask,
+  onDeleteTask,
+  urgencies,
+  onUpdateProject,
+  onDeleteProject,
+  onEdit,
+  onCreate,
+  onCreateNote,
+  initialTab,
+}: {
+  project: Project
+  projects: Project[]
+  tasks: Task[]
+  notes: Task[]
+  persons: Person[]
+  contexts: Context[]
+  tags: Tag[]
+  urgencies: UrgencyLevel[]
+  onBack: () => void
+  onToggleProcessed: (id: string) => void
+  onToggleStatus: (id: string) => void
+  onUpdate: (task: Task) => void
+  onArchiveTask?: (id: string) => void
+  onDeleteTask?: (id: string) => void
+  onCreate?: (input: {
+    description: string
+    contextIds: string[]
+    projectId: string | null
+    personId: string | null
+    processed: boolean
+  }) => Promise<string | void>
+  onCreateNote?: (input: {
+    description: string
+    contextIds: string[]
+    projectId: string | null
+    personId: string | null
+    processed: boolean
+  }) => Promise<string | void>
+  onUpdateProject: (project: Project) => void
+  onDeleteProject: (id: string) => void
+  onEdit: () => void
+  initialTab?: "tasks" | "notes" | "description"
+}) {
+  const db = useDatabase()
+  const [tab, setTab] = useState<"tasks" | "notes" | "description">(initialTab || "tasks")
+  
+  useEffect(() => {
+    if (initialTab) {
+      setTab(initialTab)
+    }
+  }, [initialTab])
+  const projTasks = tasks.filter((t) => t.project_id === project.id && t.processed)
+  const projNotes = notes.filter((n) => n.project_id === project.id)
+  const open = projTasks.filter((t) => t.status === "Open")
+  const done = projTasks.filter((t) => t.status === "Done")
+  const ProjIcon = project.icon ? ICONS[project.icon] ?? FolderKanban : FolderKanban
+  const linkedPerson = project.linked_person_id
+    ? persons.find((per) => per.id === project.linked_person_id)
+    : null
+  
+  const isMobile = useIsMobile()
+  const handleTabChange = (newTab: "tasks" | "notes" | "description") => {
+    if (isMobile && (newTab === "tasks" || newTab === "notes")) {
+      window.dispatchEvent(new CustomEvent("mobile-section-change", { detail: newTab }))
+    } else {
+      setTab(newTab)
+    }
+  }
+
+  return (
+    <div 
+      className="px-4 pt-3 pb-24 md:px-6 md:pt-4 md:pb-6"
+    >
+      {!isMobile && (
+        <ProjectHeader
+          project={project}
+          projects={projects}
+          tasks={tasks}
+          notes={notes}
+          persons={persons}
+          onBack={onBack}
+          onUpdateProject={onUpdateProject}
+          onDeleteProject={onDeleteProject}
+          onEdit={onEdit}
+        />
+      )}
 
       <div className="mt-3 flex items-center gap-1 border-b border-border">
         <TabButton active={tab === "tasks"} onClick={() => handleTabChange("tasks")} icon={ListChecks}>
@@ -935,7 +985,7 @@ function TabButton({
   )
 }
 
-function ProjectEditor({
+export function ProjectEditor({
   open,
   onOpenChange,
   project,
