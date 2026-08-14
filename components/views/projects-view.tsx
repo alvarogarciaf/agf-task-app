@@ -869,20 +869,20 @@ function ProjectDetail({
         />
       )}
 
-      <div className="mt-3 flex items-center gap-1 border-b border-border">
-        <TabButton active={tab === "tasks"} onClick={() => handleTabChange("tasks")} icon={ListChecks}>
-          Tasks
-          <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-            {projTasks.length}
-          </span>
-        </TabButton>
-        <TabButton active={tab === "notes"} onClick={() => handleTabChange("notes")} icon={StickyNote}>
-          Notes
-          <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-            {projNotes.length}
-          </span>
-        </TabButton>
-        {!isMobile && (
+      {!isMobile && (
+        <div className="mt-3 flex items-center gap-1 border-b border-border">
+          <TabButton active={tab === "tasks"} onClick={() => handleTabChange("tasks")} icon={ListChecks}>
+            Tasks
+            <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+              {projTasks.length}
+            </span>
+          </TabButton>
+          <TabButton active={tab === "notes"} onClick={() => handleTabChange("notes")} icon={StickyNote}>
+            Notes
+            <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+              {projNotes.length}
+            </span>
+          </TabButton>
           <TabButton
             active={tab === "description"}
             onClick={() => handleTabChange("description")}
@@ -890,8 +890,8 @@ function ProjectDetail({
           >
             Description
           </TabButton>
-        )}
-      </div>
+        </div>
+      )}
 
       {tab === "tasks" && (
         <div className="mt-4 h-auto md:h-[500px] -mx-4 md:-mx-6">

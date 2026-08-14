@@ -13,7 +13,7 @@ import { WorkspaceViewContent } from "@/components/workspace-view-content"
 import { WorkspaceTabBar } from "@/components/workspace-tab-bar"
 import { ObjectFullScreenView } from "@/components/object-full-screen-view"
 import { ProjectHeader, ProjectEditor } from "@/components/views/projects-view"
-import { Search } from "lucide-react"
+import { Search, ListChecks, StickyNote } from "lucide-react"
 import useEmblaCarousel from "embla-carousel-react"
 import { TabPortalProvider } from "@/components/tab-portal-context"
 import { TabToolbarProvider, type TabToolbarState } from "@/components/tab-toolbar-context"
@@ -1428,21 +1428,61 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           {isMobile ? (
             <div className="flex flex-col h-full w-full">
               {activeView === "projects" && initialProjectId && currentProject && (
-                <div className="px-4 pt-3 border-b border-border bg-background">
-                  <ProjectHeader
-                    project={currentProject}
-                    projects={projects}
-                    tasks={activeTasks}
-                    notes={notes}
-                    persons={persons}
-                    onBack={() => setInitialProjectId(undefined)}
-                    onUpdateProject={handleUpdateProject}
-                    onDeleteProject={(id) => {
-                      handleDeleteProject(id)
-                      setInitialProjectId(undefined)
-                    }}
-                    onEdit={() => setEditingProject(currentProject)}
-                  />
+                <div className="bg-background">
+                  <div className="px-4 pt-3">
+                    <ProjectHeader
+                      project={currentProject}
+                      projects={projects}
+                      tasks={activeTasks}
+                      notes={notes}
+                      persons={persons}
+                      onBack={() => setInitialProjectId(undefined)}
+                      onUpdateProject={handleUpdateProject}
+                      onDeleteProject={(id) => {
+                        handleDeleteProject(id)
+                        setInitialProjectId(undefined)
+                      }}
+                      onEdit={() => setEditingProject(currentProject)}
+                    />
+                  </div>
+                  
+                  {/* Static Project Tabs */}
+                  <div className="mt-3 flex items-center gap-1 border-b border-border px-4 bg-background">
+                    <button
+                      type="button"
+                      onClick={() => emblaApi?.scrollTo(0)}
+                      className={cn(
+                        "relative inline-flex items-center gap-1.5 px-3 py-2 text-sm transition-colors",
+                        mobileSection === "tasks" ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <ListChecks className="h-3.5 w-3.5" />
+                      Tasks
+                      <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                        {activeTasks.filter(t => t.project_id === currentProject.id && t.processed).length}
+                      </span>
+                      {mobileSection === "tasks" && (
+                        <span className="absolute inset-x-0 -bottom-px h-px bg-primary" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => emblaApi?.scrollTo(1)}
+                      className={cn(
+                        "relative inline-flex items-center gap-1.5 px-3 py-2 text-sm transition-colors",
+                        mobileSection === "notes" ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <StickyNote className="h-3.5 w-3.5" />
+                      Notes
+                      <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                        {notes.filter(n => n.project_id === currentProject.id).length}
+                      </span>
+                      {mobileSection === "notes" && (
+                        <span className="absolute inset-x-0 -bottom-px h-px bg-primary" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
               {/* Mobile Floating Search Button */}
