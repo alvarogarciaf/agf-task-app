@@ -60,6 +60,7 @@ interface AppHeaderProps {
   onExpandFullScreen?: (taskId: string, mode: "view" | "edit") => void
   mobileCenterContent?: React.ReactNode
   hideMobileTitle?: boolean
+  hideHeaderVisually?: boolean
 }
 
 export function AppHeader({
@@ -84,6 +85,7 @@ export function AppHeader({
   onExpandFullScreen,
   mobileCenterContent,
   hideMobileTitle,
+  hideHeaderVisually = false,
 }: AppHeaderProps) {
   const title = view === "saved-view" ? savedViewName || "Saved View" : TITLES[view]
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -200,8 +202,9 @@ export function AppHeader({
   ]
 
   return (
-    <header className="pt-safe border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div
+    <>
+      <header className={cn("pt-safe border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60", hideHeaderVisually && "hidden")}>
+        <div
         className={cn(
           "flex items-center gap-3 px-3 md:px-4",
           desktopTabs ? "h-12" : "h-14 justify-between md:px-6",
@@ -318,6 +321,7 @@ export function AppHeader({
           <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
         </div>
       )}
+      </header>
 
       {/* Search Modal */}
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
@@ -537,6 +541,6 @@ export function AppHeader({
         portalContainer={tabPortalContainer}
         onExpandFullScreen={onExpandFullScreen}
       />
-    </header>
+    </>
   )
 }

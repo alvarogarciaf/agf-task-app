@@ -1329,16 +1329,16 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       />
 
       <div className="flex min-w-0 h-full flex-1 flex-col overflow-hidden">
-        {(!isMobile || !(activeView === "projects" && !!initialProjectId)) && (
-          <AppHeader
-            view={
-              isMobile
-                ? (mobileSection === "tasks" 
-                  ? (activeView === "all" && initialContextId ? "contexts" : activeView === "all" && initialProjectId ? "projects" : activeView)
-                  : (initialTagId ? "tags" : initialProjectId ? "projects" : activeView === "bookmarks" ? "bookmarks" : "notes")) as ViewKey
-              : activeTab.route.kind === "view"
-                ? activeTab.route.view
-                : "home"
+        <AppHeader
+          hideHeaderVisually={isMobile && activeView === "projects" && !!initialProjectId}
+          view={
+            isMobile
+              ? (mobileSection === "tasks" 
+                ? (activeView === "all" && initialContextId ? "contexts" : activeView === "all" && initialProjectId ? "projects" : activeView)
+                : (initialTagId ? "tags" : initialProjectId ? "projects" : activeView === "bookmarks" ? "bookmarks" : "notes")) as ViewKey
+            : activeTab.route.kind === "view"
+              ? activeTab.route.view
+              : "home"
           }
           hideMobileTitle={
             isMobile && !!initialProjectId
@@ -1418,7 +1418,6 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             </div>
           }
         />
-        )}
 
         <main
           className={cn(
