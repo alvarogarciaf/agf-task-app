@@ -1226,7 +1226,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       {...workspaceContentProps}
       route={{
         kind: "view",
-        view: activeView === "notes" ? "home" : activeView,
+        view: initialProjectId ? "projects" : (activeView === "notes" ? "home" : activeView),
         savedViewId: activeSavedViewId,
         settingsTab: activeSettingsTab,
       }}
@@ -1235,7 +1235,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         initialContextId,
         initialPersonId,
         initialTagId: undefined,
-        initialProjectId: mobileSection === "tasks" ? initialProjectId : undefined,
+        initialProjectId,
       }}
       onNavigate={handleNavigate}
       onUpdateUi={(patch) => {
@@ -1249,11 +1249,11 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const renderMobileNotesContent = () => (
     <WorkspaceViewContent
       {...workspaceContentProps}
-      route={{ kind: "view", view: activeView === "bookmarks" ? "bookmarks" : activeView === "projects" ? "projects" : "notes" }}
+      route={{ kind: "view", view: initialProjectId ? "projects" : (activeView === "bookmarks" ? "bookmarks" : activeView === "projects" ? "projects" : "notes") }}
       defaultProjectTab="notes"
       ui={{
         initialTagId,
-        initialProjectId: mobileSection === "notes" ? initialProjectId : undefined,
+        initialProjectId,
       }}
       onNavigate={handleNavigate}
       onUpdateUi={(patch) => {
@@ -1345,7 +1345,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
 
       <div className="flex min-w-0 h-full flex-1 flex-col overflow-hidden">
         <AppHeader
-          hideHeaderVisually={isMobile && activeView === "projects" && !!initialProjectId}
+          hideHeaderVisually={isMobile && !!initialProjectId}
           view={
             isMobile
               ? (mobileSection === "tasks" 
@@ -1446,7 +1446,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         >
           {isMobile ? (
             <div className="flex flex-col h-full w-full">
-              {activeView === "projects" && initialProjectId && currentProject && (
+              {initialProjectId && currentProject && (
                 <div className="bg-background">
                   <div className="px-4 pt-3">
                     <ProjectHeader
@@ -1559,8 +1559,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                 savedViews={savedViews}
                 onSelectContext={(id) => { handleNavigate("all"); setInitialContextId(id) }}
                 onSelectProject={(id) => { 
-                  if (mobileSection === "tasks") { handleNavigate("all"); setInitialProjectId(id) }
-                  else { handleNavigate("notes"); setInitialProjectId(id) }
+                  handleNavigate("projects", undefined, undefined, undefined, { initialProjectId: id })
                 }}
                 onSelectTag={(id) => { handleNavigate("notes"); setInitialTagId(id) }}
                 onAddContext={async (name) => {

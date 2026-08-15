@@ -875,7 +875,7 @@ function ProjectDetail({
 
   return (
     <div 
-      className="px-4 pt-3 pb-24 md:px-6 md:pt-4 md:pb-6"
+      className={cn("px-4 md:px-6 md:pt-4 md:pb-6", isMobile ? "pt-1 pb-28" : "pt-3 pb-24")}
     >
       {!isMobile && (
         <ProjectHeader
@@ -916,7 +916,7 @@ function ProjectDetail({
       )}
 
       {tab === "tasks" && (
-        <div className="mt-4 h-auto md:h-[500px] -mx-4 md:-mx-6">
+        <div className="mt-1 md:mt-4 h-auto md:h-[500px] -mx-4 md:-mx-6">
           <FilteredTasks
             tasks={projTasks}
             projects={projects}
