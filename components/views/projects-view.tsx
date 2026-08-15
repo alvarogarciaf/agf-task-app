@@ -58,6 +58,7 @@ import { MoreVertical, Edit2 } from "lucide-react"
 import { ICON_OPTIONS, ICONS, COLOR_PALETTE } from "@/lib/constants"
 import type { Context, Person, Project, Tag, Task, UrgencyLevel, ProjectStatus } from "@/lib/types"
 import { uploadImage } from "@/lib/image-upload"
+import { usePreloadProjectImages, preloadImage } from "@/lib/image-cache"
 import { toast } from "sonner"
 const DEFAULT_PROJECT_ICON = "Layers"
 
@@ -233,6 +234,7 @@ export function ProjectsView({
   }
 
   const [optimisticProjects, setOptimisticProjects] = useState(projects)
+  usePreloadProjectImages(optimisticProjects)
 
   useEffect(() => {
     setOptimisticProjects(projects)
@@ -403,7 +405,18 @@ export function ProjectsView({
                         ? { backgroundColor: `color-mix(in oklch, ${p.color} 20%, transparent)` }
                         : { backgroundColor: 'var(--muted)' }
                   }
-                />
+                >
+                  {p.background_image && (
+                    <img
+                      src={p.background_image}
+                      alt=""
+                      aria-hidden="true"
+                      loading="eager"
+                      decoding="async"
+                      className="h-full w-full object-cover opacity-0 pointer-events-none"
+                    />
+                  )}
+                </div>
                 {!p.background_image && (
                   <div className="absolute inset-0 z-0 flex items-center justify-center opacity-20">
                     <ProjIcon className="w-24 h-24" style={{ color: p.color || 'var(--primary)' }} />
@@ -1047,6 +1060,7 @@ export function ProjectEditor({
     try {
       setIsUploading(true)
       const url = await uploadImage(file)
+      preloadImage(url)
       setBackgroundImage(url)
       toast.success("Image uploaded successfully")
     } catch (error) {

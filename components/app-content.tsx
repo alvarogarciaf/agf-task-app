@@ -37,6 +37,7 @@ import { createGoogleEvent, updateGoogleEvent, deleteGoogleEvent } from "@/lib/g
 import { useTodaySectionFilter, isTaskForTodaySection } from "@/lib/today-filter"
 import { useGoogleCalendar } from "@/components/google-calendar-provider"
 import { SaveViewDialog } from "./save-view-dialog"
+import { usePreloadProjectImages } from "@/lib/image-cache"
 
 const CACHE_PREFIX = "tasker_cache_"
 function getCachedData<T>(key: string, defaultVal: T): T {
@@ -103,6 +104,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [activeTasks, setActiveTasks] = useState<Task[]>(() => getCachedData("activeTasks", []))
   const [notes, setNotes] = useState<Task[]>(() => getCachedData("notes", []))
   const [projects, setProjects] = useState<Project[]>(() => getCachedData("projects", []))
+  usePreloadProjectImages(projects)
   const [persons, setPersons] = useState<Person[]>(() => getCachedData("persons", []))
   const [contexts, setContexts] = useState<Context[]>(() => getCachedData("contexts", []))
   const [tags, setTags] = useState<Tag[]>(() => getCachedData("tags", []))

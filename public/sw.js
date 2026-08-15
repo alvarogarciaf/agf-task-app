@@ -1,5 +1,6 @@
-const CACHE_NAME = "tasker-agf-v1786756193874";
-const PRECACHE_URLS = ["/", "/manifest.json", "/logo.svg"];
+const CACHE_NAME = "tasker-agf-v1786756466272";
+const IMAGE_CACHE_NAME = "tasker-images-v1";
+const PRECACHE_URLS = ["/", "/manifest.json", "/logo.svg", "/placeholder.jpg"];
 
 // Detect localhost to bypass caching for development HMR
 const isLocalhost = self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1";
@@ -26,7 +27,7 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((names) =>
       Promise.all(
         names
-          .filter((name) => name !== CACHE_NAME)
+          .filter((name) => name !== CACHE_NAME && name !== IMAGE_CACHE_NAME)
           .map((name) => caches.delete(name))
       )
     )
@@ -89,13 +90,13 @@ self.addEventListener("notificationclick", (event) => {
 // Fetch handler (disabled on localhost)
 // ──────────────────────────────────────────────
 
-// URLs that should NEVER be cached (Firebase/Firestore API, auth, analytics)
+// URLs that should NEVER be cached (Firebase Firestore API, auth, analytics)
 const NETWORK_ONLY_PATTERNS = [
   /firestore\.googleapis\.com/,
   /identitytoolkit\.googleapis\.com/,
   /securetoken\.googleapis\.com/,
-  /www\.googleapis\.com/,
-  /firebase/,
+  /firebaseinstallations\.googleapis\.com/,
+  /fcm\.googleapis\.com/,
   /analytics/,
   /vitals/,
   /sw\.js/,
@@ -105,9 +106,18 @@ function isNetworkOnly(url) {
   return NETWORK_ONLY_PATTERNS.some((pattern) => pattern.test(url));
 }
 
-// Cacheable asset extensions (JS, CSS, fonts, images)
+// Check if request is for an image (Firebase Storage, proxy, local, or remote)
+function isImageRequest(request, url) {
+  if (request.destination === "image") return true;
+  if (/firebasestorage\.googleapis\.com/.test(url)) return true;
+  if (/firebasestorage\.app/.test(url)) return true;
+  if (/\/api\/proxy-image/.test(url)) return true;
+  return /\.(png|jpg|jpeg|webp|gif|svg|avif|ico)(\?.*)?$/i.test(url) || /%2F.*?\.(png|jpg|jpeg|webp|gif|svg|avif)(\?.*)?$/i.test(url);
+}
+
+// Cacheable asset extensions (JS, CSS, fonts)
 function isCacheableAsset(url) {
-  return /\.(js|css|woff2?|ttf|otf|svg|png|ico|webp|avif|jpg|jpeg)(\?.*)?$/.test(url);
+  return /\.(js|css|woff2?|ttf|otf)(\?.*)?$/.test(url);
 }
 
 self.addEventListener("fetch", (event) => {
@@ -118,10 +128,35 @@ self.addEventListener("fetch", (event) => {
 
   if (request.method !== "GET") return;
 
-  // Never cache Firebase/analytics API calls
+  // Never cache Firebase Firestore / auth / analytics API calls
   if (isNetworkOnly(request.url)) return;
 
-  // For navigation requests: stale-while-revalidate with fallback
+  // 1. For Images: Cache-First with persistent Image Cache storage
+  if (isImageRequest(request, request.url)) {
+    event.respondWith(
+      caches.open(IMAGE_CACHE_NAME).then((cache) =>
+        cache.match(request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          return fetch(request)
+            .then((networkResponse) => {
+              if (networkResponse && (networkResponse.ok || networkResponse.type === "opaque")) {
+                cache.put(request, networkResponse.clone());
+              }
+              return networkResponse;
+            })
+            .catch(() => {
+              // Return placeholder if offline and not cached
+              return caches.match("/placeholder.jpg");
+            });
+        })
+      )
+    );
+    return;
+  }
+
+  // 2. For navigation requests: stale-while-revalidate with fallback
   if (request.mode === "navigate") {
     event.respondWith(
       caches.match(request, { ignoreSearch: true }).then((cachedResponse) => {
@@ -141,7 +176,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // For JS/CSS/font/image assets: cache-first with background revalidation
+  // 3. For JS/CSS/font assets: cache-first with background revalidation
   if (isCacheableAsset(request.url)) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
@@ -162,7 +197,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Everything else: stale-while-revalidate
+  // 4. Everything else: stale-while-revalidate
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       const fetchPromise = fetch(request)
