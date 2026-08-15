@@ -70,7 +70,11 @@ function DropdownPortal({
     function update() {
       if (anchorRef.current) {
         const r = anchorRef.current.getBoundingClientRect()
-        setCoords({ top: r.bottom + window.scrollY, left: r.left + window.scrollX, width: Math.max(r.width, 180) })
+        setCoords({
+          top: r.bottom + window.scrollY,
+          left: r.left + window.scrollX,
+          width: Math.max(r.width, 260),
+        })
       }
     }
     update()
@@ -87,7 +91,7 @@ function DropdownPortal({
     <div
       data-portal-id="inline-editor-portal"
       style={{ position: "absolute", top: coords.top, left: coords.left, width: coords.width, zIndex: 9999 }}
-      className="max-h-52 overflow-y-auto rounded-b border border-t-0 border-primary bg-popover shadow-lg"
+      className="max-h-80 overflow-y-auto rounded-b border border-t-0 border-primary bg-popover shadow-xl"
     >
       {children}
     </div>,
@@ -109,6 +113,7 @@ export function InlineSelectEditor({
   const [highlightedIdx, setHighlightedIdx] = useState(0)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
@@ -132,6 +137,14 @@ export function InlineSelectEditor({
 
   // Reset highlight when filter changes
   useEffect(() => { setHighlightedIdx(0) }, [query])
+
+  // Auto-scroll highlighted option into view
+  useEffect(() => {
+    const el = itemRefs.current[highlightedIdx]
+    if (el) {
+      el.scrollIntoView({ block: "nearest" })
+    }
+  }, [highlightedIdx])
 
   return (
     <div ref={wrapperRef} className="absolute inset-0 z-40 flex items-center px-2">
@@ -162,22 +175,23 @@ export function InlineSelectEditor({
             <button
               type="button"
               onMouseDown={(e) => { e.preventDefault(); onCommit(null) }}
-              className="flex w-full items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted"
+              className="flex w-full items-center gap-2 px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted"
             >
               <X className="h-3 w-3" /> Clear
             </button>
           )}
           {filtered.length === 0 ? (
-            <p className="px-2 py-1.5 text-xs text-muted-foreground">No results</p>
+            <p className="px-2.5 py-1.5 text-xs text-muted-foreground">No results</p>
           ) : filtered.map((o, idx) => (
             <button
               key={o.id}
+              ref={(el) => { itemRefs.current[idx] = el }}
               type="button"
               onMouseDown={(e) => { e.preventDefault(); onCommit(o.id) }}
               onMouseEnter={() => setHighlightedIdx(idx)}
               className={cn(
-                "flex w-full items-center gap-2 px-2 py-1.5 text-xs hover:bg-muted",
-                o.id === currentId && "text-primary",
+                "flex w-full items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-muted transition-colors cursor-pointer",
+                o.id === currentId && "text-primary font-medium",
                 idx === highlightedIdx && "bg-muted ring-1 ring-inset ring-primary/40",
               )}
             >
@@ -210,6 +224,7 @@ export function InlineMultiSelectEditor({
   const [highlightedIdx, setHighlightedIdx] = useState(0)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
@@ -229,6 +244,14 @@ export function InlineMultiSelectEditor({
 
   const filtered = options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
   useEffect(() => { setHighlightedIdx(0) }, [query])
+
+  // Auto-scroll highlighted option into view
+  useEffect(() => {
+    const el = itemRefs.current[highlightedIdx]
+    if (el) {
+      el.scrollIntoView({ block: "nearest" })
+    }
+  }, [highlightedIdx])
 
   function toggle(id: string) {
     const next = selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]
@@ -263,18 +286,19 @@ export function InlineMultiSelectEditor({
         />
         <DropdownPortal anchorRef={inputRef}>
           {filtered.length === 0 ? (
-            <p className="px-2 py-1.5 text-xs text-muted-foreground">No results</p>
+            <p className="px-2.5 py-1.5 text-xs text-muted-foreground">No results</p>
           ) : filtered.map((o, idx) => {
             const isSel = selected.includes(o.id)
             return (
               <button
                 key={o.id}
+                ref={(el) => { itemRefs.current[idx] = el }}
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); toggle(o.id) }}
                 onMouseEnter={() => setHighlightedIdx(idx)}
                 className={cn(
-                  "flex w-full items-center gap-2 px-2 py-1.5 text-xs hover:bg-muted",
-                  isSel && "text-primary",
+                  "flex w-full items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-muted transition-colors cursor-pointer",
+                  isSel && "text-primary font-medium bg-primary/5",
                   idx === highlightedIdx && "bg-muted ring-1 ring-inset ring-primary/40",
                 )}
               >
@@ -284,11 +308,11 @@ export function InlineMultiSelectEditor({
               </button>
             )
           })}
-          <div className="border-t border-border px-2 py-1.5">
+          <div className="sticky bottom-0 border-t border-border bg-popover/95 backdrop-blur-sm px-2.5 py-1.5">
             <button
               type="button"
               onMouseDown={(e) => { e.preventDefault(); onCommit(selected) }}
-              className="text-xs text-primary hover:underline"
+              className="text-xs font-medium text-primary hover:underline"
             >
               Done ({selected.length} selected)
             </button>

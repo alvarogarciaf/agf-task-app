@@ -1446,8 +1446,8 @@ function FilterPill({
           ) : null}
         </div>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-56 p-2">
-        <div className="max-h-64 overflow-auto">
+      <PopoverContent align="start" className="w-64 p-2">
+        <div className="max-h-80 overflow-auto">
           {options.map((opt) => {
             const isSelected = selectedIds.includes(opt.id) || value === opt.label
             return (
