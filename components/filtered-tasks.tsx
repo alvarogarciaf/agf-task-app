@@ -41,6 +41,11 @@ import {
   isTaskHiddenOnlyByShowOn,
   isTaskVisibleByShowOnRule,
 } from "@/lib/show-on-filter"
+import {
+  getDefaultFilterMatchMode,
+  useDefaultFilterMatchMode,
+  type FilterMatchMode,
+} from "@/lib/filter-match-mode"
 
 interface FilteredTasksProps {
   tasks: Task[]
@@ -65,6 +70,7 @@ interface FilteredTasksProps {
   initialShowHiddenByShowOn?: boolean
   initialSortKey?: string
   initialSortDirection?: "asc" | "desc"
+  initialFilterMode?: "and" | "or"
   hideFilters?: ("status" | "context" | "project" | "person")[]
   storageKey?: string
   emptyTitle?: string
@@ -109,6 +115,7 @@ export function FilteredTasks({
   initialShowHiddenByShowOn,
   initialSortKey,
   initialSortDirection,
+  initialFilterMode,
   hideFilters = [],
   storageKey,
   emptyTitle,
@@ -123,6 +130,8 @@ export function FilteredTasks({
   hideDesktopAdd = false,
 }: FilteredTasksProps) {
   const isTabActive = useIsTabActive()
+  const defaultFilterMode = useDefaultFilterMatchMode()
+  const [filterMode, setFilterMode] = useState<FilterMatchMode>(() => initialFilterMode ?? getDefaultFilterMatchMode())
   const [contextIds, setContextIds] = useState<string[]>(() => {
     if (initialContextIds) return initialContextIds
     if (initialContextId) return [initialContextId]
@@ -196,11 +205,14 @@ export function FilteredTasks({
     setShowStatus(initialShowStatus ?? "open")
     setIsGroupedByProject(initialIsGroupedByProject ?? false)
     setShowHiddenByShowOn(initialShowHiddenByShowOn ?? false)
+    if (initialFilterMode) {
+      setFilterMode(initialFilterMode)
+    }
     setSortConfig({
       key: initialSortKey ?? "urgency",
       direction: initialSortDirection ?? "asc",
     })
-  }, [initialContextId, initialContextIds, initialTagId, initialTagIds, initialPersonId, initialProjectId, initialShowStatus, initialIsGroupedByProject, initialShowHiddenByShowOn, initialSortKey, initialSortDirection])
+  }, [initialContextId, initialContextIds, initialTagId, initialTagIds, initialPersonId, initialProjectId, initialShowStatus, initialIsGroupedByProject, initialShowHiddenByShowOn, initialSortKey, initialSortDirection, initialFilterMode])
 
   const firstOpenTaskIds = useMemo(() => {
     const map = new Set<string>()
@@ -227,11 +239,17 @@ export function FilteredTasks({
     return tasks
       .filter((t) => {
         if (contextIds.length === 0) return true
+        if (filterMode === "and") {
+          return contextIds.every(id => (t.context_ids || []).includes(id))
+        }
         return contextIds.some(id => (t.context_ids || []).includes(id))
       })
       .filter((t) => {
         // Tag filter only applies in notes mode
         if (!notesMode || tagIds.length === 0) return true
+        if (filterMode === "and") {
+          return tagIds.every(id => (t.tag_ids || []).includes(id))
+        }
         return tagIds.some(id => (t.tag_ids || []).includes(id))
       })
       .filter((t) => {
@@ -335,6 +353,7 @@ export function FilteredTasks({
       })
   }, [
     tasks,
+    filterMode,
     contextIds,
     tagIds,
     personId,
@@ -535,6 +554,7 @@ export function FilteredTasks({
       show_hidden_by_show_on: showHiddenByShowOn,
       sort_key: sortConfig.key,
       sort_direction: sortConfig.direction,
+      filter_mode: filterMode,
       date_created: new Date().toISOString(),
       order: maxOrder + 1,
     }
@@ -548,6 +568,7 @@ export function FilteredTasks({
     showStatus !== "open" || 
     isGroupedByProject || 
     showHiddenByShowOn ||
+    filterMode !== (initialFilterMode ?? defaultFilterMode) ||
     sortConfig.key !== "date_created" ||
     sortConfig.direction !== "desc"
 
@@ -616,13 +637,13 @@ export function FilteredTasks({
   }
   if (!notesMode && contextIds.length > 0 && !hideFilters.includes("context")) {
     activeChips.push({ 
-      label: `Context: ${contextIds.length === 1 ? contexts.find(c => c.id === contextIds[0])?.name : `${contextIds.length} selected`}`, 
+      label: `Context: ${contextIds.length === 1 ? contexts.find(c => c.id === contextIds[0])?.name : `${contextIds.length} selected (${filterMode.toUpperCase()})`}`, 
       onRemove: () => setContextIds([]) 
     })
   }
   if (notesMode && tagIds.length > 0) {
     activeChips.push({ 
-      label: `Tag: ${tagIds.length === 1 ? tags.find(t => t.id === tagIds[0])?.name : `${tagIds.length} selected`}`, 
+      label: `Tag: ${tagIds.length === 1 ? tags.find(t => t.id === tagIds[0])?.name : `${tagIds.length} selected (${filterMode.toUpperCase()})`}`, 
       onRemove: () => setTagIds([]) 
     })
   }
@@ -646,7 +667,7 @@ export function FilteredTasks({
   }
 
   return (
-    <div key={`${initialContextId}-${initialContextIds?.join(",")}-${initialProjectId}-${initialPersonId}-${initialShowStatus}-${initialIsGroupedByProject}-${initialShowHiddenByShowOn}-${initialSortKey}-${initialSortDirection}`} className={cn(
+    <div key={`${initialContextId}-${initialContextIds?.join(",")}-${initialTagId}-${initialTagIds?.join(",")}-${initialProjectId}-${initialPersonId}-${initialShowStatus}-${initialIsGroupedByProject}-${initialShowHiddenByShowOn}-${initialFilterMode}-${initialSortKey}-${initialSortDirection}`} className={cn(
       "flex flex-col min-w-0 w-full bg-transparent md:bg-card overflow-hidden",
       fullWidthOnMobile 
         ? "border-b border-border md:rounded-lg md:border" 
@@ -740,6 +761,18 @@ export function FilteredTasks({
                 )}
                 onClear={() => setTagIds([])}
                 multiSelect={true}
+              />
+            )}
+
+            {((!notesMode && !hideFilters.includes("context")) || notesMode) && (
+              <Segmented
+                value={filterMode}
+                onChange={setFilterMode}
+                defaultValue={defaultFilterMode}
+                options={[
+                  { value: "and", label: "AND" },
+                  { value: "or", label: "OR" },
+                ]}
               />
             )}
 
@@ -894,6 +927,28 @@ export function FilteredTasks({
                     >
                       Show hidden by Show on
                     </DropdownMenuCheckboxItem>
+                  )}
+                  {((!notesMode && !hideFilters.includes("context")) || notesMode) && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Multiple filters match
+                      </DropdownMenuLabel>
+                      <DropdownMenuCheckboxItem
+                        checked={filterMode === "and"}
+                        onCheckedChange={() => setFilterMode("and")}
+                        onSelect={(e) => e.preventDefault()}
+                      >
+                        Match all (AND)
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={filterMode === "or"}
+                        onCheckedChange={() => setFilterMode("or")}
+                        onSelect={(e) => e.preventDefault()}
+                      >
+                        Match any (OR)
+                      </DropdownMenuCheckboxItem>
+                    </>
                   )}
                   {hasFilter && (
                     <>
@@ -1141,6 +1196,41 @@ export function FilteredTasks({
                   onChange={setTagIds}
                   placeholder="All tags"
                 />
+              </div>
+            )}
+
+            {/* Multiple Filters Match (AND / OR) */}
+            {((!notesMode && !hideFilters.includes("context")) || notesMode) && (
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                  Multiple filters match
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFilterMode("and")}
+                    className={cn(
+                      "h-10 rounded-md border text-sm font-medium transition-all cursor-pointer",
+                      filterMode === "and"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-background text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    Match all (AND)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterMode("or")}
+                    className={cn(
+                      "h-10 rounded-md border text-sm font-medium transition-all cursor-pointer",
+                      filterMode === "or"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-background text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    Match any (OR)
+                  </button>
+                </div>
               </div>
             )}
 

@@ -87,6 +87,7 @@ export interface SavedView {
   show_hidden_by_show_on: boolean
   sort_key: string
   sort_direction: "asc" | "desc"
+  filter_mode?: "and" | "or"
   date_created: string
   order: number
 }

@@ -23,6 +23,7 @@ interface AllTasksViewProps {
   initialShowHiddenByShowOn?: boolean
   initialSortKey?: string
   initialSortDirection?: "asc" | "desc"
+  initialFilterMode?: "and" | "or"
   fullWidthOnMobile?: boolean
   allowUnprocessed?: boolean
   onCreate?: (input: {

@@ -506,6 +506,7 @@ export function ProjectsView({
                           show_hidden_by_show_on: false,
                           sort_key: "date_created",
                           sort_direction: "desc",
+                          filter_mode: "and",
                           date_created: new Date().toISOString(),
                           order: maxOrder + 1,
                         })
@@ -703,6 +704,7 @@ export function ProjectHeader({
                 show_hidden_by_show_on: false,
                 sort_key: "date_created",
                 sort_direction: "desc",
+                filter_mode: "and",
                 date_created: new Date().toISOString(),
                 order: maxOrder + 1,
               })

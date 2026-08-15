@@ -12,6 +12,7 @@ import { firestoreDb } from "@/lib/firebase/config"
 import type { Person, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "@/components/db-provider"
 import { useTodaySectionFilter, setTodaySectionFilter } from "@/lib/today-filter"
+import { useDefaultFilterMatchMode, setDefaultFilterMatchMode } from "@/lib/filter-match-mode"
 
 export type TabKey = "view" | "contexts" | "tags" | "calendar" | "data" | "notifications" | "troubleshoot"
 
@@ -155,6 +156,7 @@ export function SettingsView({
             <div className="space-y-6">
               <OpenNotesAsSetting />
               <TodaySectionSetting />
+              <DefaultFilterMatchModeSetting />
             </div>
           </div>
         )}
@@ -897,6 +899,71 @@ function TodaySectionSetting() {
             <div className="text-sm font-medium">Show today and overdue</div>
             <p className="text-xs text-muted-foreground mt-0.5">
               Show tasks scheduled for today and also overdue tasks.
+            </p>
+          </div>
+        </label>
+      </div>
+    </div>
+  )
+}
+
+function DefaultFilterMatchModeSetting() {
+  const value = useDefaultFilterMatchMode()
+
+  return (
+    <div className="rounded-lg border border-border p-5">
+      <div className="mb-4">
+        <h4 className="text-sm font-medium">Default behavior for multiple filters</h4>
+        <p className="text-xs text-muted-foreground mt-1">
+          Choose whether selecting multiple filters (like contexts or tags) matches tasks that have all selected items (AND) or any selected item (OR).
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+        <label
+          className={cn(
+            "flex flex-1 cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors",
+            value === "and"
+              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+              : "border-border hover:border-primary/40",
+          )}
+        >
+          <input
+            type="radio"
+            name="default_filter_match_mode"
+            value="and"
+            checked={value === "and"}
+            onChange={() => setDefaultFilterMatchMode("and")}
+            className="mt-0.5 accent-primary"
+          />
+          <div>
+            <div className="text-sm font-medium">Match all (AND)</div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Tasks must match every selected context or tag.
+            </p>
+          </div>
+        </label>
+
+        <label
+          className={cn(
+            "flex flex-1 cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors",
+            value === "or"
+              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+              : "border-border hover:border-primary/40",
+          )}
+        >
+          <input
+            type="radio"
+            name="default_filter_match_mode"
+            value="or"
+            checked={value === "or"}
+            onChange={() => setDefaultFilterMatchMode("or")}
+            className="mt-0.5 accent-primary"
+          />
+          <div>
+            <div className="text-sm font-medium">Match any (OR)</div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Tasks can match any of the selected contexts or tags.
             </p>
           </div>
         </label>

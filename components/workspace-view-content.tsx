@@ -183,6 +183,7 @@ export function WorkspaceViewContent({
           initialShowHiddenByShowOn={sv.show_hidden_by_show_on}
           initialSortKey={sv.sort_key}
           initialSortDirection={sv.sort_direction}
+          initialFilterMode={sv.filter_mode}
           fullWidthOnMobile={true}
         />
       )

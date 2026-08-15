@@ -131,6 +131,11 @@ export const getDatabase = async (userUid: string) => {
             }
             delete oldDoc.context_id;
             return oldDoc;
+          },
+          // 4: Add default filter_mode
+          4: (oldDoc: any) => {
+            oldDoc.filter_mode = oldDoc.filter_mode || "and";
+            return oldDoc;
           }
         }
       },

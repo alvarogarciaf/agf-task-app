@@ -139,7 +139,7 @@ export type TagDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof tagSche
 
 export const savedViewSchemaLiteral = {
   title: 'saved view schema',
-  version: 3,
+  version: 4,
   description: 'describes a saved view',
   primaryKey: 'id',
   type: 'object',
@@ -159,6 +159,7 @@ export const savedViewSchemaLiteral = {
     show_hidden_by_show_on: { type: 'boolean' },
     sort_key: { type: 'string' },
     sort_direction: { type: 'string', enum: ['asc', 'desc'] },
+    filter_mode: { type: 'string', enum: ['and', 'or'] },
     date_created: { type: 'string' },
     order: { type: 'number' },
   },
