@@ -6,6 +6,8 @@ import { UserMenu } from "@/components/user-menu"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import type { TabToolbarState } from "@/components/tab-toolbar-context"
 import type { ViewKey, Task, Project, Person, Context, Tag, UrgencyLevel } from "@/lib/types"
+import type { TabUiState } from "@/lib/workspace-tabs"
+import { ICONS } from "@/lib/constants"
 import type { SyncStatus } from "./db-provider"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
@@ -41,7 +43,7 @@ const TITLES: Record<ViewKey, string> = {
 interface AppHeaderProps {
   view: ViewKey
   savedViewName?: string | null
-  onNavigate?: (view: ViewKey, savedViewId?: string, settingsTab?: TabKey) => void
+  onNavigate?: (view: ViewKey, savedViewId?: string, settingsTab?: TabKey, objectId?: string, uiPatch?: Partial<TabUiState>) => void
   user?: { uid: string; displayName: string | null; email: string | null; photoURL?: string | null } | null
   onSignOut?: () => void
   syncStatus?: SyncStatus
@@ -92,7 +94,7 @@ export function AppHeader({
 
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchScope, setSearchScope] = useState<"tasks" | "notes" | "all">("all")
+  const [searchScope, setSearchScope] = useState<"tasks" | "notes" | "projects" | "all">("all")
   const [includeClosed, setIncludeClosed] = useState(false)
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [detailMode, setDetailMode] = useState<"view" | "edit">("view")
@@ -140,24 +142,55 @@ export function AppHeader({
     }
   }, [searchOpen])
 
+  type SearchResultItem =
+    | { kind: "task"; data: Task }
+    | { kind: "note"; data: Task }
+    | { kind: "project"; data: Project }
+
   // Filter objects by case-insensitive query matches in description or details,
-  // scoped to tasks, notes, or both.
-  const filteredResults = useMemo(() => {
+  // scoped to tasks, notes, projects, or all.
+  const filteredResults = useMemo<SearchResultItem[]>(() => {
     const q = searchQuery.toLowerCase().trim()
     if (!q) return []
-    const pool =
-      searchScope === "tasks" ? tasks : searchScope === "notes" ? notes : [...tasks, ...notes]
-    return pool.filter((t) => {
-      const isNote = t.type === "note"
-      const isClosed = isNote ? t.archived : (t.status === "Done" || t.archived)
-      
-      if (!includeClosed && isClosed) return false
 
-      const desc = t.description?.toLowerCase() || ""
-      const det = t.details?.toLowerCase() || ""
-      return desc.includes(q) || det.includes(q)
-    })
-  }, [searchQuery, searchScope, includeClosed, tasks, notes])
+    const results: SearchResultItem[] = []
+
+    // Filter Tasks
+    if (searchScope === "tasks" || searchScope === "all") {
+      const matchingTasks = (tasks || []).filter((t) => {
+        const isClosed = t.status === "Done" || t.archived
+        if (!includeClosed && isClosed) return false
+        const desc = t.description?.toLowerCase() || ""
+        const det = t.details?.toLowerCase() || ""
+        return desc.includes(q) || det.includes(q)
+      })
+      matchingTasks.forEach((t) => results.push({ kind: "task", data: t }))
+    }
+
+    // Filter Notes
+    if (searchScope === "notes" || searchScope === "all") {
+      const matchingNotes = (notes || []).filter((t) => {
+        if (!includeClosed && t.archived) return false
+        const desc = t.description?.toLowerCase() || ""
+        const det = t.details?.toLowerCase() || ""
+        return desc.includes(q) || det.includes(q)
+      })
+      matchingNotes.forEach((t) => results.push({ kind: "note", data: t }))
+    }
+
+    // Filter Projects
+    if (searchScope === "projects" || searchScope === "all") {
+      const matchingProjects = (projects || []).filter((p) => {
+        if (!includeClosed && p.status === "Closed") return false
+        const name = p.name?.toLowerCase() || ""
+        const det = p.details?.toLowerCase() || ""
+        return name.includes(q) || det.includes(q)
+      })
+      matchingProjects.forEach((p) => results.push({ kind: "project", data: p }))
+    }
+
+    return results
+  }, [searchQuery, searchScope, includeClosed, tasks, notes, projects])
 
   useEffect(() => {
     setHighlightedIdx(0)
@@ -168,6 +201,15 @@ export function AppHeader({
   }, [highlightedIdx])
 
   const isMobile = useIsMobile()
+
+  function handleSelectResult(hit: SearchResultItem) {
+    if (hit.kind === "project") {
+      setSearchOpen(false)
+      onNavigate?.("projects", undefined, undefined, undefined, { initialProjectId: hit.data.id })
+    } else {
+      openSearchResult(hit.data)
+    }
+  }
 
   function openSearchResult(task: Task) {
     const openNotesAs = typeof window !== "undefined"
@@ -183,9 +225,10 @@ export function AppHeader({
     setSearchOpen(false)
   }
 
-  const scopeOptions: { key: "tasks" | "notes" | "all"; label: string }[] = [
+  const scopeOptions: { key: "tasks" | "notes" | "projects" | "all"; label: string }[] = [
     { key: "tasks", label: "Tasks" },
     { key: "notes", label: "Notes" },
+    { key: "projects", label: "Projects" },
     { key: "all", label: "All" },
   ]
 
@@ -358,10 +401,18 @@ export function AppHeader({
                 if (e.key === "Enter") {
                   e.preventDefault()
                   const hit = filteredResults[highlightedIdx]
-                  if (hit) openSearchResult(hit)
+                  if (hit) handleSelectResult(hit)
                 }
               }}
-              placeholder="Search tasks by description or details..."
+              placeholder={
+                searchScope === "projects"
+                  ? "Search projects by name or description..."
+                  : searchScope === "notes"
+                    ? "Search notes by title or content..."
+                    : searchScope === "tasks"
+                      ? "Search tasks by description or details..."
+                      : "Search tasks, notes, and projects..."
+              }
               className="h-10 w-full bg-transparent text-base focus:outline-none placeholder:text-muted-foreground md:h-9 md:text-sm"
             />
             {searchQuery && (
@@ -407,9 +458,11 @@ export function AppHeader({
                 <span className="text-sm font-medium">
                   {searchScope === "notes"
                     ? "Type to search your notes"
-                    : searchScope === "all"
-                      ? "Type to search tasks and notes"
-                      : "Type to search your tasks"}
+                    : searchScope === "projects"
+                      ? "Type to search your projects"
+                      : searchScope === "all"
+                        ? "Type to search tasks, notes, and projects"
+                        : "Type to search your tasks"}
                 </span>
                 <span className="text-[11px] opacity-75 mt-0.5">Searching description and details...</span>
               </div>
@@ -421,25 +474,96 @@ export function AppHeader({
               </div>
             ) : (
               <div className="space-y-1">
-                {filteredResults.map((t, idx) => {
-                  const isNote = t.type === "note"
-                  const project = projects.find((p) => p.id === t.project_id)
-                  const taskContexts = contexts.filter((c) => t.context_ids.includes(c.id))
-                  const noteTags = tags.filter((tg) => (t.tag_ids || []).includes(tg.id))
-                  const isDone = t.status === "Done"
+                {filteredResults.map((item, idx) => {
                   const isHighlighted = idx === highlightedIdx
+                  if (item.kind === "project") {
+                    const p = item.data
+                    const ProjIcon = p.icon ? ICONS[p.icon] ?? FolderKanban : FolderKanban
+                    const projTasks = (tasks || []).filter((t) => t.project_id === p.id && t.processed)
+                    const projNotes = (notes || []).filter((n) => n.project_id === p.id)
+                    const descPreview = p.details ? markdownToPlainText(p.details) : ""
+
+                    return (
+                      <div
+                        key={`project-${p.id}`}
+                        ref={(el) => {
+                          resultRefs.current[idx] = el
+                        }}
+                        onMouseEnter={() => setHighlightedIdx(idx)}
+                        onClick={() => handleSelectResult(item)}
+                        className={cn(
+                          "group flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors hover:bg-muted/70 active:bg-muted/90",
+                          isHighlighted && "bg-muted ring-1 ring-inset ring-primary/30",
+                        )}
+                      >
+                        {/* Leading icon */}
+                        <div
+                          className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+                          style={
+                            p.color
+                              ? {
+                                  backgroundColor: `color-mix(in oklch, ${p.color} 15%, transparent)`,
+                                  color: p.color,
+                                }
+                              : { backgroundColor: "var(--muted)", color: "var(--primary)" }
+                          }
+                        >
+                          <ProjIcon className="h-4 w-4" />
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0 text-left">
+                          <div className="text-sm font-medium leading-normal tracking-tight truncate text-foreground">
+                            {p.name}
+                          </div>
+
+                          {descPreview && (
+                            <div className="mt-0.5 text-xs text-muted-foreground/80 line-clamp-1 truncate">
+                              {descPreview}
+                            </div>
+                          )}
+
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            <span className="rounded bg-primary/10 border border-primary/20 px-1.5 py-0.5 font-sans text-[10px] font-semibold text-primary uppercase tracking-wider">
+                              Project
+                            </span>
+
+                            <span className={cn(
+                              "rounded px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-wider",
+                              p.status === "Ongoing"
+                                ? "bg-muted text-muted-foreground"
+                                : "bg-muted/40 text-muted-foreground line-through"
+                            )}>
+                              {p.status}
+                            </span>
+
+                            <span className="text-[10px] text-muted-foreground font-mono">
+                              {projTasks.length} {projTasks.length === 1 ? "task" : "tasks"} · {projNotes.length} {projNotes.length === 1 ? "note" : "notes"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  const t = item.data
+                  const isNote = item.kind === "note"
+                  const project = (projects || []).find((p) => p.id === t.project_id)
+                  const taskContexts = (contexts || []).filter((c) => t.context_ids.includes(c.id))
+                  const noteTags = (tags || []).filter((tg) => (t.tag_ids || []).includes(tg.id))
+                  const isDone = t.status === "Done"
                   const detailsPreview = t.details
                     ? markdownToPlainText(t.details)
                     : ""
 
                   return (
                     <div
-                      key={t.id}
+                      key={`${t.type}-${t.id}`}
                       ref={(el) => {
                         resultRefs.current[idx] = el
                       }}
                       onMouseEnter={() => setHighlightedIdx(idx)}
-                      onClick={() => openSearchResult(t)}
+                      onClick={() => handleSelectResult(item)}
                       className={cn(
                         "group flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors hover:bg-muted/70 active:bg-muted/90",
                         isHighlighted && "bg-muted ring-1 ring-inset ring-primary/30",
