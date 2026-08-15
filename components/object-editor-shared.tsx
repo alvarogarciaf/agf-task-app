@@ -353,6 +353,7 @@ export function useObjectDraft({
         converted.status = "Open"
       }
     }
+    setDraft(converted)
     onUpdate(converted)
     toast.success(
       nextType === "note" ? "Converted to Note" : "Converted to Task",
