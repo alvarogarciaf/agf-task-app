@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useCallback, useEffect, memo } from "react"
-import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock, Eye, Pencil, FileText, ArrowLeftRight, ArrowUpRight, GripVertical } from "lucide-react"
+import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock, Pencil, FileText, ArrowLeftRight, ArrowUpRight, GripVertical } from "lucide-react"
 import { ProjectChip, ProjectOptionIcon } from "@/components/project-select"
 import { toast } from "sonner"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
@@ -1055,47 +1055,18 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
             {task.description === "New task" || task.description === "New note" ? "" : task.description}
           </span>
           <div className="hidden group-hover/desc:flex absolute right-0 top-1/2 -translate-y-1/2 items-center gap-1.5 shrink-0 bg-background/90 backdrop-blur-sm pl-4 pr-1 py-1 rounded-l-md animate-fade-in z-10" style={{ backgroundImage: "linear-gradient(to right, transparent, var(--background) 20%)" }}>
-            {task.type === "note" && ctx.openNotesAs === "fullscreen" ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  ctx.onOpenEdit?.(task.id, e.ctrlKey || e.metaKey)
-                }}
-                className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/5 hover:bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary transition-colors cursor-pointer"
-                title="Open note (Ctrl+Click to open in new tab)"
-              >
-                <ArrowUpRight className="h-3 w-3" />
-                <span>Open</span>
-              </button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    ctx.onOpenView?.(task.id, e.ctrlKey || e.metaKey)
-                  }}
-                  className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/5 hover:bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary transition-colors cursor-pointer"
-                  title="View details (Ctrl+Click to open in new tab)"
-                >
-                  <Eye className="h-3 w-3" />
-                  <span>View</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    ctx.onOpenEdit?.(task.id, e.ctrlKey || e.metaKey)
-                  }}
-                  className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/5 hover:bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary transition-colors cursor-pointer"
-                  title="Edit task (Ctrl+Click to open in new tab)"
-                >
-                  <Pencil className="h-3 w-3" />
-                  <span>Edit</span>
-                </button>
-              </>
-            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                ctx.onOpenEdit?.(task.id, e.ctrlKey || e.metaKey)
+              }}
+              className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/5 hover:bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary transition-colors cursor-pointer"
+              title={`${task.type === "note" ? "Open note" : "Open task"} (Ctrl+Click to open in new tab)`}
+            >
+              <ArrowUpRight className="h-3 w-3" />
+              <span>Open</span>
+            </button>
           </div>
         </div>
       )
