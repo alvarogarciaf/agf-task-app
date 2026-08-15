@@ -683,11 +683,24 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       else params.delete("tab")
       if (objectId) params.set("objectId", objectId)
       else params.delete("objectId")
+      if (finalUiPatch.initialProjectId) params.set("project", finalUiPatch.initialProjectId)
+      else params.delete("project")
 
       const newUrl = `${window.location.pathname}?${params.toString()}`
       window.history.pushState(null, "", newUrl)
     }
   }
+
+  const handleBackFromProject = useCallback(() => {
+    setInitialProjectId(undefined)
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      params.delete("project")
+      const qs = params.toString()
+      const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+      window.history.replaceState(null, "", newUrl)
+    }
+  }, [])
 
   const navigateTab = useCallback(
     (
@@ -1442,11 +1455,11 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                       tasks={activeTasks}
                       notes={notes}
                       persons={persons}
-                      onBack={() => setInitialProjectId(undefined)}
+                      onBack={handleBackFromProject}
                       onUpdateProject={handleUpdateProject}
                       onDeleteProject={(id) => {
                         handleDeleteProject(id)
-                        setInitialProjectId(undefined)
+                        handleBackFromProject()
                       }}
                       onEdit={() => setEditingProject(currentProject)}
                     />

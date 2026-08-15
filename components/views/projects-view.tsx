@@ -185,14 +185,21 @@ export function ProjectsView({
   }
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const urlProj = params.get("project")
-    if (urlProj) {
-      setSelected(urlProj)
-      onSelect?.(urlProj)
+    if (initialSelectedId) {
+      setSelected(initialSelectedId)
+      onSelect?.(initialSelectedId)
     } else {
-      setSelected(initialSelectedId || null)
-      onSelect?.(initialSelectedId || null)
+      setSelected(null)
+      onSelect?.(null)
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search)
+        if (params.has("project")) {
+          params.delete("project")
+          const qs = params.toString()
+          const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+          window.history.replaceState(null, "", newUrl)
+        }
+      }
     }
   }, [initialSelectedId])
 
