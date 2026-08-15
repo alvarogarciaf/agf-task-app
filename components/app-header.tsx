@@ -110,14 +110,19 @@ export function AppHeader({
         setSearchOpen(true)
       }
     }
-    const handleOpenSearch = () => setSearchOpen(true)
+    const handleOpenSearch = (e?: Event) => {
+      setSearchScope("all")
+      setSearchOpen(true)
+    }
     
     document.addEventListener("keydown", handleKeyDown)
     window.addEventListener("open-search", handleOpenSearch)
+    document.addEventListener("open-search", handleOpenSearch)
     
     return () => {
       document.removeEventListener("keydown", handleKeyDown)
       window.removeEventListener("open-search", handleOpenSearch)
+      document.removeEventListener("open-search", handleOpenSearch)
     }
   }, [])
 
@@ -327,7 +332,8 @@ export function AppHeader({
       <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
         <DialogContent
           disableTabPortal
-          className="max-w-xl gap-0 overflow-hidden p-0 bg-card sm:rounded-xl border border-border shadow-2xl"
+          overlayClassName="z-[70]"
+          className="max-w-xl gap-0 overflow-hidden p-0 bg-card sm:rounded-xl border border-border shadow-2xl z-[70]"
         >
           <DialogTitle className="sr-only">Search Tasks</DialogTitle>
           

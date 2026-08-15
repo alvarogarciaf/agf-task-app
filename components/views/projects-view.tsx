@@ -25,7 +25,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-import { ArrowLeft, FolderKanban, FileText, ListChecks, Circle, Dot, Plus, Trash2, StickyNote, Pencil, LayoutGrid, List, Image as ImageIcon, Loader2, Star } from "lucide-react"
+import { ArrowLeft, FolderKanban, FileText, ListChecks, Circle, Dot, Plus, Trash2, StickyNote, Pencil, LayoutGrid, List, Image as ImageIcon, Loader2, Star, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useDatabase } from "@/components/db-provider"
 import { FilteredTasks } from "@/components/filtered-tasks"
@@ -705,6 +705,15 @@ export function ProjectHeader({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent("open-search"))}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            title="Search tasks and notes"
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Search</span>
+          </button>
           <button
             type="button"
             title="Save to Favorite Views"
