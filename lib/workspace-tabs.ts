@@ -58,7 +58,15 @@ export function createTabFromRoute(route: TabRoute): WorkspaceTab {
   }
 }
 
-export function getTabTitle(tab: WorkspaceTab, savedViews: SavedView[], objectTitle?: string): string {
+export function getTabTitle(
+  tab: WorkspaceTab,
+  savedViews: SavedView[],
+  objectTitle?: string,
+  projectName?: string,
+  contextName?: string,
+  personName?: string,
+  tagName?: string
+): string {
   if (objectTitle) {
     return objectTitle.length > 25 ? objectTitle.slice(0, 25) + "..." : objectTitle
   }
@@ -66,6 +74,18 @@ export function getTabTitle(tab: WorkspaceTab, savedViews: SavedView[], objectTi
   const { view, savedViewId } = tab.route
   if (view === "saved-view") {
     return savedViews.find((v) => v.id === savedViewId)?.name || "Saved View"
+  }
+  if (view === "projects" && projectName) {
+    return projectName
+  }
+  if (view === "contexts" && contextName) {
+    return contextName
+  }
+  if (view === "persons" && personName) {
+    return personName
+  }
+  if (view === "tags" && tagName) {
+    return tagName
   }
   return VIEW_TITLES[view]
 }

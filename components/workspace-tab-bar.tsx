@@ -20,7 +20,7 @@ import {
 import { cn } from "@/lib/utils"
 import type { WorkspaceTab, TabRoute } from "@/lib/workspace-tabs"
 import { getTabTitle } from "@/lib/workspace-tabs"
-import type { SavedView, ViewKey } from "@/lib/types"
+import type { Context, Person, Project, SavedView, Tag, ViewKey } from "@/lib/types"
 
 const VIEW_ICONS: Record<ViewKey, React.ComponentType<{ className?: string }>> = {
   home: Home,
@@ -46,6 +46,10 @@ interface WorkspaceTabBarProps {
   tabs: WorkspaceTab[]
   activeTabId: string
   savedViews: SavedView[]
+  projects?: Project[]
+  contexts?: Context[]
+  persons?: Person[]
+  tags?: Tag[]
   onSelect: (tabId: string) => void
   onClose: (tabId: string) => void
   onAdd: () => void
@@ -57,6 +61,10 @@ export function WorkspaceTabBar({
   tabs,
   activeTabId,
   savedViews,
+  projects = [],
+  contexts = [],
+  persons = [],
+  tags = [],
   onSelect,
   onClose,
   onAdd,
@@ -71,7 +79,28 @@ export function WorkspaceTabBar({
       {tabs.map((tab) => {
         const isActive = tab.id === activeTabId
         const objectTitle = tab.ui.objectId ? resolveObjectTitle?.(tab.ui.objectId) : undefined
-        const title = getTabTitle(tab, savedViews, objectTitle)
+        const projectName = tab.ui.initialProjectId
+          ? projects.find((p) => p.id === tab.ui.initialProjectId)?.name
+          : undefined
+        const contextName = tab.ui.initialContextId
+          ? contexts.find((c) => c.id === tab.ui.initialContextId)?.name
+          : undefined
+        const personName = tab.ui.initialPersonId
+          ? persons.find((p) => p.id === tab.ui.initialPersonId)?.name
+          : undefined
+        const tagName = tab.ui.initialTagId
+          ? tags.find((t) => t.id === tab.ui.initialTagId)?.name
+          : undefined
+
+        const title = getTabTitle(
+          tab,
+          savedViews,
+          objectTitle,
+          projectName,
+          contextName,
+          personName,
+          tagName
+        )
         const Icon = getTabIcon(tab.route)
         return (
           <div

@@ -1367,6 +1367,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                 tabs={tabs}
                 activeTabId={activeTabId}
                 savedViews={savedViews}
+                projects={projects}
+                contexts={contexts}
+                persons={persons}
+                tags={tags}
                 onSelect={selectTab}
                 onClose={closeTab}
                 onAdd={addTab}
