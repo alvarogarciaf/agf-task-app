@@ -98,7 +98,7 @@ const COLUMN_CELL_CLASSES: Partial<Record<TaskColumnKey, string>> = {
 }
 
 const EDITABLE_COLUMNS = new Set<TaskColumnKey>([
-  "description", "details", "project", "person", "contexts", "tags", "urgency", "show_on", "action_date",
+  "status", "description", "details", "project", "person", "contexts", "tags", "urgency", "show_on", "action_date"
 ])
 
 interface TasksTableProps {
@@ -731,7 +731,16 @@ export const TasksTable = memo(function TasksTable({
 
                             // Start editing on alphanumeric key or Enter
                             if (!isEditing && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-                              setIsEditing(true)
+                              if (key === "status" && e.key === " ") {
+                                e.preventDefault()
+                                if (inboxMode) {
+                                  onToggleProcessed(task.id)
+                                } else {
+                                  onToggleStatus(task.id)
+                                }
+                              } else if (key !== "status") {
+                                setIsEditing(true)
+                              }
                               return
                             }
 
@@ -754,10 +763,21 @@ export const TasksTable = memo(function TasksTable({
                               else if (e.key === "ArrowDown") { e.preventDefault(); navigateCell(task.id, key, 1, 0) }
                               else if (e.key === "ArrowUp") { e.preventDefault(); navigateCell(task.id, key, -1, 0) }
                               else if (e.key === "Tab") { e.preventDefault(); navigateCell(task.id, key, 0, e.shiftKey ? -1 : 1) }
-                              else if (e.key === "Enter") { e.preventDefault(); setIsEditing(true) }
+                              else if (e.key === "Enter") { 
+                                e.preventDefault(); 
+                                if (key === "status") {
+                                  if (inboxMode) {
+                                    onToggleProcessed(task.id)
+                                  } else {
+                                    onToggleStatus(task.id)
+                                  }
+                                } else {
+                                  setIsEditing(true) 
+                                }
+                              }
                               else if (e.key === "Backspace" || e.key === "Delete") {
                                 e.preventDefault()
-                                commitCell(task, key, (key === "contexts" ? [] : null))
+                                if (key !== "status") commitCell(task, key, (key === "contexts" ? [] : null))
                               }
                             }
                           }}
@@ -784,7 +804,7 @@ export const TasksTable = memo(function TasksTable({
                           }}
                           onDoubleClick={(e) => {
                             if (selectedIds.size > 0) return
-                            if (!isEditable) return
+                            if (!isEditable || key === "status") return
                             e.stopPropagation()
                             setSelectedCell({ taskId: task.id, column: key })
                             setIsEditing(true)

@@ -70,9 +70,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Publish email to directory for linking
         if (firebaseUser.email) {
           const emailBase64 = btoa(firebaseUser.email.toLowerCase())
-          import("firebase/firestore").then(({ doc, setDoc }) => {
-            const ref = doc(auth.app.options ? getFirestore(auth.app) : firestoreDb, `directory_by_email/${emailBase64}`)
+          import("firebase/firestore").then(({ doc, setDoc, getFirestore }) => {
+            const fsDb = auth.app.options ? getFirestore(auth.app) : firestoreDb
+            const ref = doc(fsDb, `directory_by_email/${emailBase64}`)
             setDoc(ref, { uid: firebaseUser.uid }).catch(err => console.error("Failed to publish to directory", err))
+            
+            // Dynamically re-bind push subscription to the current user if already subscribed
+            if ("serviceWorker" in navigator && localStorage.getItem("notifications_enabled") === "true") {
+              navigator.serviceWorker.ready.then(async (registration) => {
+                const subscription = await registration.pushManager.getSubscription()
+                if (subscription) {
+                  const subJson = subscription.toJSON()
+                  const subId = btoa(subJson.endpoint || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 40)
+                  setDoc(doc(fsDb, `users/${firebaseUser.uid}/push_subscriptions/${subId}`), {
+                    ...subJson,
+                    createdAt: new Date().toISOString(),
+                    userAgent: navigator.userAgent,
+                  }).catch(e => console.warn("Failed to auto-bind push sub", e))
+                }
+              })
+            }
           })
         }
       } else {
@@ -86,6 +103,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   async function handleSignOut() {
+    if (user && "serviceWorker" in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.ready
+        const subscription = await registration.pushManager.getSubscription()
+        if (subscription) {
+          // We DO NOT unsubscribe from the browser, we just remove it from the old user's Firestore collection.
+          // This allows the device to automatically re-bind when a new user signs in.
+          const subJson = subscription.toJSON()
+          const subId = btoa(subJson.endpoint || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 40)
+          
+          const { doc, deleteDoc, getFirestore } = await import("firebase/firestore")
+          const fsDb = auth.app.options ? getFirestore(auth.app) : firestoreDb
+          await deleteDoc(doc(fsDb, `users/${user.uid}/push_subscriptions/${subId}`))
+        }
+      } catch (err) {
+        console.warn("Failed to clean up push subscription on sign out", err)
+      }
+    }
+
     await firebaseSignOut(auth)
     localStorage.removeItem(CACHED_USER_KEY)
     // RxDB databases remain on device (per uid) for fast re-login; clear manually if you share this device.

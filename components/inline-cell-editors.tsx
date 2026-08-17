@@ -142,7 +142,21 @@ export function InlineSelectEditor({
   useEffect(() => {
     const el = itemRefs.current[highlightedIdx]
     if (el) {
-      el.scrollIntoView({ block: "nearest" })
+      const container = el.closest('[data-portal-id="inline-editor-portal"]')
+      if (container) {
+        const elTop = el.offsetTop
+        const elBottom = elTop + el.offsetHeight
+        const containerTop = container.scrollTop
+        const containerBottom = containerTop + container.clientHeight
+
+        if (elTop < containerTop) {
+          container.scrollTop = elTop
+        } else if (elBottom > containerBottom) {
+          container.scrollTop = elBottom - container.clientHeight
+        }
+      } else {
+        el.scrollIntoView({ block: "nearest" })
+      }
     }
   }, [highlightedIdx])
 
@@ -249,7 +263,21 @@ export function InlineMultiSelectEditor({
   useEffect(() => {
     const el = itemRefs.current[highlightedIdx]
     if (el) {
-      el.scrollIntoView({ block: "nearest" })
+      const container = el.closest('[data-portal-id="inline-editor-portal"]')
+      if (container) {
+        const elTop = el.offsetTop
+        const elBottom = elTop + el.offsetHeight
+        const containerTop = container.scrollTop
+        const containerBottom = containerTop + container.clientHeight
+
+        if (elTop < containerTop) {
+          container.scrollTop = elTop
+        } else if (elBottom > containerBottom) {
+          container.scrollTop = elBottom - container.clientHeight
+        }
+      } else {
+        el.scrollIntoView({ block: "nearest" })
+      }
     }
   }, [highlightedIdx])
 
