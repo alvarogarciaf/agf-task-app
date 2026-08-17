@@ -674,6 +674,16 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     if (settingsTab) setActiveSettingsTab(settingsTab)
     setMobileSelectorType(null)
 
+    if (emblaApi) {
+      if (finalUiPatch.initialTagId || (finalView === "notes" && !finalUiPatch.initialProjectId)) {
+        setMobileSection("notes")
+        emblaApi.scrollTo(1)
+      } else {
+        setMobileSection("tasks")
+        emblaApi.scrollTo(0)
+      }
+    }
+
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search)
       params.set("view", finalView)
@@ -1144,9 +1154,15 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }
   }, [searchParams, savedViews.length, isMobile, navigateActiveTab])
 
-  // Counts derived directly from pre-filtered streams â€” no re-filtering needed
   const inboxCount = inboxTasks.length
   const totalCount = activeTasks.length
+
+  const allTasks = useMemo(() => {
+    const map = new Map<string, Task>()
+    activeTasks.forEach((t) => map.set(t.id, t))
+    inboxTasks.forEach((t) => map.set(t.id, t))
+    return Array.from(map.values())
+  }, [activeTasks, inboxTasks])
 
   const todayFilter = useTodaySectionFilter()
   const todayStr = new Date().toLocaleDateString("en-CA")
@@ -1367,7 +1383,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           user={user}
           onSignOut={onSignOut}
           syncStatus={syncStatus}
-          tasks={activeTasks}
+          tasks={allTasks}
           notes={notes}
           projects={projects}
           persons={persons}

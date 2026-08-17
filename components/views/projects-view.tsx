@@ -709,7 +709,7 @@ export function ProjectHeader({
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent("open-search"))}
             className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-            title="Search tasks and notes"
+            title="Search tasks, notes, and projects"
           >
             <Search className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Search</span>

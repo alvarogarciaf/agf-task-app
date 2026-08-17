@@ -426,15 +426,15 @@ export function AppHeader({
             )}
           </div>
 
-          {/* Scope toggle: Tasks / Notes / All */}
-          <div className="flex items-center justify-between border-b border-border px-3 py-2">
-            <div className="inline-flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5">
+          {/* Scope toggle: Tasks / Notes / Projects / All */}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
+            <div className="inline-flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5 max-w-full overflow-x-auto">
               {scopeOptions.map((opt) => (
                 <button
                   key={opt.key}
                   type="button"
                   onClick={() => setSearchScope(opt.key)}
-                  className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+                  className={`rounded px-2.5 sm:px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap ${
                     searchScope === opt.key
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
@@ -444,7 +444,7 @@ export function AppHeader({
                 </button>
               ))}
             </div>
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-muted-foreground select-none">
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-muted-foreground select-none shrink-0">
               <Switch checked={includeClosed} onCheckedChange={setIncludeClosed} />
               Include closed
             </label>
