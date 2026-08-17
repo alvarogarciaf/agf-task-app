@@ -257,7 +257,6 @@ export function useObjectDraft({
     })
 
     setAutoProcess((prev) => {
-      if (task && !task.processed) return true
       return false
     })
   }, [task, projects, autosave])
@@ -284,7 +283,7 @@ export function useObjectDraft({
       
       const timer = setTimeout(() => {
         setAutosaveStatus("saving")
-        onUpdate({ ...draft, processed: isAutoProcessing ? true : draft.processed })
+        onUpdate({ ...draft })
         setAutosaveStatus("saved")
         prevDetailsRef.current = draft.details
         prevDescriptionRef.current = draft.description
@@ -293,7 +292,7 @@ export function useObjectDraft({
       
       return () => clearTimeout(timer)
     }
-  }, [draft?.details, draft?.description, autosave, isAutoProcessing, onUpdate])
+  }, [draft?.details, draft?.description, autosave, onUpdate])
 
   function update<K extends keyof Task>(key: K, value: Task[K]) {
     setDraft((prev) => {
@@ -303,7 +302,7 @@ export function useObjectDraft({
       // Immediately autosave non-text fields. Text fields are debounced.
       // Bookmarks always autosave immediately even if autosave is false (e.g. in modal)
       if ((autosave && key !== "details" && key !== "description") || key === "bookmarked") {
-        onUpdate({ ...next, processed: isAutoProcessing ? true : next.processed })
+        onUpdate({ ...next })
         if (autosave) setAutosaveStatus("saved")
       }
       
@@ -344,7 +343,6 @@ export function useObjectDraft({
     if (!draft) return
     const nextType: ObjectType = draft.type === "note" ? "task" : "note"
     const converted: Task = { ...draft, type: nextType }
-    if (isAutoProcessing) converted.processed = true
     if (nextType === "task") {
       if (!converted.urgency_id) {
         converted.urgency_id = sortedUrgencies[0]?.id ?? urgencies[0]?.id
