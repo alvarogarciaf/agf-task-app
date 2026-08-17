@@ -1002,6 +1002,7 @@ export const TasksTable = memo(function TasksTable({
           onUpdate?.(t)
         }}
         onDelete={onDeleteTask}
+        inboxMode={inboxMode}
         mode={detailMode}
         onModeChange={setDetailMode}
       />

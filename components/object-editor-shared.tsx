@@ -396,6 +396,7 @@ export function ObjectEditFields({
   detailsRef,
   onSubmit,
   isMobile,
+  defaultPropertiesOpen,
 }: {
   draft: Task
   setDraft: React.Dispatch<React.SetStateAction<Task | null>>
@@ -411,7 +412,16 @@ export function ObjectEditFields({
   detailsRef?: React.RefObject<HTMLDivElement | null>
   onSubmit?: () => void
   isMobile?: boolean
+  defaultPropertiesOpen?: boolean
 }) {
+  const [propertiesOpen, setPropertiesOpen] = useState(defaultPropertiesOpen ?? false)
+
+  useEffect(() => {
+    if (defaultPropertiesOpen !== undefined) {
+      setPropertiesOpen(defaultPropertiesOpen)
+    }
+  }, [defaultPropertiesOpen, draft.id])
+
   function focusDetails() {
     const el = detailsRef?.current?.querySelector<HTMLElement>('[contenteditable]')
     el?.focus()
@@ -627,7 +637,7 @@ export function ObjectEditFields({
 
       {isMobile ? (
         <>
-          <Collapsible className="mt-4">
+          <Collapsible open={propertiesOpen} onOpenChange={setPropertiesOpen} className="mt-4">
             <CollapsibleTrigger className="flex w-full items-center justify-between py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground [&[data-state=open]>svg]:rotate-180">
               <div className="flex items-center gap-2">
                 <Settings2 className="h-4 w-4" />

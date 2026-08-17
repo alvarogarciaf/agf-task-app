@@ -44,6 +44,7 @@ interface TaskDetailDialogProps {
   urgencies: UrgencyLevel[]
   onUpdate: (task: Task) => void
   onDelete?: (id: string) => void
+  inboxMode?: boolean
   mode?: "view" | "edit"
   onModeChange?: (mode: "view" | "edit") => void
   portalContainer?: HTMLElement | null
@@ -62,6 +63,7 @@ export function TaskDetailDialog({
   urgencies,
   onUpdate,
   onDelete,
+  inboxMode,
   mode = "view",
   onModeChange,
   portalContainer,
@@ -285,6 +287,7 @@ export function TaskDetailDialog({
                 descriptionRef={descriptionRef}
                 detailsRef={detailsRef}
                 isMobile={isMobile}
+                defaultPropertiesOpen={inboxMode}
                 onSubmit={save}
               />
 
