@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useMemo } from "react"
-import { Search, Command, Settings, Menu, Users, Tags, Tag as TagIcon, AlertCircle, Calendar, Trash2, Info, Bell, Circle, CheckCircle2, FolderKanban, ListChecks, FileText, Plus } from "lucide-react"
+import { Search, Command, Settings, Menu, Users, Tags, Tag as TagIcon, AlertCircle, Calendar, Trash2, Info, Bell, Circle, CheckCircle2, FolderKanban, ListChecks, FileText, Plus, ChevronLeft, ChevronRight } from "lucide-react"
 import { UserMenu } from "@/components/user-menu"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import type { TabToolbarState } from "@/components/tab-toolbar-context"
@@ -63,6 +63,10 @@ interface AppHeaderProps {
   mobileCenterContent?: React.ReactNode
   hideMobileTitle?: boolean
   hideHeaderVisually?: boolean
+  onBack?: () => void
+  onForward?: () => void
+  canGoBack?: boolean
+  canGoForward?: boolean
 }
 
 export function AppHeader({
@@ -88,6 +92,10 @@ export function AppHeader({
   mobileCenterContent,
   hideMobileTitle,
   hideHeaderVisually = false,
+  onBack,
+  onForward,
+  canGoBack = true,
+  canGoForward = false,
 }: AppHeaderProps) {
   const title = view === "saved-view" ? savedViewName || "Saved View" : TITLES[view]
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -258,6 +266,31 @@ export function AppHeader({
           desktopTabs ? "h-12" : "h-14 justify-between md:px-6",
         )}
       >
+        {desktopTabs && (
+          <div className="flex items-center gap-0.5 shrink-0 self-center text-muted-foreground mr-0.5">
+            <button
+              type="button"
+              onClick={onBack}
+              disabled={!canGoBack || !onBack}
+              className="flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none active:scale-95"
+              aria-label="Back"
+              title="Back (Alt+Left)"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={onForward}
+              disabled={!canGoForward || !onForward}
+              className="flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none active:scale-95"
+              aria-label="Forward"
+              title="Forward (Alt+Right)"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
         {desktopTabs && tabBar ? (
           <div className="flex min-w-0 flex-1 items-stretch gap-3 self-stretch">
             {tabBar}

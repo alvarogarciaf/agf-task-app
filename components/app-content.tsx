@@ -828,6 +828,89 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     [resetToolbar],
   )
 
+  const [historyIndex, setHistoryIndex] = useState(0)
+  const [maxHistoryIndex, setMaxHistoryIndex] = useState(0)
+
+  const handleDesktopBack = useCallback(() => {
+    if (activeTab.ui.objectId) {
+      updateTabUi(activeTab.id, { objectId: undefined, objectMode: undefined })
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search)
+        params.delete("objectId")
+        const qs = params.toString()
+        const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+        window.history.pushState(null, "", newUrl)
+      }
+      return
+    }
+    if (activeTab.ui.initialProjectId && activeTab.route.kind === "view" && activeTab.route.view === "projects") {
+      updateTabUi(activeTab.id, { initialProjectId: undefined })
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search)
+        params.delete("project")
+        const qs = params.toString()
+        const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+        window.history.pushState(null, "", newUrl)
+      }
+      return
+    }
+    if (typeof window !== "undefined") {
+      window.history.back()
+    }
+  }, [activeTab, updateTabUi])
+
+  const handleDesktopForward = useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.history.forward()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isMobile) return
+
+    const handlePopState = (e: PopStateEvent) => {
+      const search = window.location.search
+      const params = new URLSearchParams(search)
+      const view = (params.get("view") as ViewKey) || "home"
+      const savedViewId = params.get("savedViewId")
+      const tab = (params.get("tab") as TabKey) || undefined
+      const project = params.get("project") || undefined
+      const objectId = params.get("objectId") || undefined
+
+      setTabs((prev) =>
+        prev.map((t) => {
+          if (t.id !== activeTabIdRef.current) return t
+          return {
+            ...t,
+            route: {
+              kind: "view",
+              view,
+              savedViewId: savedViewId ?? null,
+              settingsTab: tab,
+            },
+            ui: {
+              ...t.ui,
+              initialProjectId: project,
+              objectId,
+            },
+          }
+        })
+      )
+
+      if (e.state && typeof e.state.idx === "number") {
+        setHistoryIndex(e.state.idx)
+      } else {
+        setHistoryIndex((prev) => Math.max(0, prev - 1))
+      }
+    }
+
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [isMobile])
+
+  const canDesktopGoBack = historyIndex > 0 || !!activeTab.ui.objectId || !!(activeTab.ui.initialProjectId && activeTab.route.kind === "view" && activeTab.route.view === "projects") || (typeof window !== "undefined" && window.history.length > 1)
+  const canDesktopGoForward = historyIndex < maxHistoryIndex
+
   const handleDeleteSavedView = async (id: string) => {
     if (confirm("Are you sure you want to delete this saved view?")) {
       const doc = await db.saved_views.findOne(id).exec()
@@ -1116,6 +1199,17 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         return
       }
 
+      if (e.altKey && e.key === "ArrowLeft") {
+        e.preventDefault()
+        handleDesktopBack()
+        return
+      }
+      if (e.altKey && e.key === "ArrowRight") {
+        e.preventDefault()
+        handleDesktopForward()
+        return
+      }
+
       if (e.ctrlKey || e.metaKey || e.altKey) return
 
       const navigate = isMobile ? handleNavigate : navigateActiveTab
@@ -1130,7 +1224,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }
     window.addEventListener("keydown", handleKey)
     return () => window.removeEventListener("keydown", handleKey)
-  }, [isMobile, addTab, navigateActiveTab, handleNavigate])
+  }, [isMobile, addTab, navigateActiveTab, handleNavigate, handleDesktopBack, handleDesktopForward])
 
   useEffect(() => {
     const viewParam = searchParams.get("view")
@@ -1392,6 +1486,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           urgencies={urgencies}
           onUpdateTask={handleUpdateTask}
           desktopTabs={!isMobile}
+          onBack={handleDesktopBack}
+          onForward={handleDesktopForward}
+          canGoBack={canDesktopGoBack}
+          canGoForward={canDesktopGoForward}
           tabBar={
             !isMobile ? (
               <WorkspaceTabBar
