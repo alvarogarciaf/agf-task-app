@@ -14,6 +14,7 @@ import {
   User,
   X,
   Pencil,
+  Trash2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -42,6 +43,7 @@ interface TaskDetailDialogProps {
   tags?: TagType[]
   urgencies: UrgencyLevel[]
   onUpdate: (task: Task) => void
+  onDelete?: (id: string) => void
   mode?: "view" | "edit"
   onModeChange?: (mode: "view" | "edit") => void
   portalContainer?: HTMLElement | null
@@ -59,6 +61,7 @@ export function TaskDetailDialog({
   tags = [],
   urgencies,
   onUpdate,
+  onDelete,
   mode = "view",
   onModeChange,
   portalContainer,
@@ -90,6 +93,14 @@ export function TaskDetailDialog({
     onClose: () => onOpenChange(false),
     autosave: true,
   })
+
+  const handleDelete = () => {
+    if (!draft || !onDelete) return
+    if (window.confirm(draft.type === "note" ? "Are you sure you want to delete this note?" : "Are you sure you want to delete this task?")) {
+      onDelete(draft.id)
+      onOpenChange(false)
+    }
+  }
 
   const descriptionRef = useRef<HTMLTextAreaElement>(null)
   const detailsRef = useRef<HTMLDivElement>(null)
@@ -237,6 +248,17 @@ export function TaskDetailDialog({
                   <Maximize2 className="h-4 w-4" />
                 </button>
               )}
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive active:scale-95"
+                  aria-label={isNote ? "Delete note" : "Delete task"}
+                  title={isNote ? "Delete note" : "Delete task"}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={cancel}
@@ -310,6 +332,17 @@ export function TaskDetailDialog({
                   <ArrowLeftRight className="h-3 w-3" />
                   {isNote ? "To task" : "To note"}
                 </button>
+                {onDelete && (
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 md:px-2.5 md:py-1.5 md:text-xs"
+                    title={isNote ? "Delete note" : "Delete task"}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Delete</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={cancel}

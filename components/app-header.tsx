@@ -55,6 +55,7 @@ interface AppHeaderProps {
   tags?: Tag[]
   urgencies?: UrgencyLevel[]
   onUpdateTask?: (task: Task) => void
+  onDeleteTask?: (id: string) => void
   desktopTabs?: boolean
   tabBar?: React.ReactNode
   tabToolbar?: TabToolbarState
@@ -84,6 +85,7 @@ export function AppHeader({
   tags = [],
   urgencies = [],
   onUpdateTask,
+  onDeleteTask,
   desktopTabs = false,
   tabBar,
   tabToolbar,
@@ -699,6 +701,7 @@ export function AppHeader({
         tags={tags}
         urgencies={urgencies}
         onUpdate={onUpdateTask || (() => {})}
+        onDelete={onDeleteTask}
         mode={detailMode}
         onModeChange={setDetailMode}
         portalContainer={tabPortalContainer}

@@ -1001,6 +1001,7 @@ export const TasksTable = memo(function TasksTable({
           setConvertedTaskFallback(t)
           onUpdate?.(t)
         }}
+        onDelete={onDeleteTask}
         mode={detailMode}
         onModeChange={setDetailMode}
       />

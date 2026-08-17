@@ -1485,6 +1485,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           tags={tags}
           urgencies={urgencies}
           onUpdateTask={handleUpdateTask}
+          onDeleteTask={handleDeleteTask}
           desktopTabs={!isMobile}
           onBack={handleDesktopBack}
           onForward={handleDesktopForward}
