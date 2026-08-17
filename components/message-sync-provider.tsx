@@ -26,6 +26,9 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
   const lastProcessedTaskHash = useRef<Record<string, string>>({});
   const lastProcessedProjectHash = useRef<Record<string, string>>({});
   const notifiedTasksRef = useRef<Set<string>>(new Set());
+  const failedTaskQueue = useRef<Set<string>>(new Set());
+  const failedProjectQueue = useRef<Set<string>>(new Set());
+  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Function to hash the shared portion of a task
   const getSharedTaskHash = (task: Partial<Task>) => {
@@ -229,11 +232,126 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [uid, db]);
 
-  // 2. Process outgoing changes (tasks and projects)
+  // 2. Process outgoing changes and event-driven reconciliation
   useEffect(() => {
     if (!uid || !db) return;
 
     const sub = new Subscription();
+
+    const scheduleRetry = () => {
+      if (retryTimerRef.current) return;
+      retryTimerRef.current = setTimeout(() => {
+        retryTimerRef.current = null;
+        void reconcileSharedState();
+      }, 30_000); // 30 seconds debounce
+    };
+
+    // Reconciles all shared projects and tasks to ensure no gaps exist
+    const reconcileSharedState = async () => {
+      try {
+        const allPersons = await db.persons.find().exec();
+        const linkedPersons = allPersons.filter(p => p.linked_uid);
+        if (linkedPersons.length === 0) return;
+
+        const allProjects = await db.projects.find().exec();
+        const sharedProjects = allProjects.filter(p => p.linked_person_id);
+
+        // 1. Reconcile shared projects
+        for (const proj of sharedProjects) {
+          const person = linkedPersons.find(p => p.id === proj.linked_person_id);
+          if (!person || !person.linked_uid) continue;
+
+          const localProjRepresent = {
+            name: proj.name,
+            details: proj.details ?? null,
+            status: proj.status,
+            linked_person_id: proj.linked_person_id ? person.id : null,
+            icon: proj.icon ?? null,
+            color: proj.color ?? null,
+            background_image: proj.background_image ?? null,
+          };
+
+          const newHash = getSharedProjectHash(localProjRepresent);
+          if (lastProcessedProjectHash.current[proj.id] === newHash && !failedProjectQueue.current.has(proj.id)) {
+            continue;
+          }
+
+          try {
+            const msgRef = doc(collection(firestoreDb, `users/${person.linked_uid}/messages`));
+            await setDoc(msgRef, {
+              type: "project_upsert",
+              fromUid: uid,
+              project: {
+                id: proj.id,
+                ...localProjRepresent,
+              },
+              timestamp: serverTimestamp(),
+            });
+            lastProcessedProjectHash.current[proj.id] = newHash;
+            failedProjectQueue.current.delete(proj.id);
+          } catch (projErr) {
+            console.warn("[Sync] Reconciliation failed for project, queuing retry:", proj.id, projErr);
+            delete lastProcessedProjectHash.current[proj.id];
+            failedProjectQueue.current.add(proj.id);
+            scheduleRetry();
+          }
+        }
+
+        // 2. Reconcile shared tasks / notes
+        const allTasks = await db.tasks.find().exec();
+        for (const taskDoc of allTasks) {
+          const taskData = taskDoc.toJSON() as Task;
+
+          // Auto-fix: task is in a shared project but lacks person_id
+          if (taskData.project_id && !taskData.person_id) {
+            const proj = sharedProjects.find(p => p.id === taskData.project_id);
+            if (proj && proj.linked_person_id) {
+              await taskDoc.patch({ person_id: proj.linked_person_id });
+              continue; // Patching emits to db.tasks.$ which will send the task_upsert
+            }
+          }
+
+          if (!taskData.person_id) continue;
+          const person = linkedPersons.find(p => p.id === taskData.person_id);
+          if (!person || !person.linked_uid) continue;
+
+          const newHash = getSharedTaskHash(taskData);
+          if (lastProcessedTaskHash.current[taskData.id] === newHash && !failedTaskQueue.current.has(taskData.id)) {
+            continue;
+          }
+
+          try {
+            const msgRef = doc(collection(firestoreDb, `users/${person.linked_uid}/messages`));
+            await setDoc(msgRef, {
+              type: "task_upsert",
+              fromUid: uid,
+              task: {
+                id: taskData.id,
+                type: taskData.type ?? "task",
+                description: taskData.description,
+                details: taskData.details ?? null,
+                date_created: taskData.date_created,
+                action_date: taskData.action_date ?? null,
+                status: taskData.status ?? "Open",
+                processed: taskData.processed ?? false,
+                archived: taskData.archived ?? false,
+                project_id: taskData.project_id ?? null,
+              },
+              timestamp: serverTimestamp(),
+            });
+            lastProcessedTaskHash.current[taskData.id] = newHash;
+            failedTaskQueue.current.delete(taskData.id);
+          } catch (taskErr) {
+            console.warn("[Sync] Reconciliation failed for task, queuing retry:", taskData.id, taskErr);
+            delete lastProcessedTaskHash.current[taskData.id];
+            failedTaskQueue.current.add(taskData.id);
+            scheduleRetry();
+          }
+        }
+      } catch (err) {
+        console.error("[Sync] Error during reconcileSharedState:", err);
+      }
+    };
 
     // Outgoing task changes
     sub.add(
@@ -257,48 +375,66 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
               return;
             }
 
-            const msgRef = doc(collection(firestoreDb, `users/${person.linked_uid}/messages`));
-            await setDoc(msgRef, {
-              type: "task_delete",
-              fromUid: uid,
-              task: { id: taskData.id },
-              timestamp: serverTimestamp()
-            });
+            try {
+              const msgRef = doc(collection(firestoreDb, `users/${person.linked_uid}/messages`));
+              await setDoc(msgRef, {
+                type: "task_delete",
+                fromUid: uid,
+                task: { id: taskData.id },
+                timestamp: serverTimestamp()
+              });
+              lastProcessedTaskHash.current[taskData.id] = "deleted";
+              failedTaskQueue.current.delete(taskData.id);
+            } catch (delErr) {
+              console.warn("[Sync] Failed to send task_delete, queuing retry:", taskData.id, delErr);
+              failedTaskQueue.current.add(taskData.id);
+              scheduleRetry();
+            }
             return;
           }
 
           const newHash = getSharedTaskHash(taskData);
           
-          if (lastProcessedTaskHash.current[taskData.id] === newHash) {
+          if (lastProcessedTaskHash.current[taskData.id] === newHash && !failedTaskQueue.current.has(taskData.id)) {
             return;
           }
 
           if (changeEvent.operation === "UPDATE" && previousData) {
             const oldHash = getSharedTaskHash(previousData);
             const personChanged = previousData.person_id !== taskData.person_id;
-            if (oldHash === newHash && !personChanged) return;
+            if (oldHash === newHash && !personChanged && !failedTaskQueue.current.has(taskData.id)) return;
           }
 
-          lastProcessedTaskHash.current[taskData.id] = newHash;
-          
-          const msgRef = doc(collection(firestoreDb, `users/${person.linked_uid}/messages`));
-          await setDoc(msgRef, {
-            type: "task_upsert",
-            fromUid: uid,
-            task: {
-              id: taskData.id,
-              type: taskData.type ?? "task",
-              description: taskData.description,
-              details: taskData.details ?? null,
-              date_created: taskData.date_created,
-              action_date: taskData.action_date ?? null,
-              status: taskData.status ?? "Open",
-              processed: taskData.processed ?? false,
-              archived: taskData.archived ?? false,
-              project_id: taskData.project_id ?? null,
-            },
-            timestamp: serverTimestamp()
-          });
+          try {
+            const msgRef = doc(collection(firestoreDb, `users/${person.linked_uid}/messages`));
+            await setDoc(msgRef, {
+              type: "task_upsert",
+              fromUid: uid,
+              task: {
+                id: taskData.id,
+                type: taskData.type ?? "task",
+                description: taskData.description,
+                details: taskData.details ?? null,
+                date_created: taskData.date_created,
+                action_date: taskData.action_date ?? null,
+                status: taskData.status ?? "Open",
+                processed: taskData.processed ?? false,
+                archived: taskData.archived ?? false,
+                project_id: taskData.project_id ?? null,
+              },
+              timestamp: serverTimestamp()
+            });
+
+            // Set hash ONLY after successful Firestore write
+            lastProcessedTaskHash.current[taskData.id] = newHash;
+            failedTaskQueue.current.delete(taskData.id);
+          } catch (writeErr) {
+            console.error("[Sync] Failed to send task_upsert, queuing retry:", taskData.id, writeErr);
+            delete lastProcessedTaskHash.current[taskData.id];
+            failedTaskQueue.current.add(taskData.id);
+            scheduleRetry();
+            return;
+          }
 
           // ── Push notification logic ──
           const hasBeenNotified = notifiedTasksRef.current.has(taskData.id);
@@ -375,45 +511,62 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
               return;
             }
 
-            const msgRef = doc(collection(firestoreDb, `users/${person.linked_uid}/messages`));
-            await setDoc(msgRef, {
-              type: "project_delete",
-              fromUid: uid,
-              project: { id: projectData.id },
-              timestamp: serverTimestamp()
-            });
+            try {
+              const msgRef = doc(collection(firestoreDb, `users/${person.linked_uid}/messages`));
+              await setDoc(msgRef, {
+                type: "project_delete",
+                fromUid: uid,
+                project: { id: projectData.id },
+                timestamp: serverTimestamp()
+              });
+              lastProcessedProjectHash.current[projectData.id] = "deleted";
+              failedProjectQueue.current.delete(projectData.id);
+            } catch (delErr) {
+              console.warn("[Sync] Failed to send project_delete, queuing retry:", projectData.id, delErr);
+              failedProjectQueue.current.add(projectData.id);
+              scheduleRetry();
+            }
             return;
           }
 
           const newHash = getSharedProjectHash(projectData);
 
-          if (lastProcessedProjectHash.current[projectData.id] === newHash) {
+          if (lastProcessedProjectHash.current[projectData.id] === newHash && !failedProjectQueue.current.has(projectData.id)) {
             return;
           }
 
           if (changeEvent.operation === "UPDATE" && previousData) {
             const oldHash = getSharedProjectHash(previousData);
-            if (oldHash === newHash) return;
+            if (oldHash === newHash && !failedProjectQueue.current.has(projectData.id)) return;
           }
 
-          lastProcessedProjectHash.current[projectData.id] = newHash;
+          try {
+            const msgRef = doc(collection(firestoreDb, `users/${person.linked_uid}/messages`));
+            await setDoc(msgRef, {
+              type: "project_upsert",
+              fromUid: uid,
+              project: {
+                id: projectData.id,
+                name: projectData.name,
+                details: projectData.details ?? null,
+                status: projectData.status,
+                linked_person_id: projectData.linked_person_id ? person.id : null,
+                icon: projectData.icon ?? null,
+                color: projectData.color ?? null,
+                background_image: projectData.background_image ?? null,
+              },
+              timestamp: serverTimestamp()
+            });
 
-          const msgRef = doc(collection(firestoreDb, `users/${person.linked_uid}/messages`));
-          await setDoc(msgRef, {
-            type: "project_upsert",
-            fromUid: uid,
-            project: {
-              id: projectData.id,
-              name: projectData.name,
-              details: projectData.details ?? null,
-              status: projectData.status,
-              linked_person_id: projectData.linked_person_id ? person.id : null,
-              icon: projectData.icon ?? null,
-              color: projectData.color ?? null,
-              background_image: projectData.background_image ?? null,
-            },
-            timestamp: serverTimestamp()
-          });
+            // Set hash ONLY after successful Firestore write
+            lastProcessedProjectHash.current[projectData.id] = newHash;
+            failedProjectQueue.current.delete(projectData.id);
+          } catch (writeErr) {
+            console.error("[Sync] Failed to send project_upsert, queuing retry:", projectData.id, writeErr);
+            delete lastProcessedProjectHash.current[projectData.id];
+            failedProjectQueue.current.add(projectData.id);
+            scheduleRetry();
+          }
 
         } catch (err) {
           console.error("[Sync] Outgoing project sync error", err);
@@ -421,7 +574,41 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
       })
     );
 
-    return () => sub.unsubscribe();
+    // Event-driven triggers for reconciliation:
+    // 1. Initial catch-up on mount (catches race conditions where tasks were inserted before subscription)
+    void reconcileSharedState();
+
+    // 2. Visibility change: catch up when user resumes the app from background
+    const handleVisibilityChange = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        void reconcileSharedState();
+      }
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+    }
+
+    // 3. Online event: catch up when network connection is restored
+    const handleOnline = () => {
+      void reconcileSharedState();
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", handleOnline);
+    }
+
+    return () => {
+      sub.unsubscribe();
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+      }
+      if (typeof window !== "undefined") {
+        window.removeEventListener("online", handleOnline);
+      }
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+    };
   }, [uid, db]);
 
   return <>{children}</>;
