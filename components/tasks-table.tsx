@@ -153,27 +153,30 @@ function SortableTableRow(props: any) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `d-${props.task.id}` });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : undefined, position: 'relative' as const, zIndex: isDragging ? 1 : 0 };
   
-  // Create an enhanced children block where we inject the listeners into the first td if dragHandle is requested
-  let renderedChildren = props.children;
-  if (props.showDragHandle) {
-    renderedChildren = React.Children.map(props.children, (child, index) => {
-      if (index === 0) {
-        return React.cloneElement(child as any, {
-          children: (
-            <div className="flex items-center gap-1">
-              <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-1 shrink-0 touch-none"><GripVertical className="h-4 w-4" /></div>
-              {(child as any).props.children}
+  // Inject the drag handle into the first td on the left side
+  const renderedChildren = React.Children.map(props.children, (child, index) => {
+    if (index === 0) {
+      return React.cloneElement(child as any, {
+        children: (
+          <div className="flex items-center gap-1">
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-0.5 shrink-0 touch-none transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="h-3.5 w-3.5" />
             </div>
-          )
-        });
-      }
-      return child;
-    });
-  }
-  const bindProps = props.isMobile && props.showDragHandle ? { ...attributes, ...listeners } : {};
+            {(child as any).props.children}
+          </div>
+        )
+      });
+    }
+    return child;
+  });
 
   return (
-    <tr ref={setNodeRef} style={style} className={props.className} {...bindProps}>
+    <tr ref={setNodeRef} style={style} className={props.className}>
       {renderedChildren}
     </tr>
   );
@@ -616,12 +619,15 @@ export const TasksTable = memo(function TasksTable({
 <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-card">
               <tr className="border-b border-border">
-                <th className="w-10 px-3 py-2 text-left align-middle select-none">
-                  <Checkbox 
-                    checked={isAllSelected ? true : (isSomeSelected ? "indeterminate" : false)}
-                    onCheckedChange={() => onToggleAll?.(allVisibleIds)}
-                    aria-label="Select all"
-                  />
+                <th className="w-14 px-3 py-2 text-left align-middle select-none">
+                  <div className="flex items-center gap-1">
+                    <span className="w-4 shrink-0" aria-hidden="true" />
+                    <Checkbox 
+                      checked={isAllSelected ? true : (isSomeSelected ? "indeterminate" : false)}
+                      onCheckedChange={() => onToggleAll?.(allVisibleIds)}
+                      aria-label="Select all"
+                    />
+                  </div>
                 </th>
                 {visibleColumns.map((key) => {
                   const col = COLUMN_MAP[key]
@@ -694,7 +700,7 @@ export const TasksTable = memo(function TasksTable({
                     )}
                   >
                     <td 
-                      className="w-10 px-3 py-2 text-left align-middle"
+                      className="w-14 px-3 py-2 text-left align-middle"
                       onClick={(e) => {
                         e.stopPropagation()
                         onToggleSelection?.(task.id, e.shiftKey)
@@ -1387,6 +1393,19 @@ const MobileTaskRow = memo(function MobileTaskRow({
         />
       )}
 
+      {/* Drag Grip Handle on the left side */}
+      <div 
+        {...attributes} 
+        {...listeners} 
+        className="flex h-7 w-5 shrink-0 items-center justify-center -ml-1 text-muted-foreground/35 active:text-foreground transition-colors cursor-grab active:cursor-grabbing touch-none select-none"
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        aria-label="Drag to reorder"
+      >
+        <GripVertical className="h-4 w-4" />
+      </div>
+
       {/* Note icon or checkbox status toggle (Left) */}
       {notesMode ? (
         <span className="shrink-0">
@@ -1452,19 +1471,6 @@ const MobileTaskRow = memo(function MobileTaskRow({
           >
             {urgency.name}
           </span>
-        )}
-
-        {showDragHandle && (
-          <div 
-            {...attributes} 
-            {...listeners} 
-            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-muted active:bg-muted cursor-grab active:cursor-grabbing touch-none"
-            onClick={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <GripVertical className="h-4 w-4" />
-          </div>
         )}
 
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>

@@ -1573,6 +1573,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                   setInitialTagId(id)
                 }}
                 onSelectView={(id) => { handleNavigate("saved-view", id) }}
+                onEditView={(view) => setEditingView(view)}
+                onDeleteView={handleDeleteSavedView}
               />
             </div>
           ) : (

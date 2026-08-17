@@ -1,9 +1,15 @@
 "use client"
 
-import { X, FolderClosed, Briefcase, TagIcon, Star, Plus } from "lucide-react"
+import { X, FolderClosed, Briefcase, TagIcon, Star, Plus, MoreVertical, Edit2, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Context, Project, Tag, SavedView } from "@/lib/types"
 import { ICONS } from "@/lib/constants"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface MobileSelectorProps {
   isOpen: boolean
@@ -13,6 +19,8 @@ interface MobileSelectorProps {
   onSelectProject: (id: string) => void
   onSelectTag: (id: string) => void
   onSelectView: (id: string) => void
+  onEditView?: (view: SavedView) => void
+  onDeleteView?: (id: string) => void
   onAddContext?: (name: string) => void
   onAddTag?: (name: string) => void
   contexts: Context[]
@@ -29,6 +37,8 @@ export function MobileSelector({
   onSelectProject,
   onSelectTag,
   onSelectView,
+  onEditView,
+  onDeleteView,
   onAddContext,
   onAddTag,
   contexts,
@@ -141,10 +151,56 @@ export function MobileSelector({
           {savedViews.map(sv => {
             const Icon = ICONS[sv.icon] || Star
             return (
-              <button key={sv.id} onClick={() => { onSelectView(sv.id); onClose() }} className="flex items-center gap-3 p-4 border-b border-border hover:bg-accent transition-colors text-left">
-                <Icon className="w-5 h-5 shrink-0" style={{ color: sv.color }} />
-                <span className="text-[15px] font-medium flex-1 truncate">{sv.name}</span>
-              </button>
+              <div key={sv.id} className="flex items-center border-b border-border hover:bg-accent/60 transition-colors">
+                <button
+                  type="button"
+                  onClick={() => { onSelectView(sv.id); onClose() }}
+                  className="flex flex-1 min-w-0 items-center gap-3 p-4 text-left cursor-pointer"
+                >
+                  <Icon className="w-5 h-5 shrink-0" style={{ color: sv.color }} />
+                  <span className="text-[15px] font-medium flex-1 truncate">{sv.name}</span>
+                </button>
+
+                {(onEditView || onDeleteView) && (
+                  <div className="pr-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground active:bg-secondary transition-colors"
+                          aria-label="View options"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-36">
+                        {onEditView && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              onClose()
+                              onEditView(sv)
+                            }}
+                          >
+                            <Edit2 className="mr-2 h-4 w-4" />
+                            Edit View
+                          </DropdownMenuItem>
+                        )}
+                        {onDeleteView && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              onDeleteView(sv.id)
+                            }}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete View
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                )}
+              </div>
             )
           })}
         </div>
