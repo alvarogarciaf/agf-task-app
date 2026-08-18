@@ -112,7 +112,7 @@ export function markdownToHtml(md: string): string {
       i++;
     } else if (trimmed === "---") {
       flushList();
-      html += `<hr class="my-4 border-t border-border/40" />`;
+      html += `<hr class="my-4 border-t border-border" />`;
       i++;
     } else if (trimmed === "") {
       flushList();

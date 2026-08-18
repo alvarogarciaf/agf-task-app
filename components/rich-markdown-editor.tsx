@@ -677,7 +677,7 @@ function EditorSurface({
       }
       
       const hr = document.createElement("hr")
-      hr.className = "my-4 border-t border-border/40"
+      hr.className = "my-4 border-t border-border"
       target.parentNode?.insertBefore(hr, target)
       
       removeBlockPrefix(target, prefixLen)
@@ -829,7 +829,7 @@ function EditorSurface({
       }
       
       const hr = document.createElement("hr")
-      hr.className = "my-4 border-t border-border/40"
+      hr.className = "my-4 border-t border-border"
       target.parentNode?.insertBefore(hr, target)
       
       removeBlockPrefix(target, lineBefore.length)
