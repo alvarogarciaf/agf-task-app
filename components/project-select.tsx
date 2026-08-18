@@ -61,7 +61,7 @@ export function ProjectChip({
   return (
     <span
       className={cn(
-        "inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-0.5 text-[11px]",
+        "inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-0.5 text-xs",
         !project.color && "border-border bg-background text-muted-foreground",
         className,
       )}
@@ -248,7 +248,7 @@ export function ProjectSelect({
     <>
       {isPill ? (
         <>
-          <span className="font-mono text-[10px] uppercase tracking-wider">
+          <span className="font-mono text-xs uppercase tracking-wider">
             {pillLabel}
           </span>
           {selected ? (

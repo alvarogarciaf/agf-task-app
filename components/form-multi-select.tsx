@@ -220,7 +220,7 @@ export function FormMultiSelect({
                       const Icon = ICONS[opt.icon]
                       return (
                         <span
-                          className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-[10px]"
+                          className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-xs"
                           style={opt.color ? { color: opt.color } : undefined}
                         >
                           <Icon className="h-3 w-3" />

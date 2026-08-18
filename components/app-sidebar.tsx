@@ -358,7 +358,7 @@ function SyncStatusRow({ syncStatus }: { syncStatus: SyncStatus }) {
         )}
         <span className="truncate font-medium">{label}</span>
       </div>
-      <span className="flex shrink-0 items-center gap-1 font-mono text-[10px] text-muted-foreground">
+      <span className="flex shrink-0 items-center gap-1 font-mono text-xs text-muted-foreground">
         {showLive ? (
           <>
             <span className="relative flex h-1.5 w-1.5">
@@ -399,7 +399,7 @@ function NavGroup({
 }) {
   return (
     <div className={cn("mb-4", divider && "mt-4 border-t border-sidebar-border pt-4")}>
-      <div className="px-2 pb-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+      <div className="px-2 pb-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
       <ul className="flex flex-col gap-0.5">{children}</ul>
@@ -492,7 +492,7 @@ function NavLink({
             {item.badge !== undefined && item.badge > 0 ? (
               <span
                 className={cn(
-                  "ml-auto rounded px-1.5 py-0.5 font-mono text-[10px]",
+                  "ml-auto rounded px-1.5 py-0.5 font-mono text-xs font-medium",
                   active
                     ? "bg-primary/20 text-primary"
                     : "bg-muted text-muted-foreground group-hover/row:bg-background",
@@ -501,7 +501,7 @@ function NavLink({
                 {item.badge}
               </span>
             ) : item.shortcut ? (
-              <span className="ml-auto font-mono text-[10px] text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100">
+              <span className="ml-auto font-mono text-xs text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100">
                 {item.shortcut}
               </span>
             ) : null}

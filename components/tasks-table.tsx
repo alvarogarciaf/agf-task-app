@@ -483,7 +483,7 @@ export const TasksTable = memo(function TasksTable({
       {/* Toolbar */}
       {!hideToolbar && (
         <div className="hidden md:flex items-center justify-between border-b border-border px-3 py-2">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+        <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
           {tasks.length} {tasks.length === 1 ? itemNoun : `${itemNoun}s`}
         </span>
 
@@ -496,13 +496,13 @@ export const TasksTable = memo(function TasksTable({
               >
                 <Columns3 className="h-3.5 w-3.5" />
                 Columns
-                <span className="ml-1 rounded bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
+                <span className="ml-1 rounded bg-muted px-1.5 font-mono text-xs text-muted-foreground">
                   {visibleCount}/{totalCount}
                 </span>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-60">
-              <DropdownMenuLabel className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              <DropdownMenuLabel className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
                 Toggle columns
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -520,7 +520,7 @@ export const TasksTable = memo(function TasksTable({
                 )
               })}
               <DropdownMenuSeparator />
-              <div className="px-2 py-1.5 text-[11px] leading-relaxed text-muted-foreground">
+              <div className="px-2 py-1.5 text-xs leading-relaxed text-muted-foreground">
                 Drag column headers to reorder. Order &amp; visibility are saved per device.
               </div>
               <DropdownMenuSeparator />
@@ -643,7 +643,7 @@ export const TasksTable = memo(function TasksTable({
                       onDrop={(e) => handleDrop(e, key)}
                       onClick={() => onSort?.(key)}
                       className={cn(
-                        "relative px-3 py-2 text-left font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground transition-colors cursor-pointer select-none hover:bg-muted/50",
+                        "relative px-3 py-2 text-left font-mono text-xs font-medium uppercase tracking-wider text-muted-foreground transition-colors cursor-pointer select-none hover:bg-muted/50",
                         COLUMN_HEADER_CLASSES[key],
                         isDragging && "opacity-40",
                         isDropTarget && "bg-primary/10",
@@ -670,7 +670,7 @@ export const TasksTable = memo(function TasksTable({
                       >
                         <span className="truncate">{label}</span>
                         {sortConfig?.key === key && (
-                          <span className="ml-1 shrink-0 text-[10px] text-primary">
+                          <span className="ml-1 shrink-0 text-xs text-primary">
                             {sortConfig.direction === "asc" ? "↑" : "↓"}
                           </span>
                         )}
@@ -1064,7 +1064,7 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
     case "urgency":
       return urgency ? (
         <span
-          className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
+          className="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground"
         >
           <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: urgency.color }} />
           {urgency.name}
@@ -1089,10 +1089,10 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
                 e.stopPropagation()
                 ctx.onOpenEdit?.(task.id, e.ctrlKey || e.metaKey)
               }}
-              className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/5 hover:bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/5 hover:bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary transition-colors cursor-pointer"
               title={`${task.type === "note" ? "Open note" : "Open task"} (Ctrl+Click to open in new tab)`}
             >
-              <ArrowUpRight className="h-3 w-3" />
+              <ArrowUpRight className="h-3.5 w-3.5" />
               <span>Open</span>
             </button>
           </div>
@@ -1120,7 +1120,7 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
       return person ? (
         <div className="flex items-center gap-2">
           <div
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-foreground"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-foreground"
             style={{ backgroundColor: `color-mix(in oklch, ${person.color} 30%, transparent)` }}
           >
             {person.initials}
@@ -1143,7 +1143,7 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
       if (contexts.length === 0) return <Empty />
       if (contexts.length > 1) {
         return (
-          <span className="inline-flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">
             {contexts.length} selected
           </span>
         )
@@ -1153,7 +1153,7 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
           {contexts.map((c) => (
             <span
               key={c.id}
-              className="inline-flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-muted-foreground"
+              className="inline-flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-xs text-muted-foreground"
             >
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: c.color }} />
               {c.name}
@@ -1166,7 +1166,7 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
       if (tags.length === 0) return <Empty />
       if (tags.length > 1) {
         return (
-          <span className="inline-flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-xs text-muted-foreground">
             {tags.length} selected
           </span>
         )
@@ -1176,7 +1176,7 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
           {tags.map((tg) => (
             <span
               key={tg.id}
-              className="inline-flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-muted-foreground"
+              className="inline-flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-xs text-muted-foreground"
             >
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: tg.color }} />
               {tg.name}
@@ -1208,8 +1208,8 @@ function DateCell({ value }: { value: string }) {
   }
 
   return (
-    <span className="inline-flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
-      <Calendar className="h-3 w-3" />
+    <span className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground">
+      <Calendar className="h-3.5 w-3.5" />
       {d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
     </span>
   )
@@ -1286,7 +1286,7 @@ function Empty({ align = "center" }: { align?: "left" | "center" }) {
   return (
     <div
       className={cn(
-        "w-full font-mono text-[11px] text-muted-foreground/40",
+        "w-full font-mono text-xs text-muted-foreground/40",
         align === "left" ? "text-left" : "text-center",
       )}
     >
@@ -1465,7 +1465,7 @@ const MobileTaskRow = memo(function MobileTaskRow({
       <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
         {!notesMode && urgency && task.status !== "Done" && (
           <span 
-            className="hidden sm:inline-block font-mono text-[9px] font-bold uppercase tracking-tight px-1.5 py-0.5 rounded-md"
+            className="hidden sm:inline-block font-mono text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md"
             style={{ 
               backgroundColor: `color-mix(in oklch, ${urgency.color} 12%, transparent)`, 
               color: urgency.color 

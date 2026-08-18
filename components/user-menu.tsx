@@ -75,7 +75,7 @@ export function UserMenu({
           <span
             className={cn(
               "flex items-center justify-center rounded-full bg-primary/20 font-semibold text-primary",
-              isSidebar ? "h-8 w-8 text-xs" : "h-8 w-8 text-xs md:h-6 md:w-6 md:text-[10px]",
+              isSidebar ? "h-8 w-8 text-xs" : "h-8 w-8 text-xs md:h-6 md:w-6 md:text-[11px]",
             )}
           >
             {initials}

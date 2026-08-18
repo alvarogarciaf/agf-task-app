@@ -1368,11 +1368,11 @@ function EditorSurface({
               </PopoverTrigger>
               <PopoverContent align="start" className="w-72 space-y-2">
                 <div className="space-y-1">
-                  <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Text</label>
+                  <label className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Text</label>
                   <input value={linkText} onChange={(e) => setLinkText(e.target.value)} placeholder="Link text" className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring" />
                 </div>
                 <div className="space-y-1">
-                  <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">URL</label>
+                  <label className="font-mono text-xs uppercase tracking-wider text-muted-foreground">URL</label>
                   <input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); insertLink() } }} placeholder="https://example.com" autoFocus className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring" />
                 </div>
                 <div className="flex justify-end gap-2 pt-1">
@@ -1471,7 +1471,7 @@ function EditorSurface({
             {editingLink ? (
               <div className="p-2 space-y-3">
                 <div className="space-y-1">
-                  <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Text</label>
+                  <label className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Text</label>
                   <input 
                     value={editingLink.text} 
                     onChange={(e) => setEditingLink({ ...editingLink, text: e.target.value })} 
@@ -1479,7 +1479,7 @@ function EditorSurface({
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">URL</label>
+                  <label className="font-mono text-xs uppercase tracking-wider text-muted-foreground">URL</label>
                   <input 
                     value={editingLink.url} 
                     onChange={(e) => setEditingLink({ ...editingLink, url: e.target.value })} 

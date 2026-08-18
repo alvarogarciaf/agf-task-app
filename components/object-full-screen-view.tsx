@@ -146,7 +146,7 @@ export function ObjectFullScreenView({
               {draft.status === "Done" ? "Done" : "Open"}
             </button>
 
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 font-mono text-xs uppercase tracking-wider text-muted-foreground">
               {urgency ? (
                 <>
                   <span

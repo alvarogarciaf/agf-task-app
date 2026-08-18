@@ -1592,7 +1592,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                     >
                       <ListChecks className="h-3.5 w-3.5" />
                       Tasks
-                      <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                      <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground font-medium">
                         {activeTasks.filter(t => t.project_id === currentProject.id && t.processed).length}
                       </span>
                       {mobileSection === "tasks" && (
@@ -1609,7 +1609,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                     >
                       <StickyNote className="h-3.5 w-3.5" />
                       Notes
-                      <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                      <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground font-medium">
                         {notes.filter(n => n.project_id === currentProject.id).length}
                       </span>
                       {mobileSection === "notes" && (

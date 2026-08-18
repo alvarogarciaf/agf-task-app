@@ -703,13 +703,13 @@ export function FilteredTasks({
           <div className="hidden md:flex flex-wrap items-center gap-2">
             <div
               className={cn(
-                "flex items-center gap-1.5 px-1 font-mono text-[10px] uppercase tracking-wider",
+                "flex items-center gap-1.5 px-1 font-mono text-xs uppercase tracking-wider",
                 activeFiltersCount > 0 ? "text-primary" : "text-muted-foreground",
               )}
             >
-              <Filter className="h-3 w-3" />
+              <Filter className="h-3.5 w-3.5" />
               {activeFiltersCount > 0 && (
-                <span className="rounded-full bg-primary/15 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-primary">
+                <span className="rounded-full bg-primary/15 px-1.5 py-0.5 font-mono text-xs tabular-nums text-primary font-medium">
                   {activeFiltersCount}
                 </span>
               )}
@@ -800,7 +800,7 @@ export function FilteredTasks({
           </div>
 
           <div className="ml-auto flex shrink-0 items-center justify-end gap-1 md:gap-2">
-            <span className="hidden lg:inline font-mono text-[10px] uppercase tracking-wider text-muted-foreground mr-2">
+            <span className="hidden lg:inline font-mono text-xs uppercase tracking-wider text-muted-foreground mr-2">
               {filtered.length} {filtered.length === 1 ? itemNoun : `${itemNoun}s`}
             </span>
 
@@ -837,13 +837,13 @@ export function FilteredTasks({
                 >
                   <Columns3 className="h-3.5 w-3.5" />
                   <span className="hidden lg:inline">Columns</span>
-                  <span className="ml-1 rounded bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
+                  <span className="ml-1 rounded bg-muted px-1.5 font-mono text-xs text-muted-foreground">
                     {columnState.order.filter(k => !hiddenCols.includes(k) && columnState.visibility[k]).length}/{columnState.order.filter(k => !hiddenCols.includes(k)).length}
                   </span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-60">
-                <DropdownMenuLabel className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                <DropdownMenuLabel className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
                   Toggle columns
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -861,7 +861,7 @@ export function FilteredTasks({
                   )
                 })}
                 <DropdownMenuSeparator />
-                <div className="px-2 py-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                <div className="px-2 py-1.5 text-xs leading-relaxed text-muted-foreground">
                   Drag column headers in the table to reorder.
                 </div>
                 <DropdownMenuSeparator />
@@ -931,7 +931,7 @@ export function FilteredTasks({
                   {((!notesMode && !hideFilters.includes("context")) || notesMode) && (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuLabel className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                      <DropdownMenuLabel className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
                         Multiple filters match
                       </DropdownMenuLabel>
                       <DropdownMenuCheckboxItem
@@ -1015,7 +1015,7 @@ export function FilteredTasks({
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                     {group.name}
-                    <span className="ml-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground font-normal">
+                    <span className="ml-2 font-mono text-xs uppercase tracking-wider text-muted-foreground font-normal">
                       {group.tasks.length} {group.tasks.length === 1 ? itemNoun : `${itemNoun}s`}
                     </span>
                   </h3>
@@ -1023,9 +1023,9 @@ export function FilteredTasks({
                     <button
                       type="button"
                       onClick={() => handleAddNewTask(group.id === "none" ? null : group.id)}
-                      className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary transition-colors hover:bg-primary/20"
+                      className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
                     >
-                      <Plus className="mr-1 h-3 w-3" />
+                      <Plus className="mr-1 h-3.5 w-3.5" />
                       Add to project
                     </button>
                   )}
@@ -1146,7 +1146,7 @@ export function FilteredTasks({
             {/* Status Segmented Control (tasks only) */}
             {!notesMode && !hideFilters.includes("status") && (
               <div>
-                <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                <label className="block text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
                   Status
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -1172,7 +1172,7 @@ export function FilteredTasks({
             {/* Contexts (tasks only) */}
             {!notesMode && !hideFilters.includes("context") && (
               <div>
-                <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                <label className="block text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
                   Contexts
                 </label>
                 <FormMultiSelect
@@ -1187,7 +1187,7 @@ export function FilteredTasks({
             {/* Tags (notes only) */}
             {notesMode && (
               <div>
-                <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                <label className="block text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
                   Tags
                 </label>
                 <FormMultiSelect
@@ -1202,7 +1202,7 @@ export function FilteredTasks({
             {/* Multiple Filters Match (AND / OR) */}
             {((!notesMode && !hideFilters.includes("context")) || notesMode) && (
               <div>
-                <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                <label className="block text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
                   Multiple filters match
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -1237,7 +1237,7 @@ export function FilteredTasks({
             {/* Project Select */}
             {!hideFilters.includes("project") && (
               <div>
-                <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                <label className="block text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
                   Project
                 </label>
                 <ProjectSelect
@@ -1254,7 +1254,7 @@ export function FilteredTasks({
             {/* Person Select */}
             {!hideFilters.includes("person") && (
               <div>
-                <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                <label className="block text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
                   Person
                 </label>
                 <Select
@@ -1272,7 +1272,7 @@ export function FilteredTasks({
                       <SelectItem key={p.id} value={p.id} className="py-3 md:py-1.5">
                         <span className="flex items-center gap-2">
                           <span
-                            className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold shrink-0"
+                            className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold shrink-0"
                             style={{ backgroundColor: `color-mix(in oklch, ${p.color} 30%, transparent)` }}
                           >
                             {p.initials}
@@ -1426,7 +1426,7 @@ function FilterPill({
             value ? toolbarBtnActive : toolbarBtnRest,
           )}
         >
-          <span className="font-mono text-[10px] uppercase tracking-wider">{label}</span>
+          <span className="font-mono text-xs uppercase tracking-wider">{label}</span>
           {value ? (
             <>
               <span className="h-3 w-px bg-primary/30" />

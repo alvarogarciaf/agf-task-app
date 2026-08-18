@@ -453,7 +453,7 @@ export function ProjectsView({
                           >
                             <Trash2 className="h-3.5 w-3.5 mr-2" />
                             Delete
-                            {hasItems && <span className="ml-auto text-[10px] text-muted-foreground font-normal">Has items</span>}
+                            {hasItems && <span className="ml-auto text-xs text-muted-foreground font-normal">Has items</span>}
                           </DropdownMenuItem>
                         )
                       })()}
@@ -467,7 +467,7 @@ export function ProjectsView({
                      {p.linked_person_id && (() => {
                         const lp = persons.find(per => per.id === p.linked_person_id)
                         return lp ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/80 backdrop-blur px-2 py-0.5 text-[10px] text-white font-medium">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/80 backdrop-blur px-2 py-0.5 text-xs text-white font-medium">
                             👤 {lp.name}
                           </span>
                         ) : null
@@ -546,7 +546,7 @@ export function ProjectsView({
                         >
                           <Trash2 className="h-3.5 w-3.5 mr-2" />
                           Delete
-                          {hasItems && <span className="ml-auto text-[10px] text-muted-foreground font-normal">Has items</span>}
+                          {hasItems && <span className="ml-auto text-xs text-muted-foreground font-normal">Has items</span>}
                         </DropdownMenuItem>
                       )
                     })()}
@@ -576,14 +576,14 @@ export function ProjectsView({
                   {p.linked_person_id && (() => {
                     const lp = persons.find(per => per.id === p.linked_person_id)
                     return lp ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-[10px] text-blue-500 font-mono">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-xs text-blue-500 font-mono">
                         👤 {lp.name}
                       </span>
                     ) : null
                   })()}
                   <span
                     className={cn(
-                      "shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider",
+                      "shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-mono uppercase tracking-wider",
                       p.status === "Ongoing"
                         ? "border-primary/30 bg-primary/10 text-primary"
                         : "border-border bg-muted/40 text-muted-foreground",
@@ -599,8 +599,8 @@ export function ProjectsView({
                 ) : null}
               </div>
 
-              <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <Circle className="h-3 w-3" />
+              <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Circle className="h-3.5 w-3.5" />
                 {open} open · {done} done · click to drill in
               </div>
             </SortableProjectItem>
@@ -682,19 +682,19 @@ export function ProjectHeader({
               <h2 className="truncate text-lg font-semibold tracking-tight">{project.name}</h2>
               <span
                 className={cn(
-                  "hidden shrink-0 items-center gap-0.5 rounded-full border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider sm:inline-flex",
+                  "hidden shrink-0 items-center gap-0.5 rounded-full border px-1.5 py-0.5 font-mono text-xs uppercase tracking-wider sm:inline-flex",
                   project.status === "Ongoing"
                     ? "border-primary/30 bg-primary/10 text-primary"
                     : "border-border bg-muted/40 text-muted-foreground",
                 )}
               >
-                <Dot className="h-3 w-3" />
+                <Dot className="h-3.5 w-3.5" />
                 {project.status}
               </span>
             </div>
             <div className="mt-0.5 flex items-center gap-2.5 text-xs text-muted-foreground">
               {linkedPerson && (
-                <span className="inline-flex items-center gap-1 truncate font-mono text-[10px] font-medium text-blue-500">
+                <span className="inline-flex items-center gap-1 truncate font-mono text-xs font-medium text-blue-500">
                   Shared · {linkedPerson.name}
                 </span>
               )}
@@ -904,13 +904,13 @@ function ProjectDetail({
         <div className="mt-3 flex items-center gap-1 border-b border-border">
           <TabButton active={tab === "tasks"} onClick={() => handleTabChange("tasks")} icon={ListChecks}>
             Tasks
-            <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+            <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground font-medium">
               {projTasks.length}
             </span>
           </TabButton>
           <TabButton active={tab === "notes"} onClick={() => handleTabChange("notes")} icon={StickyNote}>
             Notes
-            <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+            <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground font-medium">
               {projNotes.length}
             </span>
           </TabButton>
@@ -1240,7 +1240,7 @@ export function ProjectEditor({
                   onChange={handleImageUpload}
                   disabled={isUploading}
                 />
-                <p className="mt-1 text-[10px] text-muted-foreground">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Visible in grid view. Replaces color/icon.
                 </p>
               </div>
@@ -1249,7 +1249,7 @@ export function ProjectEditor({
           <div className="flex items-center justify-between rounded-lg border border-border p-3 shadow-sm">
             <div className="space-y-0.5">
               <Label htmlFor="order-dependent">Order Dependent</Label>
-              <p className="text-[11px] text-muted-foreground leading-tight">
+              <p className="text-xs text-muted-foreground leading-normal">
                 When enabled, only the first open task is visible throughout the app until completed.
               </p>
             </div>

@@ -230,7 +230,7 @@ export function SettingsView({
                     
                     {isConnected && (
                       <div className="mt-4 pt-4 border-t border-primary/10">
-                        <label className="block text-[10px] font-mono uppercase tracking-wider mb-2">Target Calendar</label>
+                        <label className="block text-xs font-mono uppercase tracking-wider mb-2">Target Calendar</label>
                         <select
                           value={selectedCalendarId || 'primary'}
                           onChange={(e) => selectCalendar(e.target.value)}
@@ -304,13 +304,13 @@ export function SettingsView({
               {/* Sync Status Cards */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="p-4 rounded-lg border border-border bg-muted/30">
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">User ID</div>
+                  <div className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1">User ID</div>
                   <div className="text-sm font-mono truncate select-all" title={userUid}>
                     {userUid || "Not authenticated"}
                   </div>
                 </div>
                 <div className="p-4 rounded-lg border border-border bg-muted/30">
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">Online Status</div>
+                  <div className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-1">Online Status</div>
                   <div className="flex items-center gap-2 text-sm font-medium">
                     {syncStatus?.browserOnline ? (
                       <>
@@ -353,7 +353,7 @@ export function SettingsView({
                   )}
 
                   <div className="pt-2 border-t border-border flex items-center justify-between">
-                    <span className="text-[10px] text-muted-foreground italic">
+                    <span className="text-xs text-muted-foreground italic">
                       Live sync is enabled for all collections.
                     </span>
                   </div>

@@ -88,27 +88,27 @@ export function markdownToHtml(md: string): string {
 
     if (trimmed === "#" || trimmed.startsWith("# ")) {
       flushList();
-      html += `<h1 class="text-base font-bold text-foreground mt-3 mb-1.5 font-sans border-b border-border/10 pb-0.5">${parseInline(trimmed === "#" ? "" : trimmed.substring(2))}</h1>`;
+      html += `<h1 class="text-lg font-bold text-foreground mt-3 mb-1.5 font-sans border-b border-border/10 pb-0.5">${parseInline(trimmed === "#" ? "" : trimmed.substring(2))}</h1>`;
       i++;
     } else if (trimmed === "##" || trimmed.startsWith("## ")) {
       flushList();
-      html += `<h2 class="text-sm font-semibold text-foreground mt-3 mb-1.5 font-sans">${parseInline(trimmed === "##" ? "" : trimmed.substring(3))}</h2>`;
+      html += `<h2 class="text-base font-semibold text-foreground mt-3 mb-1.5 font-sans">${parseInline(trimmed === "##" ? "" : trimmed.substring(3))}</h2>`;
       i++;
     } else if (trimmed === "###" || trimmed.startsWith("### ")) {
       flushList();
-      html += `<h3 class="text-xs font-semibold text-foreground mt-2 mb-1 font-sans uppercase tracking-wider text-muted-foreground">${parseInline(trimmed === "###" ? "" : trimmed.substring(4))}</h3>`;
+      html += `<h3 class="text-sm font-semibold text-foreground mt-2 mb-1 font-sans uppercase tracking-wider text-muted-foreground">${parseInline(trimmed === "###" ? "" : trimmed.substring(4))}</h3>`;
       i++;
     } else if (taskMatch) {
       flushList();
       const checked = taskMatch[1].toLowerCase() === "x";
-      html += `<p class="md-task"><input type="checkbox" class="md-task-box" contenteditable="false"${checked ? " checked" : ""}>${parseInline(taskMatch[2])}</p>`;
+      html += `<p class="md-task text-sm"><input type="checkbox" class="md-task-box" contenteditable="false"${checked ? " checked" : ""}>${parseInline(taskMatch[2])}</p>`;
       i++;
     } else if (trimmed.startsWith("* ") || trimmed.startsWith("- ") || trimmed.startsWith("• ")) {
       if (!inList) {
-        html += '<ul class="list-disc pl-5 mb-3 space-y-1 text-foreground/90 font-sans text-xs">';
+        html += '<ul class="list-disc pl-5 mb-3 space-y-1 text-foreground/90 font-sans text-sm">';
         inList = true;
       }
-      html += `<li class="leading-relaxed">${parseInline(trimmed.substring(2))}</li>`;
+      html += `<li class="leading-relaxed text-sm">${parseInline(trimmed.substring(2))}</li>`;
       i++;
     } else if (trimmed === "---") {
       flushList();
@@ -130,7 +130,7 @@ export function markdownToHtml(md: string): string {
         i++;
         if (!soft) break;
       }
-      html += `<p class="leading-relaxed text-xs text-foreground/90 mb-3 font-sans">${parts.join("<br>")}</p>`;
+      html += `<p class="leading-relaxed text-sm text-foreground/90 mb-3 font-sans">${parts.join("<br>")}</p>`;
     }
   }
 

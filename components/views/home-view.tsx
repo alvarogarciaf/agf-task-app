@@ -194,10 +194,10 @@ export function HomeView({
       >
         <div className="flex items-center gap-2 border-b border-border bg-background/40 px-4 py-2.5">
           <Sparkles className="h-3.5 w-3.5 text-primary" />
-          <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+          <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
             Quick capture
           </span>
-          <span className="ml-auto font-mono text-[10px] text-muted-foreground hidden sm:block">
+          <span className="ml-auto font-mono text-xs text-muted-foreground hidden sm:block">
             ↵ to save
           </span>
         </div>
@@ -287,7 +287,7 @@ export function HomeView({
         </div>
 
         <div className="flex items-center justify-between gap-3 border-t border-border bg-background/40 px-4 py-3">
-          <span className="font-mono text-[10px] text-muted-foreground">
+          <span className="font-mono text-xs text-muted-foreground">
             <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-primary align-middle" />
             Goes to <span className="text-foreground">Inbox</span>
           </span>
@@ -312,7 +312,7 @@ export function HomeView({
           </div>
           <h2 className="text-sm font-semibold">Inbox</h2>
           {inbox.length > 0 && (
-            <span className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-[10px] text-primary">
+            <span className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-xs text-primary font-medium">
               {inbox.length}
             </span>
           )}
@@ -533,7 +533,7 @@ const AttributePicker = forwardRef<HTMLButtonElement, AttributePickerProps>(({
                       <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/20" />
                     )}
                     <span className="flex-1 truncate">{opt.label}</span>
-                    {isSel && <span className="font-mono text-[10px]">✓</span>}
+                    {isSel && <span className="font-mono text-xs">✓</span>}
                   </button>
                 )
               })

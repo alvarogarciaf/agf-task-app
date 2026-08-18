@@ -224,7 +224,7 @@ export function TaskDetailDialog({
                   </button>
 
                   <span
-                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 font-mono text-xs uppercase tracking-wider text-muted-foreground"
                   >
                     {urgency ? (
                       <>
@@ -236,7 +236,7 @@ export function TaskDetailDialog({
                 </>
               )}
 
-              <span className="ml-auto font-mono text-[10px] text-muted-foreground hidden sm:inline-block">
+              <span className="ml-auto font-mono text-xs text-muted-foreground hidden sm:inline-block">
                 Created {created.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
               </span>
               {canExpand && (
@@ -309,7 +309,7 @@ export function TaskDetailDialog({
               style={{ paddingBottom: "calc(0.75rem + var(--keyboard-toolbar-height, 0px))" }}
             >
               {!isMobile && (
-                <span className="font-mono text-[10px] text-muted-foreground">
+                <span className="font-mono text-xs text-muted-foreground">
                   <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-primary align-middle" />
                   Edits write to IndexedDB instantly
                 </span>

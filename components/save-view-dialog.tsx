@@ -85,7 +85,7 @@ export function SaveViewDialog({ open, onOpenChange, onSave, editingView }: Save
         <div className="space-y-5 px-5 py-5 max-h-[70vh] overflow-y-auto">
           {/* Name */}
           <div>
-            <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+            <label className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground mb-1.5">
               Name
             </label>
             <Input
@@ -102,7 +102,7 @@ export function SaveViewDialog({ open, onOpenChange, onSave, editingView }: Save
 
           {/* Icon picker */}
           <div>
-            <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+            <label className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground mb-2">
               Icon
             </label>
             <div className="grid grid-cols-7 gap-1.5 sm:grid-cols-9">
@@ -131,7 +131,7 @@ export function SaveViewDialog({ open, onOpenChange, onSave, editingView }: Save
 
           {/* Color picker */}
           <div>
-            <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+            <label className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground mb-2">
               Color
             </label>
             <div className="flex flex-wrap gap-2">

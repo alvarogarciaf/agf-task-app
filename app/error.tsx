@@ -93,7 +93,7 @@ export default function GlobalError({
               <span className="font-semibold text-foreground">Diagnostics: </span>
               {error.message || "Unknown client-side exception"}
               {error.digest && (
-                <div className="mt-1 text-[10px] opacity-75">Digest: {error.digest}</div>
+                <div className="mt-1 text-xs opacity-75">Digest: {error.digest}</div>
               )}
             </div>
           </div>
@@ -122,7 +122,7 @@ export default function GlobalError({
         </div>
 
         {/* Help Footer */}
-        <div className="mt-5 text-center text-[11px] text-muted-foreground/75 leading-relaxed">
+        <div className="mt-5 text-center text-xs text-muted-foreground/80 leading-relaxed">
           Resetting App Data clears local database storage and preferences, pulling clean data fresh from Firestore upon logging back in.
         </div>
       </div>

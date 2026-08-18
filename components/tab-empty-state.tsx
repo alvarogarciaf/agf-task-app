@@ -11,7 +11,7 @@ export function TabEmptyState() {
       <h2 className="text-lg font-semibold tracking-tight">Choose a page</h2>
       <p className="mt-2 max-w-sm text-sm text-muted-foreground">
         Pick a destination in the sidebar, or press{" "}
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs">
           Ctrl+K
         </kbd>{" "}
         to search and open something.

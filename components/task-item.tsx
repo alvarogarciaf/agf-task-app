@@ -64,7 +64,7 @@ export function TaskItem({
         <div className="flex flex-wrap items-baseline gap-x-2">
           {urgency ? (
             <span
-              className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
+              className="font-mono text-xs uppercase tracking-wider text-muted-foreground"
             >
               <span 
                 className="mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle" 
@@ -89,15 +89,15 @@ export function TaskItem({
 
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {project ? (
-            <span className="inline-flex items-center gap-1 rounded border border-border bg-card px-1.5 py-0.5 text-[11px] text-muted-foreground">
-              <FolderKanban className="h-3 w-3" />
+            <span className="inline-flex items-center gap-1 rounded border border-border bg-card px-1.5 py-0.5 text-xs text-muted-foreground">
+              <FolderKanban className="h-3.5 w-3.5" />
               {project.name}
             </span>
           ) : null}
           {contexts.map((c) => (
             <span
               key={c.id}
-              className="inline-flex items-center gap-1 rounded border border-border bg-card px-1.5 py-0.5 text-[11px] text-muted-foreground"
+              className="inline-flex items-center gap-1 rounded border border-border bg-card px-1.5 py-0.5 text-xs text-muted-foreground"
             >
               <span
                 className="h-1.5 w-1.5 rounded-full"
@@ -107,8 +107,8 @@ export function TaskItem({
             </span>
           ))}
           {showOn ? (
-            <span className="inline-flex items-center gap-1 rounded border border-border bg-card px-1.5 py-0.5 text-[11px] text-muted-foreground">
-              <Calendar className="h-3 w-3" />
+            <span className="inline-flex items-center gap-1 rounded border border-border bg-card px-1.5 py-0.5 text-xs text-muted-foreground">
+              <Calendar className="h-3.5 w-3.5" />
               {showOn.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
             </span>
           ) : null}
@@ -118,14 +118,14 @@ export function TaskItem({
       <div className="flex items-center gap-2 self-center">
         {person ? (
           <div
-            className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold text-foreground"
+            className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold text-foreground"
             style={{ backgroundColor: `color-mix(in oklch, ${person.color} 30%, transparent)` }}
             title={person.name}
           >
             {person.initials}
           </div>
         ) : null}
-        <span className="font-mono text-[10px] text-muted-foreground">
+        <span className="font-mono text-xs text-muted-foreground">
           {new Date(task.date_created).toLocaleDateString(undefined, {
             month: "short",
             day: "numeric",

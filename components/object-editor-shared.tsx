@@ -77,8 +77,8 @@ function UrgencySlider({
     <div className="select-none">
       {/* Name row */}
       <div className="mb-2 flex items-center justify-between">
-        <Label icon={<Zap className="h-3 w-3" />}>Urgency</Label>
-        <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+        <Label icon={<Zap className="h-3.5 w-3.5" />}>Urgency</Label>
+        <div className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground">
           <span
             className="h-1.5 w-1.5 shrink-0 rounded-full transition-colors duration-200"
             style={{ backgroundColor: current.color }}
@@ -118,7 +118,7 @@ function UrgencySlider({
               type="button"
               onClick={() => onChange(u.id)}
               className={cn(
-                "flex h-4 w-4 items-center justify-center rounded-full font-mono text-[9px] font-medium transition-all duration-150",
+                "flex h-4.5 w-4.5 items-center justify-center rounded-full font-mono text-[11px] font-medium transition-all duration-150",
                 i === safeIdx
                   ? "scale-110 text-foreground"
                   : "text-muted-foreground hover:text-foreground",
@@ -143,7 +143,7 @@ export function Label({
   children: React.ReactNode
 }) {
   return (
-    <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+    <label className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground">
       {icon}
       {children}
     </label>
@@ -431,9 +431,9 @@ export function ObjectEditFields({
     <div className={cn("grid gap-5", !isMobile && "mt-5")}>
       {!isNote && (
         <div>
-          <Label icon={<Tag className="h-3 w-3" />}>
+          <Label icon={<Tag className="h-3.5 w-3.5" />}>
             Contexts
-            <span className="ml-1.5 font-mono text-[10px] text-muted-foreground/70">
+            <span className="ml-1.5 font-mono text-[11px] text-muted-foreground/70">
               {(draft.context_ids || []).length} selected
             </span>
           </Label>
@@ -453,9 +453,9 @@ export function ObjectEditFields({
 
       {isNote && (
         <div>
-          <Label icon={<Tag className="h-3 w-3" />}>
+          <Label icon={<Tag className="h-3.5 w-3.5" />}>
             Tags
-            <span className="ml-1.5 font-mono text-[10px] text-muted-foreground/70">
+            <span className="ml-1.5 font-mono text-[11px] text-muted-foreground/70">
               {(draft.tag_ids || []).length} selected
             </span>
           </Label>
@@ -474,7 +474,7 @@ export function ObjectEditFields({
 
       <div className="flex flex-wrap gap-4">
         <div className="flex-1 min-w-[200px]">
-          <Label icon={<FolderKanban className="h-3 w-3" />}>Project</Label>
+          <Label icon={<FolderKanban className="h-3.5 w-3.5" />}>Project</Label>
           <ProjectSelect
             projects={projects}
             value={draft.project_id ?? null}
@@ -496,10 +496,10 @@ export function ObjectEditFields({
 
         <div className="flex-1 min-w-[200px]">
           <div className="flex items-center justify-between">
-            <Label icon={<User className="h-3 w-3" />}>Person</Label>
+            <Label icon={<User className="h-3.5 w-3.5" />}>Person</Label>
             {isProjectShared && (
-              <span className="flex items-center gap-1 text-[10px] font-medium text-blue-500 font-mono animate-fade-in">
-                <Lock className="h-2.5 w-2.5" /> Locked
+              <span className="flex items-center gap-1 text-xs font-medium text-blue-500 font-mono animate-fade-in">
+                <Lock className="h-3 w-3" /> Locked
               </span>
             )}
           </div>
@@ -527,7 +527,7 @@ export function ObjectEditFields({
                 <SelectItem key={p.id} value={p.id} className="py-3 md:py-1.5">
                   <span className="flex items-center gap-2">
                     <span
-                      className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold shrink-0"
+                      className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold shrink-0"
                       style={{
                         backgroundColor: `color-mix(in oklch, ${p.color} 30%, transparent)`,
                       }}
@@ -546,7 +546,7 @@ export function ObjectEditFields({
       {!isNote && (
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label icon={<Calendar className="h-3 w-3" />}>Show on</Label>
+            <Label icon={<Calendar className="h-3.5 w-3.5" />}>Show on</Label>
             <FormDateField
               value={draft.show_on}
               onChange={(iso) => update("show_on", iso)}
@@ -554,7 +554,7 @@ export function ObjectEditFields({
           </div>
 
           <div>
-            <Label icon={<Calendar className="h-3 w-3" />}>Action date</Label>
+            <Label icon={<Calendar className="h-3.5 w-3.5" />}>Action date</Label>
             <FormDateField
               value={draft.action_date}
               onChange={(iso) => update("action_date", iso)}
@@ -566,7 +566,7 @@ export function ObjectEditFields({
       {isNote && (
         <div className="flex flex-wrap gap-4">
           <div className="flex-1 min-w-[200px]">
-            <Label icon={<Calendar className="h-3 w-3" />}>
+            <Label icon={<Calendar className="h-3.5 w-3.5" />}>
               Date Override
             </Label>
             <FormDateField

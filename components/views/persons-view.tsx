@@ -84,7 +84,7 @@ export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDelete
                 {p.linked_uid ? (
                   <span title="Linked to remote user"><LinkIcon className="h-3.5 w-3.5 text-primary" /></span>
                 ) : p.pending_invite_email ? (
-                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground uppercase">Pending</span>
+                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground uppercase font-medium">Pending</span>
                 ) : null}
               </div>
 
@@ -226,7 +226,7 @@ function PersonDialog({
         <div className="flex items-center justify-between border-b border-border bg-card px-5 py-3">
           <div className="flex items-center gap-2">
             <div
-              className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold"
               style={{
                 backgroundColor: `color-mix(in oklch, ${color} 15%, transparent)`,
                 color: color,
@@ -251,7 +251,7 @@ function PersonDialog({
           {/* Name */}
           <div className="grid gap-4 sm:grid-cols-[1fr_80px]">
             <div>
-              <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+              <label className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground mb-1.5">
                 Full Name
               </label>
               <input
@@ -273,7 +273,7 @@ function PersonDialog({
               />
             </div>
             <div>
-              <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+              <label className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground mb-1.5">
                 Initials
               </label>
               <input
@@ -288,7 +288,7 @@ function PersonDialog({
 
           {/* Color picker */}
           <div>
-            <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+            <label className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground mb-2">
               Color
             </label>
             <div className="flex flex-wrap gap-2">
@@ -314,7 +314,7 @@ function PersonDialog({
         {/* Linked Status / Invite UI */}
         {isEditing && (
           <div className="border-t border-border bg-background/40 px-5 py-4">
-            <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
+            <label className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground mb-2">
               Linked Account
             </label>
             {person.linked_uid ? (

@@ -314,12 +314,12 @@ export function AppHeader({
               </DrawerTrigger>
               <DrawerContent className="h-full w-[280px]">
                 <DrawerHeader className="border-b border-border">
-                  <DrawerTitle className="text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <DrawerTitle className="text-left font-mono text-xs uppercase tracking-wider text-muted-foreground">
                     Menu
                   </DrawerTitle>
                 </DrawerHeader>
                 <div className="flex flex-col overflow-y-auto py-2">
-                  <div className="px-4 pt-2 pb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <div className="px-4 pt-2 pb-1 font-mono text-xs uppercase tracking-wider text-muted-foreground">
                     Browse
                   </div>
                   {browseOptions.map((opt) => (
@@ -336,7 +336,7 @@ export function AppHeader({
                     </button>
                   ))}
 
-                  <div className="mt-2 border-t border-border px-4 pt-3 pb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <div className="mt-2 border-t border-border px-4 pt-3 pb-1 font-mono text-xs uppercase tracking-wider text-muted-foreground">
                     Settings
                   </div>
                   {settingsOptions.map((opt) => (
@@ -375,8 +375,8 @@ export function AppHeader({
           >
             <Search className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Search…</span>
-            <span className="ml-2 hidden items-center gap-1 font-mono text-[10px] sm:flex">
-              <Command className="h-3 w-3" />K
+            <span className="ml-2 hidden items-center gap-1 font-mono text-xs sm:flex">
+              <Command className="h-3.5 w-3.5" />K
             </span>
           </button>
 
@@ -499,13 +499,13 @@ export function AppHeader({
                         ? "Type to search tasks, notes, and projects"
                         : "Type to search your tasks"}
                 </span>
-                <span className="text-[11px] opacity-75 mt-0.5">Searching description and details...</span>
+                <span className="text-xs opacity-75 mt-0.5">Searching description and details...</span>
               </div>
             ) : filteredResults.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
                 <AlertCircle className="h-8 w-8 opacity-25 mb-2.5 text-destructive" />
                 <span className="text-sm font-medium">No results found matching your search</span>
-                <span className="text-[11px] opacity-75 mt-0.5">Check for typos or try different terms</span>
+                <span className="text-xs opacity-75 mt-0.5">Check for typos or try different terms</span>
               </div>
             ) : (
               <div className="space-y-1">
@@ -559,12 +559,12 @@ export function AppHeader({
                           )}
 
                           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                            <span className="rounded bg-primary/10 border border-primary/20 px-1.5 py-0.5 font-sans text-[10px] font-semibold text-primary uppercase tracking-wider">
+                            <span className="rounded bg-primary/10 border border-primary/20 px-1.5 py-0.5 font-sans text-xs font-semibold text-primary uppercase tracking-wider">
                               Project
                             </span>
 
                             <span className={cn(
-                              "rounded px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-wider",
+                              "rounded px-1.5 py-0.5 font-sans text-xs font-semibold uppercase tracking-wider",
                               p.status === "Ongoing"
                                 ? "bg-muted text-muted-foreground"
                                 : "bg-muted/40 text-muted-foreground line-through"
@@ -572,7 +572,7 @@ export function AppHeader({
                               {p.status}
                             </span>
 
-                            <span className="text-[10px] text-muted-foreground font-mono">
+                            <span className="text-xs text-muted-foreground font-mono">
                               {projTasks.length} {projTasks.length === 1 ? "task" : "tasks"} · {projNotes.length} {projNotes.length === 1 ? "note" : "notes"}
                             </span>
                           </div>
@@ -607,7 +607,7 @@ export function AppHeader({
                       {/* Leading icon */}
                       <div className="mt-0.5 shrink-0">
                         {isNote ? (
-                          <FileText className="h-4.5 w-4.5 text-muted-foreground" />
+                           <FileText className="h-4.5 w-4.5 text-muted-foreground" />
                         ) : isDone ? (
                           <CheckCircle2 className="h-4.5 w-4.5 text-primary" />
                         ) : (
@@ -632,13 +632,13 @@ export function AppHeader({
                         {/* Tags / Badges */}
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
                           {/* Note vs Task indicator */}
-                          <span className="rounded bg-muted px-1.5 py-0.5 font-sans text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          <span className="rounded bg-muted px-1.5 py-0.5 font-sans text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                             {isNote ? "Note" : "Task"}
                           </span>
 
                           {/* Project Badge */}
                           {project && (
-                            <span className="rounded bg-secondary/80 px-1.5 py-0.5 font-sans text-[10px] font-semibold text-secondary-foreground uppercase tracking-wider">
+                            <span className="rounded bg-secondary/80 px-1.5 py-0.5 font-sans text-xs font-semibold text-secondary-foreground uppercase tracking-wider">
                               {project.name}
                             </span>
                           )}
@@ -648,7 +648,7 @@ export function AppHeader({
                             ? noteTags.map((tg) => (
                                 <span
                                   key={tg.id}
-                                  className="rounded px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-wider"
+                                  className="rounded px-1.5 py-0.5 font-sans text-xs font-semibold uppercase tracking-wider"
                                   style={{
                                     backgroundColor: `color-mix(in oklch, ${tg.color} 12%, transparent)`,
                                     color: tg.color,
@@ -660,7 +660,7 @@ export function AppHeader({
                             : taskContexts.map((c) => (
                                 <span
                                   key={c.id}
-                                  className="rounded px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-wider"
+                                  className="rounded px-1.5 py-0.5 font-sans text-xs font-semibold uppercase tracking-wider"
                                   style={{
                                     backgroundColor: `color-mix(in oklch, ${c.color} 12%, transparent)`,
                                     color: c.color,
@@ -672,8 +672,8 @@ export function AppHeader({
 
                           {/* Action Date / Due Badge (tasks only) */}
                           {!isNote && t.action_date && (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground font-mono">
-                              <Calendar className="h-3 w-3" />
+                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-mono">
+                              <Calendar className="h-3.5 w-3.5" />
                               {t.action_date}
                             </span>
                           )}
