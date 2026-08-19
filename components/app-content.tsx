@@ -1029,9 +1029,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                 syncedHashesRef.current.set(task.id, hash);
                 console.log(`Updated calendar event for: ${task.description}`);
               } catch (err: any) {
-                // If the event was not found on Google Calendar, recreate it!
-                if (err.message?.includes("Not Found") || err.message?.includes("404")) {
-                  console.warn(`Event ${task.google_event_id} not found during auto-sync. Recreating...`);
+                // If the event was not found or was deleted on Google Calendar, recreate it!
+                if (err.message?.includes("Not Found") || err.message?.includes("not found") || err.message?.includes("404") || err.message?.includes("deleted") || err.message?.includes("410")) {
+                  console.warn(`Event ${task.google_event_id} not found/deleted during auto-sync. Recreating...`);
                   const eventId = await withRetry((t) => createGoogleEvent(task, t, selectedCalendarId));
                   const doc = await db.tasks.findOne(task.id).exec();
                   if (doc) await doc.patch({ google_event_id: eventId });
@@ -1103,7 +1103,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
               const message = err instanceof Error ? err.message : String(err)
               if (
                 message.includes("Not Found") ||
-                message.includes("404")
+                message.includes("not found") ||
+                message.includes("404") ||
+                message.includes("deleted") ||
+                message.includes("410")
               ) {
                 const eventId = await createGoogleEvent(
                   task,

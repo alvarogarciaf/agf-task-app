@@ -65,6 +65,9 @@ export async function updateGoogleEvent(task: Task, accessToken: string, calenda
   });
 
   if (!response.ok) {
+    if (response.status === 404 || response.status === 410) {
+      throw new Error("Event not found or deleted on Google Calendar (404/410)");
+    }
     const error = await response.json();
     throw new Error(error.error?.message || "Failed to update Google Calendar event");
   }
@@ -79,7 +82,8 @@ export async function deleteGoogleEvent(eventId: string, accessToken: string, ca
     },
   });
 
-  if (!response.ok && response.status !== 404) {
+  // 404 (Not Found) and 410 (Gone / Resource has been deleted) mean the event is already gone from Google Calendar.
+  if (!response.ok && response.status !== 404 && response.status !== 410) {
     const error = await response.json();
     throw new Error(error.error?.message || "Failed to delete Google Calendar event");
   }
