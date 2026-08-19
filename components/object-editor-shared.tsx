@@ -205,11 +205,14 @@ export function useObjectDraft({
   const prevDescriptionRef = useRef(task?.description)
   const isTypingRef = useRef(false)
   const prevTaskRef = useRef(task)
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastSavedSnapshotRef = useRef<any>(toPlain(getFullPlainTask(task)))
 
   useEffect(() => {
     const fullPlain = getFullPlainTask(task)
     if (!fullPlain) {
       setDraft(null)
+      lastSavedSnapshotRef.current = null
       prevTaskRef.current = task
       return
     }
@@ -253,6 +256,7 @@ export function useObjectDraft({
       // Update the refs so we don't trigger a fake autosave loop.
       prevDetailsRef.current = fullPlain.details
       prevDescriptionRef.current = fullPlain.description
+      lastSavedSnapshotRef.current = toPlain(fullPlain)
       return fullPlain
     })
 
@@ -263,13 +267,17 @@ export function useObjectDraft({
 
   const sortedUrgencies = [...urgencies].sort((a, b) => a.order - b.order)
 
+  function isSameTask(a: any, b: any) {
+    if (!a && !b) return true
+    if (!a || !b) return false
+    return JSON.stringify(toPlain(a)) === JSON.stringify(toPlain(b))
+  }
+
   const isAutoProcessing =
     !!task && !task.processed && autoProcess && !!draft && !draft.processed
   const dirty =
-    !!task &&
     !!draft &&
-    (JSON.stringify(toPlain(draft)) !== JSON.stringify(toPlain(task)) ||
-      isAutoProcessing)
+    (!isSameTask(draft, lastSavedSnapshotRef.current) || isAutoProcessing)
 
   // Debounce text fields autosave (details & description)
   useEffect(() => {
@@ -281,16 +289,20 @@ export function useObjectDraft({
       isTypingRef.current = true
       setAutosaveStatus("idle") // Revert from "saved" so user knows it's pending
       
-      const timer = setTimeout(() => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = setTimeout(() => {
         setAutosaveStatus("saving")
         onUpdate({ ...draft })
-        setAutosaveStatus("saved")
+        lastSavedSnapshotRef.current = toPlain(draft)
         prevDetailsRef.current = draft.details
         prevDescriptionRef.current = draft.description
         isTypingRef.current = false
-      }, 3000)
+        setAutosaveStatus("saved")
+      }, 2500)
       
-      return () => clearTimeout(timer)
+      return () => {
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+      }
     }
   }, [draft?.details, draft?.description, autosave, onUpdate])
 
@@ -303,6 +315,7 @@ export function useObjectDraft({
       // Bookmarks always autosave immediately even if autosave is false (e.g. in modal)
       if ((autosave && key !== "details" && key !== "description") || key === "bookmarked") {
         onUpdate({ ...next })
+        lastSavedSnapshotRef.current = toPlain(next)
         if (autosave) setAutosaveStatus("saved")
       }
       
@@ -316,25 +329,50 @@ export function useObjectDraft({
     const updated = { ...draft, details: nextDetails }
     setDraft(updated)
     onUpdate(updated)
+    lastSavedSnapshotRef.current = toPlain(updated)
   }
 
   function save() {
     if (!draft) return
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = null
+    }
     const finalDraft = { ...draft }
     if (isAutoProcessing) finalDraft.processed = true
+    lastSavedSnapshotRef.current = toPlain(finalDraft)
+    prevDetailsRef.current = finalDraft.details
+    prevDescriptionRef.current = finalDraft.description
+    isTypingRef.current = false
     onUpdate(finalDraft)
     onClose()
   }
 
   function saveWithoutClose() {
     if (!draft) return
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = null
+    }
     const finalDraft = { ...draft }
-    if (isAutoProcessing) finalDraft.processed = true
+    if (isAutoProcessing) {
+      finalDraft.processed = true
+      setAutoProcess(false)
+    }
+    setDraft(finalDraft)
+    lastSavedSnapshotRef.current = toPlain(finalDraft)
+    prevDetailsRef.current = finalDraft.details
+    prevDescriptionRef.current = finalDraft.description
+    isTypingRef.current = false
     onUpdate(finalDraft)
-    // Don't close
+    setAutosaveStatus("saved")
   }
 
   function cancel() {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = null
+    }
     setDraft(getFullPlainTask(task))
     onClose()
   }

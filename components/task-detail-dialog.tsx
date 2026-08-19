@@ -357,10 +357,15 @@ export function TaskDetailDialog({
                   type="button"
                   onClick={saveWithoutClose}
                   disabled={!dirty || !(draft.description || "").trim()}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 md:px-3 md:py-1.5 md:text-xs"
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-md px-4 py-2.5 text-sm font-medium transition-colors md:px-3 md:py-1.5 md:text-xs",
+                    dirty
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "bg-muted text-muted-foreground border border-border/40 cursor-not-allowed opacity-60"
+                  )}
                 >
-                  <Check className="h-3 w-3" />
-                  {isMobile ? "Save" : "Save changes"}
+                  <Check className="h-3.5 w-3.5" />
+                  {dirty ? "Save now" : "Saved"}
                 </button>
               </div>
             </div>

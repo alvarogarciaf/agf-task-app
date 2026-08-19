@@ -64,6 +64,7 @@ export function ObjectFullScreenView({
     setAutoProcess,
     sortedUrgencies,
     save,
+    saveWithoutClose,
     cancel,
     convertType,
     autosaveStatus,
@@ -202,15 +203,26 @@ export function ObjectFullScreenView({
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           )}
-          {/* Removed Cancel button since we're autosaving */}
           <button
             type="button"
-            onClick={save}
-            disabled={!dirty || !(draft.description || "").trim() || autosaveStatus === "saving" || autosaveStatus === "saved"}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={cancel}
+            className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
-            <Check className="h-3 w-3" />
-            {autosaveStatus === "saved" ? "Autosaved" : autosaveStatus === "saving" ? "Saving..." : "Save changes"}
+            {dirty ? "Cancel" : "Close"}
+          </button>
+          <button
+            type="button"
+            onClick={saveWithoutClose}
+            disabled={!dirty || !(draft.description || "").trim()}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+              dirty
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "bg-muted text-muted-foreground border border-border/40 cursor-not-allowed opacity-60"
+            )}
+          >
+            <Check className="h-3.5 w-3.5" />
+            {dirty ? "Save now" : "Saved"}
           </button>
         </div>
       </div>
