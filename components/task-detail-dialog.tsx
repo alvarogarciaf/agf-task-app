@@ -302,21 +302,12 @@ export function TaskDetailDialog({
 
             {/* Edit Mode Footer */}
             <div 
-              className={cn(
-                "flex items-center gap-3 border-t border-border bg-background/40 px-4 md:px-5 pt-3 transition-[padding] duration-200",
-                isMobile ? "justify-end" : "justify-between"
-              )}
+              className="flex items-center justify-between border-t border-border bg-background/40 px-4 md:px-5 pt-3 transition-[padding] duration-200"
               style={{ paddingBottom: "calc(0.75rem + var(--keyboard-toolbar-height, 0px))" }}
             >
-              {!isMobile && (
-                <span className="font-mono text-xs text-muted-foreground">
-                  <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-primary align-middle" />
-                  Edits write to IndexedDB instantly
-                </span>
-              )}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center">
                 {task && !task.processed && !draft.processed && (
-                  <label className="flex items-center gap-1.5 mr-2 cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">
                     <input
                       type="checkbox"
                       checked={autoProcess}
@@ -326,10 +317,13 @@ export function TaskDetailDialog({
                     Processed
                   </label>
                 )}
+              </div>
+
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={convertType}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs whitespace-nowrap"
                   title={isNote ? "Convert this note into a task" : "Convert this task into a note"}
                 >
                   <ArrowLeftRight className="h-3 w-3" />
@@ -339,7 +333,7 @@ export function TaskDetailDialog({
                   <button
                     type="button"
                     onClick={handleDelete}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 md:px-2.5 md:py-1.5 md:text-xs"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 md:px-2.5 md:py-1.5 md:text-xs whitespace-nowrap"
                     title={isNote ? "Delete note" : "Delete task"}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -349,7 +343,7 @@ export function TaskDetailDialog({
                 <button
                   type="button"
                   onClick={cancel}
-                  className="rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs"
+                  className="rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs whitespace-nowrap"
                 >
                   {dirty ? "Cancel" : "Close"}
                 </button>
@@ -358,9 +352,9 @@ export function TaskDetailDialog({
                   onClick={saveWithoutClose}
                   disabled={!dirty || !(draft.description || "").trim()}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-md px-4 py-2.5 text-sm font-medium transition-colors md:px-3 md:py-1.5 md:text-xs",
+                    "inline-flex items-center gap-1.5 rounded-md px-4 py-2.5 text-sm font-medium transition-colors md:px-3.5 md:py-1.5 md:text-xs whitespace-nowrap",
                     dirty
-                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs"
                       : "bg-muted text-muted-foreground border border-border/40 cursor-not-allowed opacity-60"
                   )}
                 >
