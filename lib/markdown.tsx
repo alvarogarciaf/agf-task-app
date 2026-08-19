@@ -20,6 +20,53 @@ function isBlockLine(trimmed: string): boolean {
   )
 }
 
+export function parseImageDimensions(spec: string | undefined): { style: string; width?: string; height?: string; align?: "left" | "center" | "right" } {
+  if (!spec) return { style: "" };
+  const parts = spec.trim().split("|").map(p => p.trim());
+  let dimPart = parts[0] || "";
+  let alignPart = parts[1] || "";
+
+  let align: "left" | "center" | "right" | undefined;
+  if (alignPart === "left" || alignPart === "center" || alignPart === "right") {
+    align = alignPart;
+  } else if (dimPart === "left" || dimPart === "center" || dimPart === "right") {
+    align = dimPart;
+    dimPart = "";
+  }
+
+  let style = "";
+  let width: string | undefined;
+  let height: string | undefined;
+
+  if (dimPart) {
+    if (/^\d+%$/.test(dimPart)) {
+      width = dimPart;
+      style += `width:${dimPart};`;
+    } else if (/^\d+(?:px)?$/i.test(dimPart)) {
+      const px = parseInt(dimPart);
+      width = `${px}px`;
+      style += `width:${px}px;`;
+    } else {
+      const dimMatch = dimPart.match(/^(\d+(?:px|%)?)\s*x\s*(\d+(?:px|%)?)$/i);
+      if (dimMatch) {
+        width = dimMatch[1].endsWith("%") ? dimMatch[1] : `${parseInt(dimMatch[1])}px`;
+        height = dimMatch[2].endsWith("%") ? dimMatch[2] : `${parseInt(dimMatch[2])}px`;
+        style += `width:${width};height:${height};`;
+      }
+    }
+  }
+
+  if (align === "center") {
+    style += "display:block;margin-left:auto;margin-right:auto;";
+  } else if (align === "right") {
+    style += "display:block;margin-left:auto;margin-right:0;";
+  } else if (align === "left") {
+    style += "display:inline-block;margin-right:auto;margin-left:0;";
+  }
+
+  return { style, width, height, align };
+}
+
 export function markdownToHtml(md: string): string {
   if (!md) return "";
   const lines = md.split("\n");
@@ -39,12 +86,12 @@ export function markdownToHtml(md: string): string {
     // Images ![alt|WxH](url) or ![alt](url)
     // We add an onerror handler to display an offline placeholder
     const fallbackSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100' style='background:%23f3f4f6;border-radius:6px;'><text x='50%' y='50%' fill='%239ca3af' text-anchor='middle' dominant-baseline='middle' font-family='sans-serif' font-size='12'>Image unavailable offline</text></svg>";
-    result = result.replace(/!\[([^|\]]*)(?:\|(\d+)(?:x(\d+))?)?\]\(([^)]+)\)/g, (match, alt, width, height, url) => {
-      let style = '';
-      if (width) style += `width:${width}px;`;
-      if (height) style += `height:${height}px;`;
-      
-      return `<span class="image-resizer" style="display:inline-block; resize:horizontal; overflow:hidden; max-width:100%; min-width:20px; vertical-align: bottom; ${style}"><img src="${url}" data-original-src="${url}" alt="${alt}" class="w-full h-auto object-contain rounded-md" onerror="this.onerror=null; this.src='${fallbackSvg}';" /></span>`;
+    result = result.replace(/!\[([^|\]]*)(?:\|([^\]]+))?\]\(([^)]+)\)/g, (match, alt, dimSpec, url) => {
+      const { style, width, align } = parseImageDimensions(dimSpec);
+      const alignAttr = align ? ` data-align="${align}"` : "";
+      const widthAttr = width ? ` data-width="${width}"` : "";
+      const baseDisplay = align ? "" : "display:inline-block;";
+      return `<span class="image-resizer relative max-w-full align-bottom select-none" style="${baseDisplay}${style}"${alignAttr}${widthAttr}><img src="${url}" data-original-src="${url}" alt="${alt}" class="w-full h-auto object-contain rounded-md block pointer-events-auto cursor-pointer" onerror="this.onerror=null; this.src='${fallbackSvg}';" /></span>`;
     });
 
     // Cards [card:Title|Domain|ImageURL](url)
@@ -287,12 +334,27 @@ function nodeToMarkdown(node: Node): string {
             const originalSrc = img.getAttribute("data-original-src") || img.getAttribute("src") || "";
             const alt = img.getAttribute("alt") || "";
             
-            const w = el.style.width ? parseInt(el.style.width) : null;
-            const h = el.style.height ? parseInt(el.style.height) : null;
+            const wStyle = el.style.width || img.style.width || el.getAttribute("data-width") || "";
+            const hStyle = el.style.height || img.style.height || "";
+            const alignAttr = el.getAttribute("data-align") || "";
             
             let dimStr = "";
-            if (w && h) dimStr = `|${w}x${h}`;
-            else if (w) dimStr = `|${w}`;
+            if (wStyle.endsWith("%")) {
+              dimStr = `|${wStyle}`;
+            } else if (wStyle) {
+              const wNum = parseInt(wStyle);
+              const hNum = hStyle && !hStyle.endsWith("%") ? parseInt(hStyle) : null;
+              if (wNum && hNum) {
+                dimStr = `|${wNum}x${hNum}`;
+              } else if (wNum) {
+                dimStr = `|${wNum}`;
+              }
+            }
+
+            if (alignAttr && alignAttr !== "left") {
+              if (dimStr) dimStr += `|${alignAttr}`;
+              else dimStr = `|${alignAttr}`;
+            }
 
             return `![${alt}${dimStr}](${originalSrc})`;
           }
@@ -340,6 +402,7 @@ export function renderMarkdown(
 ): React.ReactNode {
   if (!text) return null;
 
+  const fallbackSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100' style='background:%23f3f4f6;border-radius:6px;'><text x='50%' y='50%' fill='%239ca3af' text-anchor='middle' dominant-baseline='middle' font-family='sans-serif' font-size='12'>Image unavailable offline</text></svg>";
   const lines = text.split("\n");
   const elements: React.ReactNode[] = [];
   let currentList: React.ReactNode[] = [];
@@ -357,16 +420,16 @@ export function renderMarkdown(
   };
 
   const parseInline = (line: string): React.ReactNode[] => {
-    let segments: { type: "text" | "bold" | "italic" | "link" | "image"; content: string; url?: string }[] = [
+    let segments: { type: "text" | "bold" | "italic" | "link" | "image"; content: string; url?: string; dimSpec?: string }[] = [
       { type: "text", content: line }
     ];
 
-    // 0. Parse Images: ![alt](url)
+    // 0. Parse Images: ![alt|dimensions](url) or ![alt](url)
     segments = segments.flatMap(seg => {
       if (seg.type !== "text") return [seg];
       const parts: typeof segments = [];
       const remaining = seg.content;
-      const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+      const imgRegex = /!\[([^|\]]*)(?:\|([^\]]+))?\]\(([^)]+)\)/g;
       let match;
       let lastIndex = 0;
 
@@ -375,7 +438,7 @@ export function renderMarkdown(
         if (textBefore) {
           parts.push({ type: "text", content: textBefore });
         }
-        parts.push({ type: "image", content: match[1], url: match[2] });
+        parts.push({ type: "image", content: match[1], url: match[3], dimSpec: match[2] });
         lastIndex = imgRegex.lastIndex;
       }
       const textAfter = remaining.substring(lastIndex);
@@ -536,18 +599,29 @@ export function renderMarkdown(
         );
       }
       if (seg.type === "image") {
+        const { style } = parseImageDimensions(seg.dimSpec);
+        const styleObj = style ? Object.fromEntries(style.split(';').filter(Boolean).map(s => {
+          const [k, v] = s.split(':');
+          return [k.trim(), v.trim()];
+        })) : undefined;
+
         return (
-          <img
+          <span
             key={idx}
-            src={seg.url}
-            alt={seg.content}
-            className="max-w-full h-auto rounded-md my-2 inline-block object-contain"
-            onError={(e) => {
-              const target = e.currentTarget;
-              target.onerror = null; // prevent infinite loop
-              target.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100' style='background:%23f3f4f6;border-radius:6px;'><text x='50%' y='50%' fill='%239ca3af' text-anchor='middle' dominant-baseline='middle' font-family='sans-serif' font-size='12'>Image unavailable offline</text></svg>";
-            }}
-          />
+            className="inline-block max-w-full my-2 align-bottom"
+            style={styleObj}
+          >
+            <img
+              src={seg.url}
+              alt={seg.content}
+              className="w-full h-auto rounded-md object-contain"
+              onError={(e) => {
+                const target = e.currentTarget;
+                target.onerror = null;
+                target.src = fallbackSvg;
+              }}
+            />
+          </span>
         );
       }
       return seg.content;

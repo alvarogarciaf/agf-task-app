@@ -13,6 +13,10 @@ import {
   Outdent,
   Copy,
   Image as ImageIcon,
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  Trash2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -236,6 +240,131 @@ function EditorSurface({
     rect: DOMRect
   } | null>(null)
   const [editingLink, setEditingLink] = useState<{ url: string, text: string } | null>(null)
+
+  // Floating Image Menu & Resize State
+  const [activeImageMenu, setActiveImageMenu] = useState<{
+    element: HTMLElement
+    img: HTMLImageElement
+    url: string
+    alt: string
+    rect: DOMRect
+    currentWidth: string
+    align: "left" | "center" | "right" | ""
+  } | null>(null)
+  const [dragState, setDragState] = useState<{
+    startX: number
+    startWidth: number
+    handle: "right" | "bottom-right" | "bottom-left"
+    currentWidth: number
+  } | null>(null)
+
+  useEffect(() => {
+    if (!activeImageMenu) return
+    const updateRect = () => {
+      if (activeImageMenu.element && document.body.contains(activeImageMenu.element)) {
+        const rect = activeImageMenu.element.getBoundingClientRect()
+        setActiveImageMenu(prev => prev ? { ...prev, rect } : null)
+      } else {
+        setActiveImageMenu(null)
+      }
+    }
+
+    window.addEventListener("scroll", updateRect, true)
+    window.addEventListener("resize", updateRect)
+    return () => {
+      window.removeEventListener("scroll", updateRect, true)
+      window.removeEventListener("resize", updateRect)
+    }
+  }, [activeImageMenu])
+
+  const applyImageWidth = (widthStr: string) => {
+    if (!activeImageMenu) return
+    const { element } = activeImageMenu
+    if (widthStr === "auto" || widthStr === "") {
+      element.style.width = ""
+      element.removeAttribute("data-width")
+    } else {
+      element.style.width = widthStr
+      element.setAttribute("data-width", widthStr)
+    }
+    syncMarkdown()
+    const rect = element.getBoundingClientRect()
+    setActiveImageMenu(prev => prev ? { ...prev, currentWidth: widthStr, rect } : null)
+  }
+
+  const applyImageAlign = (align: "left" | "center" | "right") => {
+    if (!activeImageMenu) return
+    const { element } = activeImageMenu
+    element.setAttribute("data-align", align)
+    if (align === "center") {
+      element.style.display = "block"
+      element.style.marginLeft = "auto"
+      element.style.marginRight = "auto"
+    } else if (align === "right") {
+      element.style.display = "block"
+      element.style.marginLeft = "auto"
+      element.style.marginRight = "0"
+    } else {
+      element.style.display = "inline-block"
+      element.style.marginLeft = "0"
+      element.style.marginRight = "auto"
+    }
+    syncMarkdown()
+    const rect = element.getBoundingClientRect()
+    setActiveImageMenu(prev => prev ? { ...prev, align, rect } : null)
+  }
+
+  const deleteActiveImage = () => {
+    if (!activeImageMenu) return
+    activeImageMenu.element.remove()
+    setActiveImageMenu(null)
+    setDragState(null)
+    syncMarkdown()
+    handleInput()
+  }
+
+  const handleResizeStart = (e: React.PointerEvent, handle: "right" | "bottom-right" | "bottom-left") => {
+    if (!activeImageMenu) return
+    e.preventDefault()
+    e.stopPropagation()
+
+    const startX = e.clientX
+    const currentRect = activeImageMenu.element.getBoundingClientRect()
+    const startWidth = currentRect.width
+
+    const onPointerMove = (ev: PointerEvent) => {
+      ev.preventDefault()
+      const deltaX = handle === "bottom-left" ? (startX - ev.clientX) : (ev.clientX - startX)
+      const editorWidth = editorRef.current ? editorRef.current.clientWidth - 32 : 600
+      const newWidth = Math.max(60, Math.min(editorWidth, startWidth + deltaX))
+      
+      activeImageMenu.element.style.width = `${Math.round(newWidth)}px`
+      activeImageMenu.element.setAttribute("data-width", `${Math.round(newWidth)}px`)
+      
+      setDragState({
+        startX,
+        startWidth,
+        handle,
+        currentWidth: Math.round(newWidth),
+      })
+    }
+
+    const onPointerUp = () => {
+      window.removeEventListener("pointermove", onPointerMove)
+      window.removeEventListener("pointerup", onPointerUp)
+      setDragState(null)
+
+      if (activeImageMenu && activeImageMenu.element && document.body.contains(activeImageMenu.element)) {
+        const finalRect = activeImageMenu.element.getBoundingClientRect()
+        setActiveImageMenu(prev => prev ? { ...prev, rect: finalRect, currentWidth: activeImageMenu.element.style.width } : null)
+        syncMarkdown()
+        handleInput()
+      }
+    }
+
+    window.addEventListener("pointermove", onPointerMove)
+    window.addEventListener("pointerup", onPointerUp)
+  }
 
   useEffect(() => {
     if (!editorRef.current || isFocusedRef.current) return
@@ -974,6 +1103,20 @@ function EditorSurface({
       return
     }
 
+    if (activeImageMenu) {
+      if (e.key === "Backspace" || e.key === "Delete") {
+        e.preventDefault()
+        deleteActiveImage()
+        return
+      }
+      if (e.key === "Escape") {
+        e.preventDefault()
+        setActiveImageMenu(null)
+        setDragState(null)
+        return
+      }
+    }
+
     if (e.key === "Tab") {
       const block = getCurrentBlock()
       if (block && block.tagName.toLowerCase() === "li") {
@@ -1055,6 +1198,30 @@ function EditorSurface({
       return
     }
 
+    const imageResizer = target.closest(".image-resizer") as HTMLElement | null
+    if (imageResizer) {
+      e.preventDefault()
+      e.stopPropagation()
+      const img = (target.tagName === "IMG" ? target : imageResizer.querySelector("img")) as HTMLImageElement | null
+      if (img) {
+        setActiveLinkMenu(null)
+        setEditingLink(null)
+        const rect = imageResizer.getBoundingClientRect()
+        const currentWidth = imageResizer.style.width || imageResizer.getAttribute("data-width") || ""
+        const align = (imageResizer.getAttribute("data-align") as any) || ""
+        setActiveImageMenu({
+          element: imageResizer,
+          img,
+          url: img.getAttribute("data-original-src") || img.src,
+          alt: img.alt || "",
+          rect,
+          currentWidth,
+          align,
+        })
+        return
+      }
+    }
+
     const cardMenuBtn = target.closest(".card-menu-btn") as HTMLElement | null
     if (cardMenuBtn) {
       e.preventDefault()
@@ -1099,6 +1266,11 @@ function EditorSurface({
     if (activeLinkMenu && !target.closest(".context-menu-popover")) {
       setActiveLinkMenu(null)
       setEditingLink(null)
+    }
+
+    if (activeImageMenu && !target.closest(".image-resizer-popover") && !target.closest(".image-resize-handle")) {
+      setActiveImageMenu(null)
+      setDragState(null)
     }
   }
 
@@ -1556,6 +1728,164 @@ function EditorSurface({
                 </button>
               </>
             )}
+          </div>
+        </>
+      )}
+
+      {/* Floating Image Resize Handles & Action Bar */}
+      {activeImageMenu && (
+        <>
+          {/* Invisible Backdrop to deselect on outside click */}
+          <div 
+            className="fixed inset-0 z-[89]" 
+            onClick={() => { setActiveImageMenu(null); setDragState(null) }} 
+          />
+          
+          {/* Active Image Bounding Box & Interactive Drag Handles */}
+          <div
+            className="fixed z-[90] pointer-events-none rounded-md ring-2 ring-primary ring-offset-2 ring-offset-background"
+            style={{
+              top: activeImageMenu.rect.top,
+              left: activeImageMenu.rect.left,
+              width: activeImageMenu.rect.width,
+              height: activeImageMenu.rect.height,
+            }}
+          >
+            {/* Right Edge Drag Handle */}
+            <div
+              onPointerDown={(e) => handleResizeStart(e, "right")}
+              className="image-resize-handle pointer-events-auto absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-8 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-md cursor-ew-resize flex items-center justify-center transition-transform hover:scale-110 active:scale-125 touch-none z-[92]"
+              title="Drag to resize width"
+            >
+              <div className="w-0.5 h-3 bg-white/80 rounded-full" />
+            </div>
+
+            {/* Bottom Right Corner Drag Handle */}
+            <div
+              onPointerDown={(e) => handleResizeStart(e, "bottom-right")}
+              className="image-resize-handle pointer-events-auto absolute -right-2.5 -bottom-2.5 w-5 h-5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-md cursor-nwse-resize flex items-center justify-center transition-transform hover:scale-110 active:scale-125 touch-none z-[92]"
+              title="Drag to resize"
+            >
+              <div className="w-1.5 h-1.5 bg-white rounded-full" />
+            </div>
+
+            {/* Bottom Left Corner Drag Handle */}
+            <div
+              onPointerDown={(e) => handleResizeStart(e, "bottom-left")}
+              className="image-resize-handle pointer-events-auto absolute -left-2.5 -bottom-2.5 w-5 h-5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-md cursor-nesw-resize flex items-center justify-center transition-transform hover:scale-110 active:scale-125 touch-none z-[92]"
+              title="Drag to resize"
+            >
+              <div className="w-1.5 h-1.5 bg-white rounded-full" />
+            </div>
+
+            {/* Live Drag Width Tooltip */}
+            {dragState && (
+              <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs font-mono font-medium px-2 py-0.5 rounded shadow whitespace-nowrap z-[93]">
+                {dragState.currentWidth}px
+              </div>
+            )}
+          </div>
+
+          {/* Floating Image Control Toolbar */}
+          <div
+            className="image-resizer-popover fixed z-[95] bg-popover/95 backdrop-blur-sm text-popover-foreground rounded-lg border border-border shadow-xl flex items-center gap-1 p-1 animate-in fade-in zoom-in-95 duration-100"
+            style={{
+              top: Math.max(12, activeImageMenu.rect.top > 60 ? activeImageMenu.rect.top - 46 : activeImageMenu.rect.bottom + 12),
+              left: Math.max(12, Math.min(activeImageMenu.rect.left + (activeImageMenu.rect.width / 2) - 160, typeof window !== 'undefined' ? window.innerWidth - 330 : 0)),
+            }}
+          >
+            {/* Size Presets */}
+            <div className="flex items-center gap-0.5 bg-muted/60 p-0.5 rounded-md">
+              {(["25%", "50%", "75%", "100%"] as const).map((preset) => {
+                const isSelected = activeImageMenu.currentWidth === preset
+                return (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => applyImageWidth(preset)}
+                    className={cn(
+                      "px-2 py-1 text-xs font-medium rounded transition-colors cursor-pointer",
+                      isSelected
+                        ? "bg-background text-foreground shadow-xs font-semibold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                    )}
+                    title={`Resize to ${preset}`}
+                  >
+                    {preset}
+                  </button>
+                )
+              })}
+              <button
+                type="button"
+                onClick={() => applyImageWidth("auto")}
+                className={cn(
+                  "px-2 py-1 text-xs font-medium rounded transition-colors cursor-pointer",
+                  !activeImageMenu.currentWidth || activeImageMenu.currentWidth === "auto"
+                    ? "bg-background text-foreground shadow-xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                )}
+                title="Reset to original width"
+              >
+                Auto
+              </button>
+            </div>
+
+            <div className="h-4 w-px bg-border my-auto mx-0.5" />
+
+            {/* Alignment Controls */}
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => applyImageAlign("left")}
+                className={cn(
+                  "p-1.5 rounded transition-colors cursor-pointer",
+                  activeImageMenu.align === "left" || !activeImageMenu.align
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                )}
+                title="Align Left"
+              >
+                <AlignLeft className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => applyImageAlign("center")}
+                className={cn(
+                  "p-1.5 rounded transition-colors cursor-pointer",
+                  activeImageMenu.align === "center"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                )}
+                title="Align Center"
+              >
+                <AlignCenter className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => applyImageAlign("right")}
+                className={cn(
+                  "p-1.5 rounded transition-colors cursor-pointer",
+                  activeImageMenu.align === "right"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                )}
+                title="Align Right"
+              >
+                <AlignRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            <div className="h-4 w-px bg-border my-auto mx-0.5" />
+
+            {/* Delete Image */}
+            <button
+              type="button"
+              onClick={deleteActiveImage}
+              className="p-1.5 rounded text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+              title="Delete image"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
           </div>
         </>
       )}
