@@ -39,7 +39,7 @@ export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDelete
   const [isAdding, setIsAdding] = useState(false)
 
   return (
-    <div>
+    <div className="px-4 pt-3 pb-24 md:px-0 md:pt-0 md:pb-0">
       {/* Header with Add Button */}
       <div className="mb-6">
         <button

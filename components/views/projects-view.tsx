@@ -315,7 +315,7 @@ export function ProjectsView({
           )
         })()
       ) : (
-        <div className="pb-24 md:pb-0">
+        <div className="px-4 pt-3 pb-24 md:px-0 md:pt-0 md:pb-0">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-1 rounded-md border border-border bg-card p-1 w-fit">
               {(["Ongoing", "Closed", "All"] as const).map((s) => (
@@ -925,7 +925,7 @@ function ProjectDetail({
       )}
 
       {tab === "tasks" && (
-        <div className="mt-1 md:mt-4 h-auto md:h-[500px] -mx-4 md:-mx-6">
+        <div className="mt-1 md:mt-4 h-auto md:h-[500px]">
           <FilteredTasks
             tasks={projTasks}
             projects={projects}
@@ -948,7 +948,7 @@ function ProjectDetail({
       )}
 
       {tab === "notes" && (
-        <div className="mt-4 h-auto md:h-[500px] -mx-4 md:-mx-6">
+        <div className="mt-4 h-auto md:h-[500px]">
           <FilteredTasks
             tasks={projNotes}
             projects={projects}

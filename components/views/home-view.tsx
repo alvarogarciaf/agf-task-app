@@ -143,7 +143,7 @@ export function HomeView({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 pt-3 pb-24 md:px-0 md:pt-0 md:pb-0">
       {/* Pending Invites */}
       {invites.length > 0 && (
         <div className="space-y-2">
