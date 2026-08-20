@@ -179,9 +179,9 @@ export function TaskDetailDialog({
 
         <>
             {/* Edit Mode Header */}
-            <div className="flex items-center gap-3 border-b border-border bg-card px-4 md:px-5 py-3">
+            <div className="flex items-center gap-2 sm:gap-3 border-b border-border bg-card px-4 md:px-5 py-3">
               {isNote ? (
-                <div className="inline-flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                <div className="inline-flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary shrink-0">
                   <FileText className="h-3.5 w-3.5" />
                   Note
                 </div>
@@ -191,7 +191,7 @@ export function TaskDetailDialog({
                     type="button"
                     onClick={() => update("processed", !draft.processed)}
                     className={cn(
-                      "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors md:px-2.5 md:py-1 md:text-xs",
+                      "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors shrink-0 md:px-2.5 md:py-1 md:text-xs whitespace-nowrap",
                       draft.processed
                         ? "border-primary/40 bg-primary/10 text-primary"
                         : "border-border bg-background text-muted-foreground hover:text-foreground",
@@ -209,7 +209,7 @@ export function TaskDetailDialog({
                     type="button"
                     onClick={() => update("status", draft.status === "Open" ? "Done" : "Open")}
                     className={cn(
-                      "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors md:px-2.5 md:py-1 md:text-xs",
+                      "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors shrink-0 md:px-2.5 md:py-1 md:text-xs whitespace-nowrap",
                       draft.status === "Done"
                         ? "border-primary/40 bg-primary/10 text-primary"
                         : "border-border bg-background text-muted-foreground hover:text-foreground",
@@ -224,7 +224,7 @@ export function TaskDetailDialog({
                   </button>
 
                   <span
-                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 font-mono text-xs uppercase tracking-wider text-muted-foreground"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 font-mono text-xs uppercase tracking-wider text-muted-foreground shrink-0 whitespace-nowrap"
                   >
                     {urgency ? (
                       <>
@@ -236,43 +236,48 @@ export function TaskDetailDialog({
                 </>
               )}
 
-              <span className="ml-auto font-mono text-xs text-muted-foreground hidden sm:inline-block">
-                Created {created.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-              </span>
-              {canExpand && (
+              <div className="ml-auto flex items-center gap-1 shrink-0">
+                {canExpand && (
+                  <button
+                    type="button"
+                    onClick={expand}
+                    className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    aria-label="Expand to full screen"
+                    title="Expand to full screen"
+                  >
+                    <Maximize2 className="h-4 w-4" />
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive active:scale-95"
+                    aria-label={isNote ? "Delete note" : "Delete task"}
+                    title={isNote ? "Delete note" : "Delete task"}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={expand}
+                  onClick={cancel}
                   className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  aria-label="Expand to full screen"
-                  title="Expand to full screen"
+                  aria-label="Close"
                 >
-                  <Maximize2 className="h-4 w-4" />
+                  <X className="h-4 w-4" />
                 </button>
-              )}
-              {onDelete && (
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive active:scale-95"
-                  aria-label={isNote ? "Delete note" : "Delete task"}
-                  title={isNote ? "Delete note" : "Delete task"}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={cancel}
-                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              </div>
             </div>
 
             {/* Edit Mode Body */}
             <div className={cn("overflow-y-auto px-4 py-4 md:px-5 md:py-5", isMobile ? "flex-1" : "max-h-[70vh]")}>
+              <div className="mb-3 flex items-center justify-between text-xs font-mono text-muted-foreground">
+                <span>
+                  Created {created.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                </span>
+              </div>
+
               <ObjectEditFields
                 draft={draft}
                 setDraft={setDraft}
@@ -345,7 +350,7 @@ export function TaskDetailDialog({
                   onClick={cancel}
                   className="rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs whitespace-nowrap"
                 >
-                  {dirty ? "Cancel" : "Close"}
+                  Close
                 </button>
                 <button
                   type="button"

@@ -208,7 +208,7 @@ export function ObjectFullScreenView({
             onClick={cancel}
             className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
-            {dirty ? "Cancel" : "Close"}
+            Close
           </button>
           <button
             type="button"
