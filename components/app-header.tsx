@@ -165,7 +165,18 @@ export function AppHeader({
 
     const results: SearchResultItem[] = []
 
-    // Filter Tasks
+    // 1. Filter Projects (shown first / on top)
+    if (searchScope === "projects" || searchScope === "all") {
+      const matchingProjects = (projects || []).filter((p) => {
+        if (!includeClosed && p.status === "Closed") return false
+        const name = p.name?.toLowerCase() || ""
+        const det = p.details?.toLowerCase() || ""
+        return name.includes(q) || det.includes(q)
+      })
+      matchingProjects.forEach((p) => results.push({ kind: "project", data: p }))
+    }
+
+    // 2. Filter Tasks
     if (searchScope === "tasks" || searchScope === "all") {
       const matchingTasks = (tasks || []).filter((t) => {
         const isClosed = t.status === "Done" || t.archived
@@ -177,7 +188,7 @@ export function AppHeader({
       matchingTasks.forEach((t) => results.push({ kind: "task", data: t }))
     }
 
-    // Filter Notes
+    // 3. Filter Notes
     if (searchScope === "notes" || searchScope === "all") {
       const matchingNotes = (notes || []).filter((t) => {
         if (!includeClosed && t.archived) return false
@@ -186,17 +197,6 @@ export function AppHeader({
         return desc.includes(q) || det.includes(q)
       })
       matchingNotes.forEach((t) => results.push({ kind: "note", data: t }))
-    }
-
-    // Filter Projects
-    if (searchScope === "projects" || searchScope === "all") {
-      const matchingProjects = (projects || []).filter((p) => {
-        if (!includeClosed && p.status === "Closed") return false
-        const name = p.name?.toLowerCase() || ""
-        const det = p.details?.toLowerCase() || ""
-        return name.includes(q) || det.includes(q)
-      })
-      matchingProjects.forEach((p) => results.push({ kind: "project", data: p }))
     }
 
     return results
