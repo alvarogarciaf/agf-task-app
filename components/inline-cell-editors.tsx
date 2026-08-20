@@ -383,6 +383,7 @@ export function InlineDateEditor({
       <input
         ref={ref}
         type="date"
+        lang="en-GB"
         value={date}
         onChange={(e) => {
           setDate(e.target.value)

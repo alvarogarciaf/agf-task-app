@@ -73,6 +73,7 @@ export function FormDateField({
       <input
         ref={inputRef}
         type="date"
+        lang="en-GB"
         value={inputValue}
         onChange={(e) => onChange(dateInputToIso(e.target.value))}
         className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
