@@ -670,12 +670,15 @@ export function FilteredTasks({
     <div key={`${initialContextId}-${initialContextIds?.join(",")}-${initialTagId}-${initialTagIds?.join(",")}-${initialProjectId}-${initialPersonId}-${initialShowStatus}-${initialIsGroupedByProject}-${initialShowHiddenByShowOn}-${initialFilterMode}-${initialSortKey}-${initialSortDirection}`} className={cn(
       "flex flex-col min-w-0 w-full bg-transparent md:bg-card overflow-hidden",
       fullWidthOnMobile 
-        ? "border-b border-border md:rounded-lg md:border" 
+        ? "border-0 rounded-none md:rounded-lg md:border md:border-border" 
         : "rounded-lg border border-border"
     )}>
       {/* Filter bar */}
       {!hideFilterBar && (
-        <div className="flex md:flex-wrap items-center border-b border-border bg-muted/20 p-2 gap-2">
+        <div className={cn(
+          "flex md:flex-wrap items-center border-b border-border bg-muted/20 p-2 gap-2",
+          fullWidthOnMobile && "border-0 bg-transparent px-0 pt-1 pb-2 md:border-b md:bg-muted/20 md:p-2"
+        )}>
           
           {/* Scrollable left side: Mobile filter icon and active chips */}
           <div className="flex md:hidden flex-1 min-w-0 items-center gap-2 overflow-x-auto no-scrollbar">

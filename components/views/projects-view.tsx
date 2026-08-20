@@ -924,6 +924,7 @@ function ProjectDetail({
             emptyHint="Tasks linked to this project will appear here."
             onCreate={onCreate}
             initialProjectId={project.id}
+            fullWidthOnMobile={true}
           />
         </div>
       )}
@@ -952,6 +953,7 @@ function ProjectDetail({
             emptyHint="Notes assigned to this project will appear here."
             onCreate={onCreateNote}
             initialProjectId={project.id}
+            fullWidthOnMobile={true}
           />
         </div>
       )}
