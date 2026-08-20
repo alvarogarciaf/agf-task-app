@@ -1,4 +1,4 @@
-const CACHE_NAME = "tasker-agf-v1787251311645";
+const CACHE_NAME = "tasker-agf-v1787251759986";
 const IMAGE_CACHE_NAME = "tasker-images-v1";
 const PRECACHE_URLS = ["/", "/manifest.json", "/logo.svg", "/placeholder.jpg"];
 
