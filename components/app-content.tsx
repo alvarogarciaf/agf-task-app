@@ -98,6 +98,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [initialPersonId, setInitialPersonId] = useState<string | undefined>()
   const [initialTagId, setInitialTagId] = useState<string | undefined>()
   const [initialProjectId, setInitialProjectId] = useState<string | undefined>()
+  const lastOpenProjectIdRef = useRef<string | undefined>(undefined)
 
   // Data state — split tasks into two efficient streams
   const [inboxTasks, setInboxTasks] = useState<Task[]>(() => getCachedData("inboxTasks", []))
@@ -140,6 +141,13 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       const tab = params.get("tab") as TabKey
       if (tab) {
         setActiveSettingsTab(tab)
+      }
+      const project = params.get("project") || undefined
+      setInitialProjectId(project)
+      if (project) {
+        lastOpenProjectIdRef.current = project
+      } else if (view === "projects") {
+        lastOpenProjectIdRef.current = undefined
       }
     }
     window.addEventListener("popstate", handlePopState)
@@ -682,6 +690,14 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       }
     }
 
+    if (finalUiPatch.initialProjectId) {
+      lastOpenProjectIdRef.current = finalUiPatch.initialProjectId
+    } else if (finalView === "projects" && !("initialProjectId" in (uiPatch || {}))) {
+      if (lastOpenProjectIdRef.current && projects.some(p => p.id === lastOpenProjectIdRef.current)) {
+        finalUiPatch = { ...finalUiPatch, initialProjectId: lastOpenProjectIdRef.current }
+      }
+    }
+
     setInitialContextId(finalUiPatch.initialContextId ?? undefined)
     setInitialPersonId(finalUiPatch.initialPersonId ?? undefined)
     setInitialTagId(finalUiPatch.initialTagId ?? undefined)
@@ -729,6 +745,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   }
 
   const handleBackFromProject = useCallback(() => {
+    lastOpenProjectIdRef.current = undefined
     if (typeof window !== "undefined" && typeof window.history.state?.idx === "number" && window.history.state.idx > 0) {
       window.history.back()
     } else {
@@ -798,6 +815,14 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         }
       }
 
+      if (finalUiPatch.initialProjectId) {
+        lastOpenProjectIdRef.current = finalUiPatch.initialProjectId
+      } else if (finalView === "projects" && !("initialProjectId" in (uiPatch || {}))) {
+        if (lastOpenProjectIdRef.current && projects.some(p => p.id === lastOpenProjectIdRef.current)) {
+          finalUiPatch = { ...finalUiPatch, initialProjectId: lastOpenProjectIdRef.current }
+        }
+      }
+
       navigateTab(activeTabId, finalView, finalSavedViewId, settingsTab, true, objectId, finalUiPatch)
       syncUrlToRoute({
         kind: "view",
@@ -806,7 +831,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         settingsTab,
       })
     },
-    [activeTabId, navigateTab],
+    [activeTabId, navigateTab, projects],
   )
 
   const updateTabUi = useCallback((tabId: string, patch: Partial<TabUiState>) => {
@@ -939,6 +964,12 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           }
         })
       )
+
+      if (project) {
+        lastOpenProjectIdRef.current = project
+      } else if (view === "projects") {
+        lastOpenProjectIdRef.current = undefined
+      }
 
       if (e.state && typeof e.state.idx === "number") {
         setHistoryIndex(e.state.idx)
@@ -1397,7 +1428,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       onUpdateUi={(patch) => {
         if ("initialContextId" in patch) setInitialContextId(patch.initialContextId)
         if ("initialPersonId" in patch) setInitialPersonId(patch.initialPersonId)
-        if ("initialProjectId" in patch) setInitialProjectId(patch.initialProjectId)
+        if ("initialProjectId" in patch) {
+          setInitialProjectId(patch.initialProjectId)
+          lastOpenProjectIdRef.current = patch.initialProjectId || undefined
+        }
       }}
     />
   )
@@ -1414,7 +1448,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       onNavigate={handleNavigate}
       onUpdateUi={(patch) => {
         if ("initialTagId" in patch) setInitialTagId(patch.initialTagId)
-        if ("initialProjectId" in patch) setInitialProjectId(patch.initialProjectId)
+        if ("initialProjectId" in patch) {
+          setInitialProjectId(patch.initialProjectId)
+          lastOpenProjectIdRef.current = patch.initialProjectId || undefined
+        }
       }}
     />
   )
