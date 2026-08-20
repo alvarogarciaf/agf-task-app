@@ -36,7 +36,7 @@ export function ContextsView({ contexts, tasks, onSelect, onUpdateContext, onDel
   const [isAdding, setIsAdding] = useState(false)
 
   return (
-    <div className="px-4 pt-3 pb-24 md:px-0 md:pt-0 md:pb-0">
+    <div className="px-2 pt-2 pb-24 md:px-0 md:pt-0 md:pb-0">
       {/* Header with Add Button */}
       <div className="mb-6">
         <button

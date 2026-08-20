@@ -315,7 +315,7 @@ export function ProjectsView({
           )
         })()
       ) : (
-        <div className="px-4 pt-3 pb-24 md:px-0 md:pt-0 md:pb-0">
+        <div className="px-2 pt-2 pb-24 md:px-0 md:pt-0 md:pb-0">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-1 rounded-md border border-border bg-card p-1 w-fit">
               {(["Ongoing", "Closed", "All"] as const).map((s) => (

@@ -124,7 +124,7 @@ export function SettingsView({
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 pt-3 pb-24 md:px-0 md:pt-0 md:pb-0">
+    <div className="max-w-4xl mx-auto px-2 pt-2 pb-24 md:px-0 md:pt-0 md:pb-0">
       {/* Tabs - Scrollable on mobile, full tabs on desktop */}
       <div className="hidden md:flex items-center gap-1 border-b border-border mb-6 overflow-x-auto no-scrollbar">
         <TabButton ref={tab === "view" ? activeTabRef : null} active={tab === "view"} onClick={() => setTab("view")} icon={Eye}>
