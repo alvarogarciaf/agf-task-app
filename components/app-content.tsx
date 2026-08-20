@@ -721,18 +721,28 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       else params.delete("project")
 
       const newUrl = `${window.location.pathname}?${params.toString()}`
-      window.history.pushState(null, "", newUrl)
+      const currentIdx = typeof window.history.state?.idx === "number" ? window.history.state.idx : 0
+      const nextIdx = currentIdx + 1
+      window.history.pushState({ idx: nextIdx }, "", newUrl)
+      window.dispatchEvent(new CustomEvent("app-history-change", { detail: { idx: nextIdx } }))
     }
   }
 
   const handleBackFromProject = useCallback(() => {
-    setInitialProjectId(undefined)
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search)
-      params.delete("project")
-      const qs = params.toString()
-      const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
-      window.history.replaceState(null, "", newUrl)
+    if (typeof window !== "undefined" && typeof window.history.state?.idx === "number" && window.history.state.idx > 0) {
+      window.history.back()
+    } else {
+      setInitialProjectId(undefined)
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search)
+        params.delete("project")
+        const qs = params.toString()
+        const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+        const currentIdx = typeof window.history.state?.idx === "number" ? window.history.state.idx : 0
+        const nextIdx = currentIdx + 1
+        window.history.pushState({ idx: nextIdx }, "", newUrl)
+        window.dispatchEvent(new CustomEvent("app-history-change", { detail: { idx: nextIdx } }))
+      }
     }
   }, [])
 
@@ -855,33 +865,42 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [historyIndex, setHistoryIndex] = useState(0)
   const [maxHistoryIndex, setMaxHistoryIndex] = useState(0)
 
+  // Initialize history state on mount and listen to app history changes
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const currentState = window.history.state
+    const currentIdx = (currentState && typeof currentState.idx === "number") ? currentState.idx : 0
+    if (!currentState || typeof currentState.idx !== "number") {
+      window.history.replaceState({ idx: 0 }, "", window.location.href)
+    }
+    setHistoryIndex(currentIdx)
+    setMaxHistoryIndex(currentIdx)
+
+    const handleHistoryChange = (e: CustomEvent<{ idx: number }>) => {
+      const nextIdx = e.detail?.idx ?? 0
+      setHistoryIndex(nextIdx)
+      setMaxHistoryIndex(nextIdx)
+    }
+
+    window.addEventListener("app-history-change", handleHistoryChange as EventListener)
+    return () => {
+      window.removeEventListener("app-history-change", handleHistoryChange as EventListener)
+    }
+  }, [])
+
   const handleDesktopBack = useCallback(() => {
-    if (activeTab.ui.objectId) {
-      updateTabUi(activeTab.id, { objectId: undefined, objectMode: undefined })
-      if (typeof window !== "undefined") {
-        const params = new URLSearchParams(window.location.search)
-        params.delete("objectId")
-        const qs = params.toString()
-        const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
-        window.history.pushState(null, "", newUrl)
-      }
-      return
-    }
-    if (activeTab.ui.initialProjectId && activeTab.route.kind === "view" && activeTab.route.view === "projects") {
-      updateTabUi(activeTab.id, { initialProjectId: undefined })
-      if (typeof window !== "undefined") {
-        const params = new URLSearchParams(window.location.search)
-        params.delete("project")
-        const qs = params.toString()
-        const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
-        window.history.pushState(null, "", newUrl)
-      }
-      return
-    }
     if (typeof window !== "undefined") {
-      window.history.back()
+      if (historyIndex > 0) {
+        window.history.back()
+      } else {
+        if (activeTab.ui.objectId) {
+          updateTabUi(activeTab.id, { objectId: undefined, objectMode: undefined })
+        } else if (activeTab.ui.initialProjectId) {
+          updateTabUi(activeTab.id, { initialProjectId: undefined })
+        }
+      }
     }
-  }, [activeTab, updateTabUi])
+  }, [historyIndex, activeTab, updateTabUi])
 
   const handleDesktopForward = useCallback(() => {
     if (typeof window !== "undefined") {
@@ -932,7 +951,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     return () => window.removeEventListener("popstate", handlePopState)
   }, [isMobile])
 
-  const canDesktopGoBack = historyIndex > 0 || !!activeTab.ui.objectId || !!(activeTab.ui.initialProjectId && activeTab.route.kind === "view" && activeTab.route.view === "projects") || (typeof window !== "undefined" && window.history.length > 1)
+  const canDesktopGoBack = historyIndex > 0 || !!activeTab.ui.objectId || !!(activeTab.ui.initialProjectId && activeTab.route.kind === "view" && activeTab.route.view === "projects")
   const canDesktopGoForward = historyIndex < maxHistoryIndex
 
   const handleDeleteSavedView = async (id: string) => {
@@ -1735,8 +1754,19 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                   >
                     <TabObjectProvider
                       value={{
-                        openObjectFullScreen: (taskId, objectMode) =>
-                          updateTabUi(tab.id, { objectId: taskId, objectMode }),
+                        openObjectFullScreen: (taskId, objectMode) => {
+                          updateTabUi(tab.id, { objectId: taskId, objectMode })
+                          if (typeof window !== "undefined") {
+                            const params = new URLSearchParams(window.location.search)
+                            params.set("objectId", taskId)
+                            const qs = params.toString()
+                            const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+                            const currentIdx = typeof window.history.state?.idx === "number" ? window.history.state.idx : 0
+                            const nextIdx = currentIdx + 1
+                            window.history.pushState({ idx: nextIdx }, "", newUrl)
+                            window.dispatchEvent(new CustomEvent("app-history-change", { detail: { idx: nextIdx } }))
+                          }
+                        },
                         openObjectInNewTab: (taskId, objectMode) => {
                           const newTab = createTabFromRoute(tab.route)
                           newTab.ui = { objectId: taskId, objectMode }
@@ -1749,12 +1779,16 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                         <ObjectFullScreenView
                           task={findObjectById(tab.ui.objectId)}
                           previousLabel={routeLabel(tab.route, findObjectById(tab.ui.objectId))}
-                          onBack={() =>
-                            updateTabUi(tab.id, {
-                              objectId: undefined,
-                              objectMode: undefined,
-                            })
-                          }
+                          onBack={() => {
+                            if (typeof window !== "undefined" && typeof window.history.state?.idx === "number" && window.history.state.idx > 0) {
+                              window.history.back()
+                            } else {
+                              updateTabUi(tab.id, {
+                                objectId: undefined,
+                                objectMode: undefined,
+                              })
+                            }
+                          }}
                           projects={projects}
                           persons={persons}
                           contexts={contexts}

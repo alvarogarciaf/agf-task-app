@@ -109,16 +109,23 @@ export function syncUrlToRoute(route: TabRoute) {
     params.delete("view")
     params.delete("savedViewId")
     params.delete("tab")
+    params.delete("project")
+    params.delete("objectId")
   } else {
     params.set("view", route.view)
     if (route.savedViewId) params.set("savedViewId", route.savedViewId)
     else params.delete("savedViewId")
     if (route.settingsTab) params.set("tab", route.settingsTab)
     else params.delete("tab")
+    params.delete("project")
+    params.delete("objectId")
   }
   const qs = params.toString()
   const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
-  window.history.pushState(null, "", newUrl)
+  const currentIdx = typeof window.history.state?.idx === "number" ? window.history.state.idx : 0
+  const nextIdx = currentIdx + 1
+  window.history.pushState({ idx: nextIdx }, "", newUrl)
+  window.dispatchEvent(new CustomEvent("app-history-change", { detail: { idx: nextIdx } }))
 }
 
 export function getSidebarActive(route: TabRoute): {

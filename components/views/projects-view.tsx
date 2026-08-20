@@ -185,33 +185,7 @@ export function ProjectsView({
   }
 
   useEffect(() => {
-    if (initialSelectedId) {
-      setSelected(initialSelectedId)
-      onSelect?.(initialSelectedId)
-    } else {
-      setSelected(null)
-      onSelect?.(null)
-      if (typeof window !== "undefined") {
-        const params = new URLSearchParams(window.location.search)
-        if (params.has("project")) {
-          params.delete("project")
-          const qs = params.toString()
-          const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
-          window.history.replaceState(null, "", newUrl)
-        }
-      }
-    }
-  }, [initialSelectedId])
-
-  useEffect(() => {
-    const handlePopState = () => {
-      const params = new URLSearchParams(window.location.search)
-      const id = params.get("project") || initialSelectedId || null
-      setSelected(id)
-      onSelect?.(id)
-    }
-    window.addEventListener("popstate", handlePopState)
-    return () => window.removeEventListener("popstate", handlePopState)
+    setSelected(initialSelectedId || null)
   }, [initialSelectedId])
 
   const handleSelect = (id: string | null) => {
@@ -226,7 +200,10 @@ export function ProjectsView({
       }
       const qs = params.toString()
       const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
-      window.history.pushState(null, "", newUrl)
+      const currentIdx = typeof window.history.state?.idx === "number" ? window.history.state.idx : 0
+      const nextIdx = currentIdx + 1
+      window.history.pushState({ idx: nextIdx }, "", newUrl)
+      window.dispatchEvent(new CustomEvent("app-history-change", { detail: { idx: nextIdx } }))
     }
   }
 
@@ -292,7 +269,13 @@ export function ProjectsView({
               persons={persons}
               contexts={contexts}
               tags={tags}
-              onBack={() => handleSelect(null)}
+              onBack={() => {
+                if (typeof window !== "undefined" && typeof window.history.state?.idx === "number" && window.history.state.idx > 0) {
+                  window.history.back()
+                } else {
+                  handleSelect(null)
+                }
+              }}
               onToggleProcessed={onToggleProcessed}
               onToggleStatus={onToggleStatus}
               onUpdate={onUpdate}
