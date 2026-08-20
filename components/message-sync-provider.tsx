@@ -127,16 +127,17 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
 
                   if (existingTask) {
                     await existingTask.patch({
-                      type: msg.task.type ?? existingTask.type,
+                      type: msg.task.type ?? existingTask.type ?? "task",
                       description: msg.task.description,
-                      details: msg.task.details,
+                      details: msg.task.details ?? existingTask.details ?? null,
                       date_created: msg.task.date_created,
-                      action_date: msg.task.action_date,
-                      status: msg.task.status,
-                      processed: msg.task.processed,
-                      archived: msg.task.archived,
+                      action_date: msg.task.action_date ?? existingTask.action_date ?? null,
+                      show_on: msg.task.show_on ?? existingTask.show_on ?? null,
+                      status: msg.task.status ?? existingTask.status ?? "Open",
+                      processed: msg.task.processed ?? existingTask.processed ?? false,
+                      archived: msg.task.archived ?? existingTask.archived ?? false,
                       person_id: mappedPerson.id, // Ensure it's assigned to the linked person
-                      project_id: finalProjId,
+                      project_id: finalProjId ?? null,
                     });
                   } else {
                     // Create new task with defaults for local-only fields
@@ -145,17 +146,21 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                       id: msg.task.id,
                       type: msg.task.type ?? "task",
                       description: msg.task.description!,
-                      details: msg.task.details,
+                      details: msg.task.details ?? null,
                       date_created: msg.task.date_created!,
-                      action_date: msg.task.action_date,
-                      status: msg.task.status as any,
-                      processed: msg.task.processed!,
-                      archived: msg.task.archived,
+                      action_date: msg.task.action_date ?? null,
+                      show_on: msg.task.show_on ?? null,
+                      status: (msg.task.status as any) ?? "Open",
+                      processed: msg.task.processed ?? false,
+                      archived: msg.task.archived ?? false,
                       urgency_id: defaultUrgency?.id || "u_medium",
                       context_ids: [],
                       tag_ids: [],
                       person_id: mappedPerson.id,
-                      project_id: finalProjId,
+                      project_id: finalProjId ?? null,
+                      google_event_id: null,
+                      bookmarked: false,
+                      order: msg.task.order ?? 0,
                     });
                   }
                 }

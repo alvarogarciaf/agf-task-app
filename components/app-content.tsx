@@ -298,10 +298,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       type: input.type ?? "task",
       description: input.description,
       details: input.details ?? null,
-      context_ids: input.contextIds,
+      context_ids: input.contextIds ?? [],
       tag_ids: input.tagIds ?? [],
-      project_id: input.projectId,
-      person_id: finalPersonId,
+      project_id: input.projectId ?? null,
+      person_id: finalPersonId ?? null,
       // Notes carry no urgency semantics in the UI but the schema still expects a
       // value, so fall back to the default urgency to keep the insert valid.
       urgency_id: input.urgencyId || defaultUrgency,
@@ -312,6 +312,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       archived: false,
       show_on: input.showOn ?? null,
       action_date: input.actionDate ?? null,
+      google_event_id: null,
+      bookmarked: false,
+      order: 0,
     })
     return doc.id
   }
@@ -466,7 +469,18 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   }
 
   const handleAddProject = async (p: Omit<Project, "id">) => {
-    await db.projects.insert({ id: crypto.randomUUID(), ...p })
+    await db.projects.insert({
+      id: crypto.randomUUID(),
+      name: p.name,
+      details: p.details ?? null,
+      status: p.status || "Ongoing",
+      linked_person_id: p.linked_person_id ?? null,
+      icon: p.icon ?? null,
+      color: p.color ?? null,
+      background_image: p.background_image ?? null,
+      order_dependent: p.order_dependent ?? false,
+      order: p.order ?? 0,
+    })
   }
 
   const handleUpdateProject = async (p: Project) => {
