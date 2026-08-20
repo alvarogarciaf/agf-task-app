@@ -635,8 +635,11 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     if (view && view !== activeView) {
       setActiveView(view)
       if (isMobile && emblaApi) {
-        if (view === "notes" && mobileSection !== "notes") emblaApi.scrollTo(1)
-        else if (view !== "notes" && mobileSection !== "tasks") emblaApi.scrollTo(0)
+        if ((view === "notes" || view === "bookmarks") && mobileSection !== "notes") {
+          emblaApi.scrollTo(1)
+        } else if (view !== "projects" && view !== "notes" && view !== "bookmarks" && mobileSection !== "tasks") {
+          emblaApi.scrollTo(0)
+        }
       }
     }
   }, [searchParams])
@@ -689,9 +692,16 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     setMobileSelectorType(null)
 
     if (emblaApi) {
-      if (finalUiPatch.initialTagId || (finalView === "notes" && !finalUiPatch.initialProjectId)) {
+      if (finalUiPatch.initialTagId || finalView === "notes" || finalView === "bookmarks") {
         setMobileSection("notes")
         emblaApi.scrollTo(1)
+      } else if (finalView === "projects" || finalUiPatch.initialProjectId) {
+        // Projects belongs to both environments! Keep current active environment (tasks or notes)
+        if (mobileSection === "notes") {
+          emblaApi.scrollTo(1)
+        } else {
+          emblaApi.scrollTo(0)
+        }
       } else {
         setMobileSection("tasks")
         emblaApi.scrollTo(0)
@@ -1655,7 +1665,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                       {renderMobileTasksContent()}
                     </div>
                     <TasksMobileNav
-                      active={mobileSelectorType || (activeView === "saved-view" ? "views" : (activeView === "all" && initialContextId) ? "contexts" : (activeView === "all" && initialProjectId) ? "projects" : activeView)}
+                      active={mobileSelectorType || (activeView === "saved-view" ? "views" : (activeView === "all" && initialContextId) ? "contexts" : (activeView === "projects" || initialProjectId) ? "projects" : activeView)}
                       activeSavedViewId={activeSavedViewId}
                       onChange={handleNavigate}
                       onOpenSelector={(type) => setMobileSelectorType((prev) => (prev === type ? null : type))}
