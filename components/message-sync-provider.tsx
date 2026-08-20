@@ -444,11 +444,14 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
           // ── Push notification logic ──
           const hasBeenNotified = notifiedTasksRef.current.has(taskData.id);
           const isPlaceholder = taskData.description === "New task" || taskData.description === "New note" || !taskData.description.trim();
+          const isRecentlyCreated = taskData.date_created
+            ? Math.abs(Date.now() - new Date(taskData.date_created).getTime()) < 60_000
+            : false;
 
           if (!hasBeenNotified && !isPlaceholder) {
             let shouldNotify = false;
 
-            if (changeEvent.operation === "INSERT") {
+            if (changeEvent.operation === "INSERT" && isRecentlyCreated) {
               shouldNotify = true;
             } else if (changeEvent.operation === "UPDATE" && previousData) {
               const wasPlaceholder = previousData.description === "New task" || previousData.description === "New note" || !previousData.description.trim();
