@@ -314,8 +314,8 @@ export const TasksTable = memo(function TasksTable({
   const activeTask = foundTask ?? convertedTaskFallback
 
   const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
@@ -1340,7 +1340,10 @@ const MobileTaskRow = memo(function MobileTaskRow({
   const [longPressTriggered, setLongPressTriggered] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
-  const startPress = useCallback(() => {
+  const startPress = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    if ((e.target as HTMLElement)?.closest?.('[data-drag-handle]')) {
+      return
+    }
     setLongPressTriggered(false)
     timerRef.current = setTimeout(() => {
       setLongPressTriggered(true)
@@ -1399,10 +1402,9 @@ const MobileTaskRow = memo(function MobileTaskRow({
       <div 
         {...attributes} 
         {...listeners} 
+        data-drag-handle="true"
         className="flex h-7 w-5 shrink-0 items-center justify-center -ml-1 text-muted-foreground/35 active:text-foreground transition-colors cursor-grab active:cursor-grabbing touch-none select-none"
         onClick={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
         aria-label="Drag to reorder"
       >
         <GripVertical className="h-4 w-4" />

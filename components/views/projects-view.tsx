@@ -112,11 +112,9 @@ function SortableProjectItem(props: any) {
         return React.cloneElement(child as any, {
           children: (
             <div className="flex items-center gap-1 w-full">
-              {!isMobile && (
-                <div {...attributes} {...listeners} onClick={e => e.stopPropagation()} className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-1 shrink-0">
-                  <GripVertical className="h-4 w-4" />
-                </div>
-              )}
+              <div {...attributes} {...listeners} onClick={e => e.stopPropagation()} className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-1 shrink-0 touch-none">
+                <GripVertical className="h-4 w-4" />
+              </div>
               {(child as any).props.children}
             </div>
           )
@@ -126,7 +124,7 @@ function SortableProjectItem(props: any) {
     });
   }
 
-  const bindProps = (isMobile || viewMode === 'grid') ? { ...attributes, ...listeners } : {};
+  const bindProps = viewMode === 'grid' ? { ...attributes, ...listeners } : {};
 
   return (
     <div ref={setNodeRef} style={style} className={props.className} onClick={props.onClick} {...bindProps}>
@@ -225,8 +223,8 @@ export function ProjectsView({
   }, [projects])
 
   const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
