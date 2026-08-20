@@ -15,6 +15,8 @@ import {
   X,
   Pencil,
   Trash2,
+  Undo2,
+  Redo2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -87,6 +89,10 @@ export function TaskDetailDialog({
     cancel,
     convertType,
     handleToggleTask,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useObjectDraft({
     task,
     projects,
@@ -95,6 +101,34 @@ export function TaskDetailDialog({
     onClose: () => onOpenChange(false),
     autosave: true,
   })
+
+  // Keyboard shortcut listener for Undo (Ctrl+Z / Cmd+Z) and Redo (Ctrl+Shift+Z / Cmd+Shift+Z / Ctrl+Y)
+  useEffect(() => {
+    if (!open) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey)) return
+      if (e.key.toLowerCase() === "z") {
+        if (e.shiftKey) {
+          if (canRedo) {
+            e.preventDefault()
+            redo()
+          }
+        } else {
+          if (canUndo) {
+            e.preventDefault()
+            undo()
+          }
+        }
+      } else if (e.key.toLowerCase() === "y") {
+        if (canRedo) {
+          e.preventDefault()
+          redo()
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [open, undo, redo, canUndo, canRedo])
 
   const handleDelete = () => {
     if (!draft || !onDelete) return
@@ -276,6 +310,30 @@ export function TaskDetailDialog({
                 <span>
                   Created {created.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                 </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={undo}
+                    disabled={!canUndo}
+                    className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-sans font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    title="Undo (Ctrl+Z)"
+                    aria-label="Undo"
+                  >
+                    <Undo2 className="h-3.5 w-3.5" />
+                    <span>Undo</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={redo}
+                    disabled={!canRedo}
+                    className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-sans font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    title="Redo (Ctrl+Shift+Z)"
+                    aria-label="Redo"
+                  >
+                    <Redo2 className="h-3.5 w-3.5" />
+                    <span>Redo</span>
+                  </button>
+                </div>
               </div>
 
               <ObjectEditFields

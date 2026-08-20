@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState, useRef } from "react"
+import React, { useEffect, useState, useRef, useCallback } from "react"
 import {
   Calendar,
   FileText,
@@ -201,6 +201,14 @@ export function useObjectDraft({
   const [autoProcess, setAutoProcess] = useState(false)
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved">("idle")
   
+  // Undo / Redo history tracking
+  const historyRef = useRef<Task[]>([])
+  const historyIndexRef = useRef<number>(0)
+  const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
+  const isUndoingOrRedoingRef = useRef(false)
+  const lastHistoryTimestampRef = useRef<number>(0)
+
   const prevDetailsRef = useRef(task?.details)
   const prevDescriptionRef = useRef(task?.description)
   const isTypingRef = useRef(false)
@@ -208,12 +216,49 @@ export function useObjectDraft({
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedSnapshotRef = useRef<any>(toPlain(getFullPlainTask(task)))
 
+  // Helper to push history snapshots
+  const pushHistory = useCallback((newDraft: Task, isTypingText = false) => {
+    if (isUndoingOrRedoingRef.current) return
+    const now = Date.now()
+    const stack = historyRef.current
+    const currentIndex = historyIndexRef.current
+
+    // Discard any redo branch after current pointer
+    const truncated = stack.slice(0, currentIndex + 1)
+    const snapshot = JSON.parse(JSON.stringify(newDraft))
+
+    // If continuously typing text within 800ms, update the top entry
+    if (isTypingText && currentIndex > 0 && now - lastHistoryTimestampRef.current < 800) {
+      truncated[currentIndex] = snapshot
+      historyRef.current = truncated
+      lastHistoryTimestampRef.current = now
+      setCanUndo(currentIndex > 0)
+      setCanRedo(false)
+      return
+    }
+
+    // Push new snapshot
+    truncated.push(snapshot)
+    if (truncated.length > 100) {
+      truncated.shift()
+    }
+    historyRef.current = truncated
+    historyIndexRef.current = truncated.length - 1
+    lastHistoryTimestampRef.current = now
+    setCanUndo(historyIndexRef.current > 0)
+    setCanRedo(false)
+  }, [])
+
   useEffect(() => {
     const fullPlain = getFullPlainTask(task)
     if (!fullPlain) {
       setDraft(null)
       lastSavedSnapshotRef.current = null
       prevTaskRef.current = task
+      historyRef.current = []
+      historyIndexRef.current = 0
+      setCanUndo(false)
+      setCanRedo(false)
       return
     }
 
@@ -257,6 +302,13 @@ export function useObjectDraft({
       prevDetailsRef.current = fullPlain.details
       prevDescriptionRef.current = fullPlain.description
       lastSavedSnapshotRef.current = toPlain(fullPlain)
+
+      // Initialize history stack with initial state
+      historyRef.current = [JSON.parse(JSON.stringify(fullPlain))]
+      historyIndexRef.current = 0
+      setCanUndo(false)
+      setCanRedo(false)
+
       return fullPlain
     })
 
@@ -310,6 +362,8 @@ export function useObjectDraft({
     setDraft((prev) => {
       if (!prev) return prev
       const next = { ...prev, [key]: value }
+      const isText = key === "details" || key === "description"
+      pushHistory(next, isText)
       
       // Immediately autosave non-text fields. Text fields are debounced.
       // Bookmarks always autosave immediately even if autosave is false (e.g. in modal)
@@ -323,10 +377,75 @@ export function useObjectDraft({
     })
   }
 
+  const undo = useCallback(() => {
+    if (historyIndexRef.current <= 0) return
+
+    const newIndex = historyIndexRef.current - 1
+    const target = historyRef.current[newIndex]
+    if (!target) return
+
+    isUndoingOrRedoingRef.current = true
+    historyIndexRef.current = newIndex
+    setCanUndo(newIndex > 0)
+    setCanRedo(newIndex < historyRef.current.length - 1)
+
+    const cloned = JSON.parse(JSON.stringify(target))
+    setDraft(cloned)
+
+    prevDetailsRef.current = cloned.details
+    prevDescriptionRef.current = cloned.description
+
+    if (autosave) {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = setTimeout(() => {
+        onUpdate({ ...cloned })
+        lastSavedSnapshotRef.current = toPlain(cloned)
+        setAutosaveStatus("saved")
+      }, 500)
+    }
+
+    setTimeout(() => {
+      isUndoingOrRedoingRef.current = false
+    }, 50)
+  }, [autosave, onUpdate])
+
+  const redo = useCallback(() => {
+    if (historyIndexRef.current >= historyRef.current.length - 1) return
+
+    const newIndex = historyIndexRef.current + 1
+    const target = historyRef.current[newIndex]
+    if (!target) return
+
+    isUndoingOrRedoingRef.current = true
+    historyIndexRef.current = newIndex
+    setCanUndo(newIndex > 0)
+    setCanRedo(newIndex < historyRef.current.length - 1)
+
+    const cloned = JSON.parse(JSON.stringify(target))
+    setDraft(cloned)
+
+    prevDetailsRef.current = cloned.details
+    prevDescriptionRef.current = cloned.description
+
+    if (autosave) {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = setTimeout(() => {
+        onUpdate({ ...cloned })
+        lastSavedSnapshotRef.current = toPlain(cloned)
+        setAutosaveStatus("saved")
+      }, 500)
+    }
+
+    setTimeout(() => {
+      isUndoingOrRedoingRef.current = false
+    }, 50)
+  }, [autosave, onUpdate])
+
   function handleToggleTask(taskIndex: number, checked: boolean) {
     if (!draft?.details) return
     const nextDetails = toggleMarkdownTask(draft.details, taskIndex, checked)
     const updated = { ...draft, details: nextDetails }
+    pushHistory(updated, false)
     setDraft(updated)
     onUpdate(updated)
     lastSavedSnapshotRef.current = toPlain(updated)
@@ -389,6 +508,7 @@ export function useObjectDraft({
         converted.status = "Open"
       }
     }
+    pushHistory(converted, false)
     setDraft(converted)
     onUpdate(converted)
     toast.success(
@@ -411,6 +531,10 @@ export function useObjectDraft({
     handleToggleTask,
     getFullPlainTask,
     autosaveStatus,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   }
 }
 

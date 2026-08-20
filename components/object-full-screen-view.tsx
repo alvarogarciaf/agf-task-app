@@ -9,6 +9,8 @@ import {
   CircleCheck,
   FileText,
   Trash2,
+  Undo2,
+  Redo2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -68,6 +70,10 @@ export function ObjectFullScreenView({
     cancel,
     convertType,
     autosaveStatus,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useObjectDraft({
     task,
     projects,
@@ -76,6 +82,33 @@ export function ObjectFullScreenView({
     onClose: onBack,
     autosave: true,
   })
+
+  // Keyboard shortcut listener for Undo (Ctrl+Z / Cmd+Z) and Redo (Ctrl+Shift+Z / Cmd+Shift+Z / Ctrl+Y)
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey)) return
+      if (e.key.toLowerCase() === "z") {
+        if (e.shiftKey) {
+          if (canRedo) {
+            e.preventDefault()
+            redo()
+          }
+        } else {
+          if (canUndo) {
+            e.preventDefault()
+            undo()
+          }
+        }
+      } else if (e.key.toLowerCase() === "y") {
+        if (canRedo) {
+          e.preventDefault()
+          redo()
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [undo, redo, canUndo, canRedo])
 
   if (!draft) return null
 
@@ -203,6 +236,30 @@ export function ObjectFullScreenView({
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           )}
+          <div className="flex items-center gap-1 mr-1">
+            <button
+              type="button"
+              onClick={undo}
+              disabled={!canUndo}
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              title="Undo (Ctrl+Z)"
+              aria-label="Undo"
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Undo</span>
+            </button>
+            <button
+              type="button"
+              onClick={redo}
+              disabled={!canRedo}
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              title="Redo (Ctrl+Shift+Z)"
+              aria-label="Redo"
+            >
+              <Redo2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Redo</span>
+            </button>
+          </div>
           <button
             type="button"
             onClick={cancel}
@@ -231,6 +288,35 @@ export function ObjectFullScreenView({
       <div className="flex min-h-0 flex-1">
         {/* Left: all fields */}
         <div className="w-[380px] shrink-0 overflow-y-auto border-r border-border px-5 py-5 lg:w-[440px]">
+          <div className="mb-3 flex items-center justify-between text-xs font-mono text-muted-foreground">
+            <span>
+              Created {new Date(draft.date_created).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={undo}
+                disabled={!canUndo}
+                className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-sans font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                title="Undo (Ctrl+Z)"
+                aria-label="Undo"
+              >
+                <Undo2 className="h-3.5 w-3.5" />
+                <span>Undo</span>
+              </button>
+              <button
+                type="button"
+                onClick={redo}
+                disabled={!canRedo}
+                className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-sans font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                title="Redo (Ctrl+Shift+Z)"
+                aria-label="Redo"
+              >
+                <Redo2 className="h-3.5 w-3.5" />
+                <span>Redo</span>
+              </button>
+            </div>
+          </div>
           <ObjectEditFields
             draft={draft}
             setDraft={setDraft}
