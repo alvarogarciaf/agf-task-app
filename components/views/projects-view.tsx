@@ -629,9 +629,9 @@ export function ProjectHeader({
       <button
         type="button"
         onClick={onBack}
-        className="mb-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        className="mb-2 -ml-2 inline-flex items-center gap-1.5 p-2 text-sm text-muted-foreground hover:text-foreground md:ml-0 md:p-0 md:text-xs"
       >
-        <ArrowLeft className="h-3 w-3" />
+        <ArrowLeft className="h-4 w-4 md:h-3 md:w-3" />
         All projects
       </button>
 
