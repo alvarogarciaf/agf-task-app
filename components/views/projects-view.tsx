@@ -925,6 +925,7 @@ function ProjectDetail({
             onCreate={onCreate}
             initialProjectId={project.id}
             fullWidthOnMobile={true}
+            nestedOnMobile={true}
           />
         </div>
       )}
@@ -954,6 +955,7 @@ function ProjectDetail({
             onCreate={onCreateNote}
             initialProjectId={project.id}
             fullWidthOnMobile={true}
+            nestedOnMobile={true}
           />
         </div>
       )}

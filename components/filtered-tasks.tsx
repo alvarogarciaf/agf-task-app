@@ -88,6 +88,7 @@ interface FilteredTasksProps {
   }) => Promise<string | void>
   hideFilterBar?: boolean
   fullWidthOnMobile?: boolean
+  nestedOnMobile?: boolean
   allowUnprocessed?: boolean
   hideDesktopAdd?: boolean
 }
@@ -126,6 +127,7 @@ export function FilteredTasks({
   onCreate,
   hideFilterBar = false,
   fullWidthOnMobile = false,
+  nestedOnMobile = false,
   allowUnprocessed = false,
   hideDesktopAdd = false,
 }: FilteredTasksProps) {
@@ -1099,7 +1101,7 @@ export function FilteredTasks({
             onBulkDelete={handleBulkDelete}
             onReorderTasks={handleReorderTasks}
             hideToolbar
-            isNested={fullWidthOnMobile}
+            isNested={nestedOnMobile}
           />
         )}
       </div>
