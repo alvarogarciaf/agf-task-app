@@ -865,7 +865,7 @@ function ProjectDetail({
 
   return (
     <div 
-      className={cn("px-4 md:px-6 md:pt-4 md:pb-6", isMobile ? "pt-1 pb-28" : "pt-3 pb-24")}
+      className={cn(isMobile ? "px-2 pt-1 pb-24" : "px-6 pt-3 pb-24 md:pt-4 md:pb-6")}
     >
       {!isMobile && (
         <ProjectHeader
@@ -930,7 +930,7 @@ function ProjectDetail({
       )}
 
       {tab === "notes" && (
-        <div className="mt-4 h-auto md:h-[500px]">
+        <div className="mt-1 md:mt-4 h-auto md:h-[500px]">
           <FilteredTasks
             tasks={projNotes}
             projects={projects}
@@ -959,7 +959,7 @@ function ProjectDetail({
       )}
 
       {tab === "description" && (
-        <div className="mt-4 rounded-lg border border-border bg-card p-5">
+        <div className="mt-2 md:mt-4 rounded-lg border border-border bg-card p-4 md:p-5">
           <p className="text-sm leading-relaxed text-foreground/90">
             {project.details ?? "No description yet. Click to add details with Markdown."}
           </p>

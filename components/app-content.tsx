@@ -1646,7 +1646,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             <div className="flex flex-col h-full w-full">
               {initialProjectId && currentProject && (
                 <div className="bg-background">
-                  <div className="px-4 pt-3">
+                  <div className="px-2 pt-2">
                     <ProjectHeader
                       project={currentProject}
                       projects={projects}
@@ -1664,7 +1664,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                   </div>
                   
                   {/* Static Project Tabs */}
-                  <div className="mt-3 flex items-center gap-1 border-b border-border px-4 bg-background">
+                  <div className="mt-2 flex items-center gap-1 border-b border-border px-2 bg-background">
                     <button
                       type="button"
                       onClick={() => emblaApi?.scrollTo(0)}

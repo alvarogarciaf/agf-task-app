@@ -1099,6 +1099,7 @@ export function FilteredTasks({
             onBulkDelete={handleBulkDelete}
             onReorderTasks={handleReorderTasks}
             hideToolbar
+            isNested={fullWidthOnMobile}
           />
         )}
       </div>
