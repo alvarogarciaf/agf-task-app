@@ -215,6 +215,7 @@ export function useObjectDraft({
   const prevTaskRef = useRef(task)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedSnapshotRef = useRef<any>(toPlain(getFullPlainTask(task)))
+  const loadedTaskIdRef = useRef<string | null>(task?.id ?? null)
 
   // Helper to push history snapshots
   const pushHistory = useCallback((newDraft: Task, isTypingText = false) => {
@@ -255,6 +256,7 @@ export function useObjectDraft({
       setDraft(null)
       lastSavedSnapshotRef.current = null
       prevTaskRef.current = task
+      loadedTaskIdRef.current = null
       historyRef.current = []
       historyIndexRef.current = 0
       setCanUndo(false)
@@ -290,15 +292,21 @@ export function useObjectDraft({
       }
     }
     
+    const isSameTaskId = fullPlain.id === loadedTaskIdRef.current
+
     setDraft((prev) => {
-      // If we are currently typing text fields in autosave mode, preserve the draft's text fields
-      // to avoid incoming database updates (e.g. from other fields syncing) overwriting the text.
-      if (prev && prev.id === fullPlain.id && autosave && isTypingRef.current) {
+      // If the same task ID came back from DB (e.g. after autosave), preserve the
+      // current draft text AND the entire history stack. Only update non-text metadata
+      // so that structural changes (project, context, etc.) still reflect.
+      if (prev && isSameTaskId && autosave) {
+        // Update lastSavedSnapshotRef so dirty-checking stays accurate,
+        // but keep the draft text intact so the editor doesn't jump.
+        lastSavedSnapshotRef.current = toPlain({ ...fullPlain, details: prev.details, description: prev.description })
         return { ...fullPlain, details: prev.details, description: prev.description }
       }
       
-      // If we're not actively typing, we are accepting the incoming DB state.
-      // Update the refs so we don't trigger a fake autosave loop.
+      // We are opening a genuinely different task — full reset.
+      loadedTaskIdRef.current = fullPlain.id
       prevDetailsRef.current = fullPlain.details
       prevDescriptionRef.current = fullPlain.description
       lastSavedSnapshotRef.current = toPlain(fullPlain)
@@ -312,7 +320,7 @@ export function useObjectDraft({
       return fullPlain
     })
 
-    setAutoProcess((prev) => {
+    setAutoProcess(() => {
       return false
     })
   }, [task, projects, autosave])
