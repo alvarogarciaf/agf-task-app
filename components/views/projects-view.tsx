@@ -269,11 +269,7 @@ export function ProjectsView({
               contexts={contexts}
               tags={tags}
               onBack={() => {
-                if (typeof window !== "undefined" && typeof window.history.state?.idx === "number" && window.history.state.idx > 0) {
-                  window.history.back()
-                } else {
-                  handleSelect(null)
-                }
+                handleSelect(null)
               }}
               onToggleProcessed={onToggleProcessed}
               onToggleStatus={onToggleStatus}

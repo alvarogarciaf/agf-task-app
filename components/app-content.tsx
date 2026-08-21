@@ -746,22 +746,24 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
 
   const handleBackFromProject = useCallback(() => {
     lastOpenProjectIdRef.current = undefined
-    if (typeof window !== "undefined" && typeof window.history.state?.idx === "number" && window.history.state.idx > 0) {
-      window.history.back()
-    } else {
-      setInitialProjectId(undefined)
-      if (typeof window !== "undefined") {
-        const params = new URLSearchParams(window.location.search)
-        params.delete("project")
-        const qs = params.toString()
-        const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
-        const currentIdx = typeof window.history.state?.idx === "number" ? window.history.state.idx : 0
-        const nextIdx = currentIdx + 1
-        window.history.pushState({ idx: nextIdx }, "", newUrl)
-        window.dispatchEvent(new CustomEvent("app-history-change", { detail: { idx: nextIdx } }))
+    setInitialProjectId(undefined)
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      params.delete("project")
+      // If we are currently on the "projects" tab, just update the URL.
+      // If for some reason we are on another tab (unlikely), this ensures we go to projects view.
+      if (activeView !== "projects") {
+        params.set("view", "projects")
+        setActiveView("projects")
       }
+      const qs = params.toString()
+      const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+      const currentIdx = typeof window.history.state?.idx === "number" ? window.history.state.idx : 0
+      const nextIdx = currentIdx + 1
+      window.history.pushState({ idx: nextIdx }, "", newUrl)
+      window.dispatchEvent(new CustomEvent("app-history-change", { detail: { idx: nextIdx } }))
     }
-  }, [])
+  }, [activeView])
 
   const navigateTab = useCallback(
     (
