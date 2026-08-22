@@ -757,6 +757,36 @@ export function ObjectEditFields({
           </div>
         </div>
       )}
+
+      <div>
+        <Label icon={<FileText className="h-3.5 w-3.5" />}>Body Type</Label>
+        <div className="mt-2 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => update("is_list", null)}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+              !draft.is_list
+                ? "bg-primary/15 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            Text
+          </button>
+          <button
+            type="button"
+            onClick={() => update("is_list", true)}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+              draft.is_list
+                ? "bg-primary/15 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            List
+          </button>
+        </div>
+      </div>
     </div>
   )
 
@@ -816,23 +846,7 @@ export function ObjectEditFields({
         </div>
       )}
 
-      {/* List mode toggle */}
-      <div className="mt-5 flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
-        <div className="flex items-center gap-2">
-          <List className="h-4 w-4 text-muted-foreground" />
-          <div>
-            <p className="text-sm font-medium leading-none">List mode</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {draft.is_list ? "Details replaced by a list" : "Enable to replace details with a list"}
-            </p>
-          </div>
-        </div>
-        <Switch
-          checked={!!draft.is_list}
-          onCheckedChange={(checked) => update("is_list", checked ? true : null)}
-          aria-label="Enable list mode"
-        />
-      </div>
+
 
       {isMobile ? (
         <>
