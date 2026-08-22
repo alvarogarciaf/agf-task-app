@@ -7,6 +7,14 @@ export interface UrgencyLevel {
 
 export type ProjectStatus = "Ongoing" | "Closed"
 
+export interface ListItem {
+  id: string
+  description: string
+  status: "Open" | "Done"
+  order: number
+  date_created: string
+}
+
 // The unified object can be a task or a note. Both kinds always carry
 // context_ids and tag_ids so conversion between them stays lossless.
 export type ObjectType = "task" | "note"
@@ -30,6 +38,10 @@ export interface AppObject {
   google_event_id?: string | null
   bookmarked?: boolean
   order?: number
+  /** When true the details editor is replaced by a list of ListItems */
+  is_list?: boolean | null
+  /** The list items. Only meaningful when is_list = true */
+  list_items?: ListItem[] | null
 }
 
 // `Task` remains the name used across the app; it is now an alias of the

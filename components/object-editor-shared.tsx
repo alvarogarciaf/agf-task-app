@@ -5,6 +5,7 @@ import {
   Calendar,
   FileText,
   FolderKanban,
+  List,
   Lock,
   Tag,
   User,
@@ -22,6 +23,7 @@ import { FormMultiSelect } from "@/components/form-multi-select"
 import { FormDateField } from "@/components/form-date-field"
 import { ProjectSelect } from "@/components/project-select"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -31,6 +33,7 @@ import {
 } from "@/components/ui/select"
 import type {
   Context,
+  ListItem,
   ObjectType,
   Person,
   Project,
@@ -38,6 +41,7 @@ import type {
   Task,
   UrgencyLevel,
 } from "@/lib/types"
+import { ListEditor } from "@/components/list-editor"
 
 /**
  * Step-slider for urgency levels. Displays:
@@ -173,6 +177,8 @@ function toPlain(t: Task | null) {
     bookmarked: data.bookmarked,
     context_ids: [...(data.context_ids || [])].sort(),
     tag_ids: [...(data.tag_ids || [])].sort(),
+    is_list: data.is_list ?? null,
+    list_items: data.list_items ?? null,
   }
 }
 
@@ -524,10 +530,15 @@ export function useObjectDraft({
     )
   }
 
+  const updateListItems = useCallback((items: ListItem[]) => {
+    update("list_items", items)
+  }, [update])
+
   return {
     draft,
     setDraft,
     update,
+    updateListItems,
     dirty,
     autoProcess,
     setAutoProcess,
@@ -805,6 +816,24 @@ export function ObjectEditFields({
         </div>
       )}
 
+      {/* List mode toggle */}
+      <div className="mt-5 flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <List className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <p className="text-sm font-medium leading-none">List mode</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {draft.is_list ? "Details replaced by a list" : "Enable to replace details with a list"}
+            </p>
+          </div>
+        </div>
+        <Switch
+          checked={!!draft.is_list}
+          onCheckedChange={(checked) => update("is_list", checked ? true : null)}
+          aria-label="Enable list mode"
+        />
+      </div>
+
       {isMobile ? (
         <>
           <Collapsible open={propertiesOpen} onOpenChange={setPropertiesOpen} className="mt-4">
@@ -828,7 +857,7 @@ export function ObjectEditFields({
   )
 }
 
-/** The Details editor block (label + rich markdown editor). */
+/** The Details editor block — renders a ListEditor when isListMode=true, otherwise a rich-text editor. */
 export function ObjectDetailsEditor({
   value,
   onChange,
@@ -836,6 +865,9 @@ export function ObjectDetailsEditor({
   editorClassName,
   fillHeight = false,
   containerRef,
+  isListMode = false,
+  listItems,
+  onListItemsChange,
 }: {
   value: string
   onChange: (val: string | undefined) => void
@@ -843,10 +875,23 @@ export function ObjectDetailsEditor({
   editorClassName?: string
   fillHeight?: boolean
   containerRef?: React.RefObject<HTMLDivElement | null>
+  isListMode?: boolean
+  listItems?: ListItem[] | null
+  onListItemsChange?: (items: ListItem[]) => void
 }) {
+  if (isListMode) {
+    return (
+      <div ref={containerRef} className={cn(fillHeight && "flex min-h-0 flex-1 flex-col", className)}>
+        <ListEditor
+          items={listItems ?? []}
+          onChange={onListItemsChange ?? (() => {})}
+        />
+      </div>
+    )
+  }
+
   return (
     <div ref={containerRef} className={cn(fillHeight && "flex min-h-0 flex-1 flex-col", className)}>
-      {/* Removed the Label icon for Details to match the cleaner look, but we can keep it as an option. Since it's a unified layout, we might just omit it. */}
       <RichMarkdownEditor
         value={value}
         onChange={(val) => onChange(val === "" ? undefined : val)}

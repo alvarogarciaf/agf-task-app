@@ -93,6 +93,7 @@ export function TaskDetailDialog({
     redo,
     canUndo,
     canRedo,
+    updateListItems,
   } = useObjectDraft({
     task,
     projects,
@@ -359,6 +360,9 @@ export function TaskDetailDialog({
                   value={draft.details ?? ""}
                   onChange={(val) => update("details", val)}
                   containerRef={detailsRef}
+                  isListMode={!!draft.is_list}
+                  listItems={draft.list_items}
+                  onListItemsChange={updateListItems}
                 />
               </div>
             </div>
