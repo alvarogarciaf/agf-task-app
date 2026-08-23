@@ -365,7 +365,7 @@ export function ListEditor({
   categories?: ListCategory[]
   onCategoriesChange?: (cats: ListCategory[]) => void
 }) {
-  const [filter, setFilter] = useState<StatusFilter>("all")
+  const [filter, setFilter] = useState<StatusFilter>("open")
   const [isGrouped, setIsGrouped] = useState(false)
   const [showCategoriesModal, setShowCategoriesModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState<ListCategory | null>(null)
@@ -489,9 +489,8 @@ export function ListEditor({
   return (
     <div className="flex flex-col gap-3 relative pb-20">
       {/* Filter bar */}
-      <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar pb-1 -mb-1">
         {(["all", "open", "done"] as StatusFilter[]).map((f) => {
-          const count = f === "all" ? items.length : f === "open" ? openCount : doneCount
           const active = filter === f
           return (
             <button
@@ -499,39 +498,32 @@ export function ListEditor({
               type="button"
               onClick={() => setFilter(f)}
               className={cn(
-                "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+                "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
                 active
                   ? "bg-primary/15 text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
-              <span
-                className={cn(
-                  "rounded-full px-1.5 py-0.5 font-mono text-[10px] leading-none",
-                  active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground",
-                )}
-              >
-                {count}
-              </span>
             </button>
           )
         })}
         
-        <div className="w-px h-4 bg-border mx-1" />
+        <div className="w-px h-4 bg-border mx-1 shrink-0" />
 
         <button
           type="button"
           onClick={() => setIsGrouped(!isGrouped)}
+          title="Group by category"
           className={cn(
-            "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+            "flex shrink-0 items-center gap-1.5 rounded-full px-2 sm:px-3 py-1.5 text-xs font-semibold transition-colors",
             isGrouped
               ? "bg-primary/15 text-primary"
               : "text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
         >
           <Columns3 className="h-3.5 w-3.5" />
-          Group by category
+          <span className="hidden sm:inline">Group by category</span>
         </button>
 
         <div className="ml-auto flex items-center gap-2">
