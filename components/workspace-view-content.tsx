@@ -1,5 +1,8 @@
 "use client"
-
+import { useState, useMemo } from "react"
+import { format, addDays, subDays, isToday, startOfDay } from "date-fns"
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { HomeView } from "@/components/views/home-view"
 import { InboxView } from "@/components/views/inbox-view"
 import { AllTasksView } from "@/components/views/all-tasks-view"
@@ -189,23 +192,11 @@ export function WorkspaceViewContent({
       )
     }
     case "today": {
-      const todayStr = new Date().toLocaleDateString("en-CA")
-      const todayTasks = activeTasks.filter((t) => isTaskForTodaySection(t, todayFilter, todayStr))
-
       return (
-        <AllTasksView
-          {...activeViewProps}
-          tasks={todayTasks}
-          allowUnprocessed={true}
-          fullWidthOnMobile={true}
-          onCreate={async (input) => {
-            const todayIsoString = new Date().toISOString()
-            return await onCreateTask({
-              ...input,
-              actionDate: todayIsoString,
-              showOn: null,
-            })
-          }}
+        <TodayViewInner
+          activeTasks={activeTasks}
+          activeViewProps={activeViewProps}
+          onCreateTask={onCreateTask}
         />
       )
     }
@@ -328,4 +319,61 @@ export function WorkspaceViewContent({
     default:
       return <HomeView {...activeViewProps} tasks={inboxTasks} />
   }
+}
+
+function TodayViewInner({ activeTasks, activeViewProps, onCreateTask }: { activeTasks: Task[], activeViewProps: any, onCreateTask: any }) {
+  const [selectedDate, setSelectedDate] = useState<Date>(() => startOfDay(new Date()))
+  const todayFilter = useTodaySectionFilter()
+
+  const dateStr = format(selectedDate, "yyyy-MM-dd")
+  const isSelectedToday = isToday(selectedDate)
+
+  const todayTasks = useMemo(() => {
+    return activeTasks.filter((t) => isTaskForTodaySection(t, todayFilter, dateStr))
+  }, [activeTasks, todayFilter, dateStr])
+
+  return (
+    <div className="flex flex-col h-full w-full overflow-hidden">
+      <div className="flex shrink-0 items-center justify-between border-b border-border bg-background px-4 py-2 md:bg-card md:rounded-t-lg">
+        <div className="flex items-center gap-2">
+          <CalendarIcon className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-medium">
+            {isSelectedToday ? "Today" : format(selectedDate, "EEEE, MMMM d")}
+          </h2>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedDate(subDays(selectedDate, 1))}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          {!isSelectedToday && (
+            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => setSelectedDate(startOfDay(new Date()))}>
+              Today
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedDate(addDays(selectedDate, 1))}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+      
+      <div className="flex-1 min-h-0 flex flex-col [&>div]:border-t-0 [&>div]:rounded-t-none">
+        <AllTasksView
+          {...activeViewProps}
+          tasks={todayTasks}
+          allowUnprocessed={true}
+          fullWidthOnMobile={true}
+          emptyTitle={`No tasks for ${isSelectedToday ? "today" : "this day"}`}
+          emptyHint="Enjoy your free time!"
+          onCreate={async (input: any) => {
+            const actionDate = selectedDate.toISOString()
+            return await onCreateTask({
+              ...input,
+              actionDate,
+              showOn: null,
+            })
+          }}
+        />
+      </div>
+    </div>
+  )
 }

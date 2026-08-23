@@ -3,7 +3,8 @@
 import { useMemo, useState, useEffect } from "react"
 import { useRegisterTabAdd } from "@/components/tab-toolbar-context"
 import { useIsTabActive } from "@/components/tab-portal-context"
-import { CalendarClock, Filter, X, Check, LayoutList, Columns3, Plus, RotateCcw, Star, MoreHorizontal } from "lucide-react"
+import { CalendarClock, Filter, X, Check, LayoutList, Columns3, Plus, RotateCcw, Star, MoreHorizontal, ChevronDown, Calendar as CalendarIcon } from "lucide-react"
+import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { TasksTable, TASK_COLUMNS, COLUMN_MAP } from "@/components/tasks-table"
@@ -32,6 +33,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import type { Context, Person, Project, Tag, Task, UrgencyLevel, SavedView } from "@/lib/types"
 import { useDatabase } from "./db-provider"
 import { SaveViewDialog } from "./save-view-dialog"
@@ -46,6 +48,7 @@ import {
   useDefaultFilterMatchMode,
   type FilterMatchMode,
 } from "@/lib/filter-match-mode"
+import type { DateRange } from "react-day-picker"
 
 interface FilteredTasksProps {
   tasks: Task[]
@@ -159,6 +162,7 @@ export function FilteredTasks({
   const [isGroupedByProject, setIsGroupedByProject] = useState(initialIsGroupedByProject ?? false)
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const [actionDateRange, setActionDateRange] = useState<DateRange | undefined>()
   
   const activeFiltersCount =
     (!notesMode && showStatus !== "open" ? 1 : 0) +
@@ -167,7 +171,8 @@ export function FilteredTasks({
     (projectId ? 1 : 0) +
     (personId ? 1 : 0) +
     (showHiddenByShowOn ? 1 : 0) +
-    (isGroupedByProject ? 1 : 0)
+    (isGroupedByProject ? 1 : 0) +
+    (actionDateRange ? 1 : 0)
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null)
@@ -306,6 +311,18 @@ export function FilteredTasks({
             ? isTaskHiddenOnlyByShowOn(t)
             : isTaskVisibleByShowOnRule(t),
       )
+      .filter((t) => {
+        if (!actionDateRange?.from) return true
+        if (!t.action_date) return false
+        const tDate = new Date(t.action_date).toISOString().slice(0, 10)
+        const fromStr = format(actionDateRange.from, "yyyy-MM-dd")
+        if (tDate < fromStr) return false
+        if (actionDateRange.to) {
+          const toStr = format(actionDateRange.to, "yyyy-MM-dd")
+          if (tDate > toStr) return false
+        }
+        return true
+      })
       .sort((a, b) => {
         if (autoFocusTaskId) {
           if (a.id === autoFocusTaskId) return -1
@@ -667,6 +684,16 @@ export function FilteredTasks({
   if (isGroupedByProject) {
     activeChips.push({ label: "Grouped by Project", onRemove: () => setIsGroupedByProject(false) })
   }
+  if (!notesMode && actionDateRange?.from) {
+    let label = actionDateRange.from.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    if (actionDateRange.to && actionDateRange.from.getTime() !== actionDateRange.to.getTime()) {
+      label += ` - ${actionDateRange.to.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+    }
+    activeChips.push({
+      label: `Scheduled: ${label}`,
+      onRemove: () => setActionDateRange(undefined)
+    })
+  }
 
   return (
     <div key={`${initialContextId}-${initialContextIds?.join(",")}-${initialTagId}-${initialTagIds?.join(",")}-${initialProjectId}-${initialPersonId}-${initialShowStatus}-${initialIsGroupedByProject}-${initialShowHiddenByShowOn}-${initialFilterMode}-${initialSortKey}-${initialSortDirection}`} className={cn(
@@ -801,6 +828,35 @@ export function FilteredTasks({
                 onSelect={(id) => setPersonId((p) => (p === id ? null : id))}
                 onClear={() => setPersonId(null)}
               />
+            )}
+
+            {!notesMode && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    className={cn(
+                      "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                      actionDateRange
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-card text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    <span>Scheduled</span>
+                    <ChevronDown className="h-3 w-3 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={actionDateRange?.from}
+                    selected={actionDateRange}
+                    onSelect={setActionDateRange}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
             )}
           </div>
 
@@ -1289,6 +1345,25 @@ export function FilteredTasks({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {/* Date Range Select */}
+            {!notesMode && (
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                  Scheduled Date Range
+                </label>
+                <div className="rounded-md border border-border bg-background p-3 flex justify-center">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={actionDateRange?.from}
+                    selected={actionDateRange}
+                    onSelect={setActionDateRange}
+                    className="w-full"
+                  />
+                </div>
               </div>
             )}
           </div>
