@@ -163,6 +163,7 @@ export function FilteredTasks({
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [actionDateRange, setActionDateRange] = useState<DateRange | undefined>()
+  const [showMobileCalendar, setShowMobileCalendar] = useState(false)
   
   const activeFiltersCount =
     (!notesMode && showStatus !== "open" ? 1 : 0) +
@@ -1184,11 +1185,11 @@ export function FilteredTasks({
 
       {/* Mobile Filters Dialog */}
       <Dialog open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
-        <DialogContent className="max-w-md gap-0 overflow-hidden p-0 bg-card sm:rounded-xl border border-border shadow-2xl">
+        <DialogContent className="max-w-md flex flex-col gap-0 overflow-hidden p-0 bg-card sm:rounded-xl border border-border shadow-2xl max-h-[90vh]">
           <DialogTitle className="sr-only">{notesMode ? "Filter Notes" : "Filter Tasks"}</DialogTitle>
           
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-border bg-card px-5 py-4">
+          <div className="flex shrink-0 items-center justify-between border-b border-border bg-card px-5 py-4">
             <div className="flex items-center gap-2 text-primary">
               <Filter className="h-4.5 w-4.5" />
               <span className="text-sm font-semibold">{notesMode ? "Filter Notes" : "Filter Tasks"}</span>
@@ -1204,7 +1205,7 @@ export function FilteredTasks({
           </div>
 
           {/* Body — dropdowns styled to match the task edit view */}
-          <div className="space-y-5 px-5 py-5 bg-card">
+          <div className="flex-1 space-y-5 px-5 py-5 bg-card overflow-y-auto no-scrollbar">
             {/* Status Segmented Control (tasks only) */}
             {!notesMode && !hideFilters.includes("status") && (
               <div>
@@ -1351,25 +1352,50 @@ export function FilteredTasks({
             {/* Date Range Select */}
             {!notesMode && (
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
-                  Scheduled Date Range
-                </label>
-                <div className="rounded-md border border-border bg-background p-3 flex justify-center">
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    defaultMonth={actionDateRange?.from}
-                    selected={actionDateRange}
-                    onSelect={setActionDateRange}
-                    className="w-full"
-                  />
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-mono uppercase tracking-wider text-muted-foreground">
+                    Scheduled Date Range
+                  </label>
+                  {(showMobileCalendar || actionDateRange) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMobileCalendar(false)
+                        setActionDateRange(undefined)
+                      }}
+                      className="text-xs text-destructive hover:underline"
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
+                {showMobileCalendar || actionDateRange ? (
+                  <div className="rounded-md border border-border bg-background p-3 flex justify-center">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={actionDateRange?.from}
+                      selected={actionDateRange}
+                      onSelect={setActionDateRange}
+                      className="w-full"
+                    />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowMobileCalendar(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <CalendarIcon className="h-4 w-4" />
+                    Add Date Range Filter
+                  </button>
+                )}
               </div>
             )}
           </div>
 
           {/* Footer with Clear All / Apply Buttons */}
-          <div className="flex items-center gap-3 border-t border-border bg-background/40 px-5 py-4">
+          <div className="flex shrink-0 items-center gap-3 border-t border-border bg-background/40 px-5 py-4">
             {activeFiltersCount > 0 ? (
               <button
                 type="button"
