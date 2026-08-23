@@ -382,12 +382,12 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       }
 
       if (hasChanges) {
-        await doc.patch(patchObj)
+        await doc.incrementalPatch(patchObj)
         undoStackRef.current.push({
           label: "Undo update task",
           reverse: async () => {
             const d = await db.tasks.findOne(task.id).exec()
-            if (d) await d.patch(prevData)
+            if (d) await d.incrementalPatch(prevData)
           },
         })
       }
@@ -400,12 +400,12 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     if (doc) {
       const current = doc.get("processed")
       const next = !current
-      await doc.patch({ processed: next })
+      await doc.incrementalPatch({ processed: next })
       undoStackRef.current.push({
         label: "Undo toggle processed",
         reverse: async () => {
           const d = await db.tasks.findOne(id).exec()
-          if (d) await d.patch({ processed: current })
+          if (d) await d.incrementalPatch({ processed: current })
         },
       })
       toast(next ? "Marked as processed" : "Moved back to inbox", {
@@ -420,12 +420,12 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     if (doc) {
       const current = doc.get("status")
       const next = current === "Open" ? "Done" : "Open"
-      await doc.patch({ status: next })
+      await doc.incrementalPatch({ status: next })
       undoStackRef.current.push({
         label: "Undo toggle status",
         reverse: async () => {
           const d = await db.tasks.findOne(id).exec()
-          if (d) await d.patch({ status: current })
+          if (d) await d.incrementalPatch({ status: current })
         },
       })
       toast(next === "Done" ? "Task marked as done" : "Task reopened", {
@@ -439,12 +439,12 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     const doc = await db.tasks.findOne(id).exec()
     if (doc) {
       const current = doc.get("archived")
-      await doc.patch({ archived: true })
+      await doc.incrementalPatch({ archived: true })
       undoStackRef.current.push({
         label: "Undo archive",
         reverse: async () => {
           const d = await db.tasks.findOne(id).exec()
-          if (d) await d.patch({ archived: current })
+          if (d) await d.incrementalPatch({ archived: current })
         },
       })
       toast("Task archived", {
@@ -495,12 +495,12 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     const doc = await db.projects.findOne(p.id).exec()
     if (doc) {
       const prevLinkedPersonId = doc.get("linked_person_id")
-      await doc.patch(p)
+      await doc.incrementalPatch(p)
       
       // Enforce: if project linked to a person, batch update all tasks in this project
       if (p.linked_person_id && p.linked_person_id !== prevLinkedPersonId) {
         const tasksToUpdate = await db.tasks.find({ selector: { project_id: p.id } }).exec()
-        await Promise.all(tasksToUpdate.map(tDoc => tDoc.patch({ person_id: p.linked_person_id })))
+        await Promise.all(tasksToUpdate.map(tDoc => tDoc.incrementalPatch({ person_id: p.linked_person_id })))
         toast.success(`Synced all tasks in "${p.name}" with shared partner.`)
       }
     }
@@ -560,7 +560,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
 
   const handleUpdateTag = async (t: Tag) => {
     const doc = await db.tags.findOne(t.id).exec()
-    if (doc) await doc.patch(t)
+    if (doc) await doc.incrementalPatch(t)
   }
 
   const handleDeleteTag = async (id: string) => {
@@ -1025,7 +1025,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     if (!editingView) return
     const doc = await db.saved_views.findOne(editingView.id).exec()
     if (doc) {
-      await doc.patch(data)
+      await doc.incrementalPatch(data)
     }
     setEditingView(null)
   }
@@ -1035,7 +1035,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     await Promise.all(reordered.map(async (v, index) => {
       const doc = await db.saved_views.findOne(v.id).exec()
       if (doc && doc.order !== index) {
-        await doc.patch({ order: index })
+        await doc.incrementalPatch({ order: index })
       }
     }))
   }
@@ -1086,7 +1086,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             
             const eventId = await withRetry((t) => createGoogleEvent(task, t, selectedCalendarId));
             const doc = await db.tasks.findOne(task.id).exec();
-            if (doc) await doc.patch({ google_event_id: eventId });
+            if (doc) await doc.incrementalPatch({ google_event_id: eventId });
             syncedHashesRef.current.set(task.id, hash);
             console.log(`Calendar: Created "${task.description}"`);
           } else {
@@ -1110,7 +1110,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                   console.warn(`Event ${task.google_event_id} not found/deleted during auto-sync. Recreating...`);
                   const eventId = await withRetry((t) => createGoogleEvent(task, t, selectedCalendarId));
                   const doc = await db.tasks.findOne(task.id).exec();
-                  if (doc) await doc.patch({ google_event_id: eventId });
+                  if (doc) await doc.incrementalPatch({ google_event_id: eventId });
                   syncedHashesRef.current.set(task.id, hash);
                   console.log(`Calendar: Recreated "${task.description}"`);
                 } else {
@@ -1136,7 +1136,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           
           await withRetry((t) => deleteGoogleEvent(task.google_event_id!, t, selectedCalendarId));
           const doc = await db.tasks.findOne(task.id).exec();
-          if (doc) await doc.patch({ google_event_id: null });
+          if (doc) await doc.incrementalPatch({ google_event_id: null });
           syncedHashesRef.current.delete(task.id);
         } catch (err) {
           console.error(`Auto-cleanup failed for task ${task.id}:`, err);
@@ -1167,7 +1167,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
               selectedCalendarId,
             )
             const doc = await db.tasks.findOne(task.id).exec()
-            if (doc) await doc.patch({ google_event_id: eventId })
+            if (doc) await doc.incrementalPatch({ google_event_id: eventId })
             syncedHashesRef.current.set(task.id, hash)
             successCount++
           } else {
@@ -1190,7 +1190,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                   selectedCalendarId,
                 )
                 const doc = await db.tasks.findOne(task.id).exec()
-                if (doc) await doc.patch({ google_event_id: eventId })
+                if (doc) await doc.incrementalPatch({ google_event_id: eventId })
                 syncedHashesRef.current.set(task.id, hash)
                 successCount++
               } else {
@@ -1378,7 +1378,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     },
     onPatchPerson: async (p: Person) => {
       const doc = await db.persons.findOne(p.id).exec()
-      if (doc) await doc.patch(p)
+      if (doc) await doc.incrementalPatch(p)
     },
     onRemovePerson: async (id: string) => {
       const doc = await db.persons.findOne(id).exec()
@@ -1391,7 +1391,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     },
     onPatchContext: async (c: Context) => {
       const doc = await db.contexts.findOne(c.id).exec()
-      if (doc) await doc.patch(c)
+      if (doc) await doc.incrementalPatch(c)
     },
     onRemoveContext: async (id: string) => {
       const doc = await db.contexts.findOne(id).exec()
@@ -1402,7 +1402,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     },
     onPatchUrgency: async (u: UrgencyLevel) => {
       const doc = await db.urgencies.findOne(u.id).exec()
-      if (doc) await doc.patch(u)
+      if (doc) await doc.incrementalPatch(u)
     },
     onRemoveUrgency: async (id: string) => {
       const doc = await db.urgencies.findOne(id).exec()

@@ -80,7 +80,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                 const persons = await db.persons.find().exec();
                 const target = persons.find(p => p.pending_invite_email === msg.fromEmail);
                 if (target) {
-                  await target.patch({
+                  await target.incrementalPatch({
                     linked_uid: msg.fromUid,
                     linked_email: msg.fromEmail,
                     pending_invite_email: null
@@ -126,7 +126,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                   // Rule 3: incoming is NOT shared, current is NOT shared -> keep finalProjId as is
 
                   if (existingTask) {
-                    await existingTask.patch({
+                    await existingTask.incrementalPatch({
                       type: msg.task.type ?? existingTask.type ?? "task",
                       description: msg.task.description,
                       details: msg.task.details ?? existingTask.details ?? null,
@@ -198,7 +198,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                   lastProcessedProjectHash.current[msg.project.id] = hash;
 
                   if (existingProj) {
-                    await existingProj.patch(localProjRepresent);
+                    await existingProj.incrementalPatch(localProjRepresent);
                     console.log(`[Sync] Patched project ${msg.project.id}`);
                   } else {
                     await db.projects.insert({
@@ -311,7 +311,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
           if (taskData.project_id && !taskData.person_id) {
             const proj = sharedProjects.find(p => p.id === taskData.project_id);
             if (proj && proj.linked_person_id) {
-              await taskDoc.patch({ person_id: proj.linked_person_id });
+              await taskDoc.incrementalPatch({ person_id: proj.linked_person_id });
               continue; // Patching emits to db.tasks.$ which will send the task_upsert
             }
           }
