@@ -14,6 +14,7 @@ export interface ListItem {
   order: number
   date_created: string
   category?: string | null
+  details?: string | null
 }
 
 // The unified object can be a task or a note. Both kinds always carry

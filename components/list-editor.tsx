@@ -119,6 +119,16 @@ function SortableListRow({
         >
           {item.description}
         </span>
+        {item.details && (
+          <span
+            className={cn(
+              "mt-0.5 truncate text-xs text-muted-foreground",
+              isDone && "opacity-60"
+            )}
+          >
+            {item.details}
+          </span>
+        )}
       </div>
 
       <div onClick={(e) => e.stopPropagation()}>
@@ -169,6 +179,7 @@ function ItemModal({
   open,
   onOpenChange,
   initialDescription = "",
+  initialDetails = "",
   initialCategory = null,
   onSave,
   categories,
@@ -177,24 +188,27 @@ function ItemModal({
   open: boolean
   onOpenChange: (open: boolean) => void
   initialDescription?: string
+  initialDetails?: string | null
   initialCategory?: string | null
-  onSave: (description: string, category: string | null) => void
+  onSave: (description: string, category: string | null, details: string | null) => void
   categories: ListCategory[]
   isEdit?: boolean
 }) {
   const [desc, setDesc] = useState(initialDescription)
+  const [details, setDetails] = useState(initialDetails || "")
   const [cat, setCat] = useState(initialCategory || "")
   
   useEffect(() => {
     if (open) {
       setDesc(initialDescription)
+      setDetails(initialDetails || "")
       setCat(initialCategory || "")
     }
-  }, [open, initialDescription, initialCategory])
+  }, [open, initialDescription, initialDetails, initialCategory])
 
   const handleSave = () => {
     if (!desc.trim()) return
-    onSave(desc.trim(), cat.trim() || null)
+    onSave(desc.trim(), cat.trim() || null, details.trim() || null)
     onOpenChange(false)
   }
 
@@ -206,13 +220,29 @@ function ItemModal({
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <label className="text-sm font-medium">Description</label>
-            <textarea
+            <label className="text-sm font-medium">Item name</label>
+            <input
+              type="text"
               autoFocus
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
-              className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               placeholder="What needs to be done?"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  handleSave()
+                }
+              }}
+            />
+          </div>
+          <div className="grid gap-2">
+            <label className="text-sm font-medium">Description (optional)</label>
+            <textarea
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
+              className="flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              placeholder="Add more details..."
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault()
@@ -327,14 +357,14 @@ export function ListEditor({
   )
 
   const handleRename = useCallback(
-    (id: string, description: string, category: string | null) => {
-      onChange(items.map((item) => (item.id === id ? { ...item, description, category } : item)))
+    (id: string, description: string, category: string | null, details: string | null = null) => {
+      onChange(items.map((item) => (item.id === id ? { ...item, description, category, details } : item)))
     },
     [items, onChange],
   )
 
   const handleAdd = useCallback(
-    (description: string, category: string | null = null) => {
+    (description: string, category: string | null = null, details: string | null = null) => {
       if (items.length >= MAX_ITEMS) return
       const now = new Date().toISOString()
       const newItem: ListItem = {
@@ -344,6 +374,7 @@ export function ListEditor({
         order: items.length,
         date_created: now,
         category,
+        details,
       }
       onChange([...items, newItem])
       setAddingToCategory(undefined)
@@ -711,12 +742,13 @@ export function ListEditor({
           if (!open) setEditingItem(null)
         }}
         initialDescription={editingItem?.description || ""}
+        initialDetails={editingItem?.details || ""}
         initialCategory={editingItem?.category || null}
         categories={categories}
         isEdit
-        onSave={(desc, cat) => {
+        onSave={(desc, cat, details) => {
           if (editingItem) {
-            handleRename(editingItem.id, desc, cat)
+            handleRename(editingItem.id, desc, cat, details)
             setEditingItem(null)
           }
         }}

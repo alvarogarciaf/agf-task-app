@@ -92,6 +92,16 @@ export const getDatabase = async (userUid: string) => {
           10: (oldDoc: any) => {
             oldDoc.list_categories = oldDoc.list_categories ?? null;
             return oldDoc;
+          },
+          // 11: Migrate from version 10 to 11 (add details to list_items)
+          11: (oldDoc: any) => {
+            if (oldDoc.list_items) {
+              oldDoc.list_items = oldDoc.list_items.map((item: any) => ({
+                ...item,
+                details: item.details ?? null,
+              }));
+            }
+            return oldDoc;
           }
         }
       },
