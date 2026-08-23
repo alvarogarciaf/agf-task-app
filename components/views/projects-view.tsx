@@ -1117,7 +1117,7 @@ export function ProjectEditor({
               </Button>
             </div>
             <div className={cn(
-              "flex-wrap gap-2",
+              "flex-wrap gap-2 items-center",
               showMobileColorPicker ? "flex" : "hidden md:flex"
             )}>
               {COLOR_PALETTE.map((c) => (
@@ -1135,6 +1135,14 @@ export function ProjectEditor({
                   aria-label={c}
                 />
               ))}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="md:hidden ml-auto"
+                onClick={() => setShowMobileColorPicker(false)}
+              >
+                Done
+              </Button>
             </div>
           </div>
           <div className="grid gap-2">

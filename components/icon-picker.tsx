@@ -59,7 +59,7 @@ export function IconPicker({
         </Button>
       </div>
 
-      <div className="grid grid-cols-7 sm:grid-cols-9 gap-1.5 max-h-48 overflow-y-auto rounded-md border border-border bg-background/40 p-2 shadow-inner">
+      <div className="grid grid-cols-7 sm:grid-cols-9 gap-1.5 max-h-72 overflow-y-auto rounded-md border border-border bg-background/40 p-2 shadow-inner">
         {filteredIcons.length === 0 ? (
           <div className="col-span-full py-4 text-center text-sm text-muted-foreground">
             No icons found
