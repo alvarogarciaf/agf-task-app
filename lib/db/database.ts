@@ -77,6 +77,21 @@ export const getDatabase = async (userUid: string) => {
           7: (oldDoc: any) => {
             oldDoc.order = oldDoc.order ?? 0;
             return oldDoc;
+          },
+          // 8: Migrate from version 7 to 8 (add is_list)
+          8: (oldDoc: any) => {
+            oldDoc.is_list = oldDoc.is_list ?? null;
+            return oldDoc;
+          },
+          // 9: Migrate from version 8 to 9 (add list_items)
+          9: (oldDoc: any) => {
+            oldDoc.list_items = oldDoc.list_items ?? null;
+            return oldDoc;
+          },
+          // 10: Migrate from version 9 to 10 (add list_categories)
+          10: (oldDoc: any) => {
+            oldDoc.list_categories = oldDoc.list_categories ?? null;
+            return oldDoc;
           }
         }
       },
