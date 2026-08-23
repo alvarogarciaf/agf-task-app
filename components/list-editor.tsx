@@ -287,7 +287,28 @@ function ItemModal({
                     aria-expanded={catOpen}
                     className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   >
-                    {cat ? cat : <span className="text-muted-foreground">Select or create category...</span>}
+                    {(() => {
+                      if (!cat) return <span className="text-muted-foreground">Select or create category...</span>
+                      const selectedCat = categories.find(c => c.name === cat)
+                      if (!selectedCat) return cat
+                      const SelectedIcon = selectedCat.icon ? ICON_OPTIONS.find(o => o.name === selectedCat.icon)?.icon : Tag
+                      const IconComp = SelectedIcon || Tag
+                      return (
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border"
+                            style={{
+                              color: selectedCat.color || "var(--muted-foreground)",
+                              borderColor: selectedCat.color || "var(--border)",
+                              backgroundColor: selectedCat.color ? `color-mix(in oklch, ${selectedCat.color} 10%, transparent)` : "var(--muted)"
+                            }}
+                          >
+                            <IconComp className="h-3 w-3" />
+                          </div>
+                          {cat}
+                        </div>
+                      )
+                    })()}
                     <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
                   </button>
                 </PopoverTrigger>
@@ -309,19 +330,34 @@ function ItemModal({
                         </button>
                       </CommandEmpty>
                       <CommandGroup>
-                        {categories.map((c) => (
-                          <CommandItem
-                            key={c.id}
-                            value={c.name}
-                            onSelect={() => {
-                              setCat(c.name)
-                              setCatOpen(false)
-                            }}
-                          >
-                            {c.name}
-                            <Check className={cn("ml-auto h-4 w-4", cat === c.name ? "opacity-100" : "opacity-0")} />
-                          </CommandItem>
-                        ))}
+                        {categories.map((c) => {
+                          const CatIcon = c.icon ? ICON_OPTIONS.find(o => o.name === c.icon)?.icon : undefined
+                          const IconComp = CatIcon || Tag
+                          return (
+                            <CommandItem
+                              key={c.id}
+                              value={c.name}
+                              onSelect={() => {
+                                setCat(c.name)
+                                setCatOpen(false)
+                              }}
+                              className="flex items-center gap-2"
+                            >
+                              <div 
+                                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border"
+                                style={{
+                                  color: c.color || "var(--muted-foreground)",
+                                  borderColor: c.color || "var(--border)",
+                                  backgroundColor: c.color ? `color-mix(in oklch, ${c.color} 10%, transparent)` : "var(--muted)"
+                                }}
+                              >
+                                <IconComp className="h-3 w-3" />
+                              </div>
+                              {c.name}
+                              <Check className={cn("ml-auto h-4 w-4", cat === c.name ? "opacity-100" : "opacity-0")} />
+                            </CommandItem>
+                          )
+                        })}
                         {catInput && !categories.some(c => c.name.toLowerCase() === catInput.toLowerCase()) && (
                           <CommandItem
                             value={catInput}
