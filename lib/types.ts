@@ -13,6 +13,7 @@ export interface ListItem {
   status: "Open" | "Done"
   order: number
   date_created: string
+  category?: string | null
 }
 
 // The unified object can be a task or a note. Both kinds always carry

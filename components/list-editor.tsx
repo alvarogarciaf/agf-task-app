@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useCallback, useEffect } from "react"
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import { nanoid } from "nanoid"
 import {
   DndContext,
@@ -29,6 +29,7 @@ import {
   Trash2,
   Pencil,
   RotateCcw,
+  Columns3,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -47,14 +48,16 @@ const MAX_ITEMS = 200
 
 function SortableListRow({
   item,
+  allCategories,
   onToggleStatus,
   onDelete,
   onRename,
 }: {
   item: ListItem
+  allCategories: string[]
   onToggleStatus: (id: string) => void
   onDelete: (id: string) => void
-  onRename: (id: string, value: string) => void
+  onRename: (id: string, description: string, category: string | null) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id })
@@ -69,7 +72,8 @@ function SortableListRow({
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [editing, setEditing] = useState(false)
-  const [editValue, setEditValue] = useState(item.description)
+  const [editDesc, setEditDesc] = useState(item.description)
+  const [editCat, setEditCat] = useState(item.category || "")
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -80,16 +84,65 @@ function SortableListRow({
   }, [editing])
 
   const commitRename = () => {
-    const trimmed = editValue.trim()
-    if (trimmed && trimmed !== item.description) {
-      onRename(item.id, trimmed)
+    const trimmedDesc = editDesc.trim()
+    const trimmedCat = editCat.trim() || null
+    if (trimmedDesc) {
+      onRename(item.id, trimmedDesc, trimmedCat)
     } else {
-      setEditValue(item.description)
+      setEditDesc(item.description)
+      setEditCat(item.category || "")
     }
     setEditing(false)
   }
 
   const isDone = item.status === "Done"
+
+  if (editing) {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className="relative flex flex-col gap-2 rounded-xl border border-primary/40 bg-card p-3 shadow-sm"
+      >
+        <input
+          ref={inputRef}
+          value={editDesc}
+          onChange={(e) => setEditDesc(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); commitRename() }
+            if (e.key === "Escape") { setEditDesc(item.description); setEditing(false) }
+          }}
+          placeholder="Item description…"
+          className="w-full bg-transparent text-sm font-medium leading-tight text-foreground outline-none border-b border-primary/30 pb-1"
+        />
+        <div className="flex items-center gap-2">
+          <input
+            list="category-options"
+            value={editCat}
+            onChange={(e) => setEditCat(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); commitRename() }
+              if (e.key === "Escape") { setEditDesc(item.description); setEditing(false) }
+            }}
+            placeholder="Category (optional)"
+            className="flex-1 bg-transparent text-xs text-muted-foreground outline-none border-b border-primary/30 pb-1"
+          />
+          <datalist id="category-options">
+            {allCategories.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); commitRename() }}
+            className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -127,30 +180,23 @@ function SortableListRow({
         )}
       </button>
 
-      {/* Description / inline edit */}
-      {editing ? (
-        <input
-          ref={inputRef}
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={commitRename}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") { e.preventDefault(); commitRename() }
-            if (e.key === "Escape") { setEditValue(item.description); setEditing(false) }
-          }}
-          className="flex-1 min-w-0 bg-transparent text-sm font-medium leading-tight text-foreground outline-none border-b border-primary"
-        />
-      ) : (
+      {/* Description */}
+      <div className="flex-1 min-w-0 flex flex-col justify-center">
         <span
           className={cn(
-            "flex-1 min-w-0 truncate text-sm font-medium leading-tight",
+            "truncate text-sm font-medium leading-tight",
             isDone ? "text-muted-foreground line-through" : "text-foreground",
           )}
-          onDoubleClick={() => { setEditing(true); setEditValue(item.description) }}
+          onDoubleClick={() => { setEditing(true); setEditDesc(item.description); setEditCat(item.category || "") }}
         >
           {item.description}
         </span>
-      )}
+        {item.category && (
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mt-0.5">
+            {item.category}
+          </span>
+        )}
+      </div>
 
       {/* Three-dot menu */}
       <div onClick={(e) => e.stopPropagation()}>
@@ -168,10 +214,10 @@ function SortableListRow({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="py-3 px-3 text-[15px] font-medium cursor-pointer"
-              onClick={() => { setMenuOpen(false); setEditing(true); setEditValue(item.description) }}
+              onClick={() => { setMenuOpen(false); setEditing(true); setEditDesc(item.description); setEditCat(item.category || "") }}
             >
               <Pencil className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
-              <span>Rename</span>
+              <span>Edit</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               className="py-3 px-3 text-[15px] font-medium cursor-pointer"
@@ -200,9 +246,24 @@ function SortableListRow({
 
 // ─── AddItemRow ──────────────────────────────────────────────────────────────
 
-function AddItemRow({ onAdd }: { onAdd: (description: string) => void }) {
-  const [active, setActive] = useState(false)
-  const [value, setValue] = useState("")
+function AddItemRow({
+  onAdd,
+  onCancel,
+  defaultCategory,
+  allCategories,
+  isGrouped,
+  defaultActive = false,
+}: {
+  onAdd: (description: string, category: string | null) => void
+  onCancel?: () => void
+  defaultCategory?: string | null
+  allCategories: string[]
+  isGrouped?: boolean
+  defaultActive?: boolean
+}) {
+  const [active, setActive] = useState(defaultActive)
+  const [desc, setDesc] = useState("")
+  const [cat, setCat] = useState(defaultCategory || "")
   const inputRef = useRef<HTMLInputElement>(null)
 
   const activate = () => {
@@ -211,19 +272,36 @@ function AddItemRow({ onAdd }: { onAdd: (description: string) => void }) {
   }
 
   const commit = () => {
-    const trimmed = value.trim()
-    if (trimmed) onAdd(trimmed)
-    setValue("")
+    const trimmedDesc = desc.trim()
+    const trimmedCat = cat.trim() || null
+    if (trimmedDesc) onAdd(trimmedDesc, trimmedCat)
+    setDesc("")
+    setCat(defaultCategory || "")
     // Keep active so user can keep adding
     setTimeout(() => inputRef.current?.focus(), 0)
   }
 
   const cancel = () => {
-    setValue("")
+    setDesc("")
+    setCat(defaultCategory || "")
     setActive(false)
+    onCancel?.()
   }
 
   if (!active) {
+    if (isGrouped) {
+      return (
+        <button
+          type="button"
+          onClick={activate}
+          className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          Add to category
+        </button>
+      )
+    }
+
     return (
       <button
         type="button"
@@ -237,32 +315,41 @@ function AddItemRow({ onAdd }: { onAdd: (description: string) => void }) {
   }
 
   return (
-    <div className="mt-1 flex items-center gap-3 rounded-xl border border-primary/40 bg-card pl-4 pr-2.5 py-2 shadow-sm">
-      <div className="w-5 shrink-0" /> {/* grip placeholder */}
-      <Circle className="h-4.5 w-4.5 shrink-0 text-muted-foreground/40" />
+    <div className="mt-1 flex flex-col gap-2 rounded-xl border border-primary/40 bg-card p-3 shadow-sm">
       <input
         ref={inputRef}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
+        value={desc}
+        onChange={(e) => setDesc(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") { e.preventDefault(); commit() }
           if (e.key === "Escape") cancel()
         }}
         placeholder="Item description…"
-        className="flex-1 min-w-0 bg-transparent text-sm font-medium leading-tight text-foreground outline-none placeholder:text-muted-foreground/50"
+        className="w-full bg-transparent text-sm font-medium leading-tight text-foreground outline-none border-b border-primary/30 pb-1"
       />
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-2">
+        <input
+          list="category-options"
+          value={cat}
+          onChange={(e) => setCat(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); commit() }
+            if (e.key === "Escape") cancel()
+          }}
+          placeholder="Category (optional)"
+          className="flex-1 bg-transparent text-xs text-muted-foreground outline-none border-b border-primary/30 pb-1"
+        />
         <button
           type="button"
           onMouseDown={(e) => { e.preventDefault(); commit() }}
-          className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+          className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           Add
         </button>
         <button
           type="button"
           onMouseDown={(e) => { e.preventDefault(); cancel() }}
-          className="rounded-md px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted transition-colors"
+          className="rounded-md px-3 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted transition-colors"
         >
           Cancel
         </button>
@@ -283,6 +370,10 @@ export function ListEditor({
   onChange: (items: ListItem[]) => void
 }) {
   const [filter, setFilter] = useState<StatusFilter>("all")
+  const [isGrouped, setIsGrouped] = useState(false)
+  
+  // State to trigger the global add FAB
+  const [showGlobalAdd, setShowGlobalAdd] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -297,13 +388,20 @@ export function ListEditor({
       const oldIndex = items.findIndex((i) => i.id === active.id)
       const newIndex = items.findIndex((i) => i.id === over.id)
       if (oldIndex === -1 || newIndex === -1) return
-      const reordered = arrayMove(items, oldIndex, newIndex).map((item, idx) => ({
-        ...item,
-        order: idx,
-      }))
-      onChange(reordered)
+      
+      let reordered = arrayMove(items, oldIndex, newIndex)
+      
+      // If grouped, dragging into a new category should update its category
+      if (isGrouped) {
+        const targetItem = items[newIndex]
+        reordered = reordered.map((item) => 
+          item.id === active.id ? { ...item, category: targetItem.category } : item
+        )
+      }
+
+      onChange(reordered.map((item, idx) => ({ ...item, order: idx })))
     },
-    [items, onChange],
+    [items, onChange, isGrouped],
   )
 
   const handleToggleStatus = useCallback(
@@ -325,14 +423,14 @@ export function ListEditor({
   )
 
   const handleRename = useCallback(
-    (id: string, description: string) => {
-      onChange(items.map((item) => (item.id === id ? { ...item, description } : item)))
+    (id: string, description: string, category: string | null) => {
+      onChange(items.map((item) => (item.id === id ? { ...item, description, category } : item)))
     },
     [items, onChange],
   )
 
   const handleAdd = useCallback(
-    (description: string) => {
+    (description: string, category: string | null = null) => {
       if (items.length >= MAX_ITEMS) return
       const now = new Date().toISOString()
       const newItem: ListItem = {
@@ -341,8 +439,10 @@ export function ListEditor({
         status: "Open",
         order: items.length,
         date_created: now,
+        category,
       }
       onChange([...items, newItem])
+      setShowGlobalAdd(false) // Close global add if open
     },
     [items, onChange],
   )
@@ -358,12 +458,38 @@ export function ListEditor({
     })
     .sort((a, b) => a.order - b.order)
 
+  const allCategories = useMemo(() => {
+    const cats = new Set(items.map((i) => i.category).filter(Boolean) as string[])
+    return Array.from(cats).sort()
+  }, [items])
+
+  const groupedItems = useMemo(() => {
+    if (!isGrouped) return null
+    const groups: Record<string, ListItem[]> = {}
+    visibleItems.forEach((t) => {
+      const cid = t.category || "none"
+      if (!groups[cid]) groups[cid] = []
+      groups[cid].push(t)
+    })
+    return Object.entries(groups)
+      .map(([cid, groupItems]) => ({
+        id: cid,
+        name: cid === "none" ? "No Category" : cid,
+        items: groupItems,
+      }))
+      .sort((a, b) => {
+        if (a.id === "none") return 1
+        if (b.id === "none") return -1
+        return a.name.localeCompare(b.name)
+      })
+  }, [visibleItems, isGrouped])
+
   const atLimit = items.length >= MAX_ITEMS
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Filter bar — All / Open / Done only */}
-      <div className="flex items-center gap-1.5">
+    <div className="flex flex-col gap-3 relative pb-20">
+      {/* Filter bar */}
+      <div className="flex items-center gap-1.5 flex-wrap">
         {(["all", "open", "done"] as StatusFilter[]).map((f) => {
           const count = f === "all" ? items.length : f === "open" ? openCount : doneCount
           const active = filter === f
@@ -391,47 +517,127 @@ export function ListEditor({
             </button>
           )
         })}
+        
+        <div className="w-px h-4 bg-border mx-1" />
+
+        <button
+          type="button"
+          onClick={() => setIsGrouped(!isGrouped)}
+          className={cn(
+            "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
+            isGrouped
+              ? "bg-primary/15 text-primary"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+          )}
+        >
+          <Columns3 className="h-3.5 w-3.5" />
+          Group by category
+        </button>
+
         {atLimit && (
           <span className="ml-auto text-xs text-amber-500 font-medium">
-            {MAX_ITEMS} item limit reached
+            {MAX_ITEMS} item limit
           </span>
         )}
       </div>
 
-      {/* List */}
+      {/* Global Add (if triggered by FAB) */}
+      {showGlobalAdd && !atLimit && (
+        <div className="mb-2">
+          <AddItemRow onAdd={handleAdd} onCancel={() => setShowGlobalAdd(false)} allCategories={allCategories} defaultActive={true} />
+        </div>
+      )}
+
+      {/* List / Groups */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={visibleItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-          <div className="flex flex-col gap-2">
-            {visibleItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <p className="text-sm font-medium text-muted-foreground">
-                  {filter === "all" ? "No items yet" : filter === "done" ? "No done items" : "No open items"}
-                </p>
-                {filter === "all" && (
-                  <p className="mt-1 text-xs text-muted-foreground/60">
-                    Add your first item below
-                  </p>
-                )}
+        {groupedItems ? (
+          <div className="flex flex-col gap-6 p-0 mt-2">
+            {groupedItems.map((group) => (
+              <div key={group.id} className="flex flex-col gap-2">
+                <div className="sticky top-0 z-10 flex items-center justify-between bg-background/95 md:bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 md:supports-[backdrop-filter]:bg-card/75 py-2 px-1">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    {group.name}
+                    <span className="ml-2 font-mono text-xs uppercase tracking-wider text-muted-foreground font-normal">
+                      {group.items.length}
+                    </span>
+                  </h3>
+                  {filter !== "done" && !atLimit && (
+                    <AddItemRow 
+                      onAdd={handleAdd} 
+                      allCategories={allCategories} 
+                      defaultCategory={group.id === "none" ? null : group.name}
+                      isGrouped
+                    />
+                  )}
+                </div>
+                <SortableContext items={group.items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                  <div className="flex flex-col gap-2">
+                    {group.items.map((item) => (
+                      <SortableListRow
+                        key={item.id}
+                        item={item}
+                        allCategories={allCategories}
+                        onToggleStatus={handleToggleStatus}
+                        onDelete={handleDelete}
+                        onRename={handleRename}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
               </div>
-            ) : (
-              visibleItems.map((item) => (
-                <SortableListRow
-                  key={item.id}
-                  item={item}
-                  onToggleStatus={handleToggleStatus}
-                  onDelete={handleDelete}
-                  onRename={handleRename}
-                />
-              ))
-            )}
+            ))}
           </div>
-        </SortableContext>
+        ) : (
+          <SortableContext items={visibleItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+            <div className="flex flex-col gap-2 mt-2">
+              {visibleItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {filter === "all" ? "No items yet" : filter === "done" ? "No done items" : "No open items"}
+                  </p>
+                  {filter === "all" && (
+                    <p className="mt-1 text-xs text-muted-foreground/60">
+                      Add your first item below
+                    </p>
+                  )}
+                </div>
+              ) : (
+                visibleItems.map((item) => (
+                  <SortableListRow
+                    key={item.id}
+                    item={item}
+                    allCategories={allCategories}
+                    onToggleStatus={handleToggleStatus}
+                    onDelete={handleDelete}
+                    onRename={handleRename}
+                  />
+                ))
+              )}
+            </div>
+          </SortableContext>
+        )}
       </DndContext>
 
-      {/* Add item (only when not filtered) */}
-      {filter !== "done" && !atLimit && (
-        <AddItemRow onAdd={handleAdd} />
+      {/* Add item at bottom (only when not filtered and not grouped) */}
+      {!isGrouped && filter !== "done" && !atLimit && (
+        <AddItemRow onAdd={handleAdd} allCategories={allCategories} />
+      )}
+
+      {/* Floating Add Button (FAB) */}
+      {!atLimit && (
+        <div className="sticky bottom-4 mt-8 flex justify-end right-4 z-50 pointer-events-none">
+          <button
+            type="button"
+            onClick={() => setShowGlobalAdd(true)}
+            className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-105 active:scale-95 transition-transform"
+            aria-label="Add item"
+          >
+            <Plus className="h-5 w-5" />
+          </button>
+        </div>
       )}
     </div>
   )
 }
+
