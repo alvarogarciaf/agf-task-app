@@ -34,6 +34,7 @@ import {
   Settings2,
   Palette,
   Check,
+  Tag,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -53,13 +54,15 @@ const MAX_ITEMS = 200
 
 function SortableListRow({
   item,
-  allCategories,
+  categoryDef,
+  showCategoryIcon,
   onToggleStatus,
   onDelete,
   onEdit,
 }: {
   item: ListItem
-  allCategories: string[]
+  categoryDef?: ListCategory
+  showCategoryIcon?: boolean
   onToggleStatus: (id: string) => void
   onDelete: (id: string) => void
   onEdit: () => void
@@ -77,6 +80,8 @@ function SortableListRow({
 
   const [menuOpen, setMenuOpen] = useState(false)
   const isDone = item.status === "Done"
+
+  const CatIcon = categoryDef?.icon ? ICON_OPTIONS.find(o => o.name === categoryDef?.icon)?.icon || Tag : Tag
 
   return (
     <div
@@ -108,6 +113,20 @@ function SortableListRow({
       >
         {isDone && <Check className="h-3 w-3" />}
       </button>
+
+      {item.category && showCategoryIcon && (
+        <div 
+          className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border"
+          style={{
+            color: categoryDef?.color || "var(--muted-foreground)",
+            borderColor: categoryDef?.color || "var(--border)",
+            backgroundColor: categoryDef?.color ? `color-mix(in oklch, ${categoryDef.color} 10%, transparent)` : "var(--muted)"
+          }}
+          title={item.category}
+        >
+          <CatIcon className="h-2.5 w-2.5" />
+        </div>
+      )}
 
       <div className="flex min-w-0 flex-1 flex-col">
         <span
@@ -534,7 +553,8 @@ export function ListEditor({
                       <SortableListRow
                         key={item.id}
                         item={item}
-                        allCategories={allCategories}
+                        categoryDef={categories.find(c => c.name === item.category)}
+                        showCategoryIcon={false}
                         onToggleStatus={handleToggleStatus}
                         onDelete={handleDelete}
                         onEdit={() => setEditingItem(item)}
@@ -564,7 +584,8 @@ export function ListEditor({
                   <SortableListRow
                     key={item.id}
                     item={item}
-                    allCategories={allCategories}
+                    categoryDef={categories.find(c => c.name === item.category)}
+                    showCategoryIcon={true}
                     onToggleStatus={handleToggleStatus}
                     onDelete={handleDelete}
                     onEdit={() => setEditingItem(item)}
