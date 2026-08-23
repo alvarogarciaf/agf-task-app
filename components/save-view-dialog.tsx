@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Check, X, Star } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ICON_OPTIONS, ICONS, COLOR_PALETTE } from "@/lib/constants"
+import { IconPicker } from "@/components/icon-picker"
 import type { SavedView } from "@/lib/types"
 
 interface SaveViewDialogProps {
@@ -105,28 +106,7 @@ export function SaveViewDialog({ open, onOpenChange, onSave, editingView }: Save
             <label className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground mb-2">
               Icon
             </label>
-            <div className="grid grid-cols-7 gap-1.5 sm:grid-cols-9">
-              {ICON_OPTIONS.slice(0, 45).map((opt) => {
-                const OptIcon = opt.icon
-                const isSelected = icon === opt.name
-                return (
-                  <button
-                    key={opt.name}
-                    type="button"
-                    onClick={() => setIcon(opt.name)}
-                    className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-lg border transition-colors md:h-9 md:w-9",
-                      isSelected
-                        ? "border-primary bg-primary/15 text-primary"
-                        : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                    aria-label={opt.name}
-                  >
-                    <OptIcon className="h-4.5 w-4.5 md:h-4 md:w-4" />
-                  </button>
-                )
-              })}
-            </div>
+            <IconPicker value={icon} onChange={setIcon} />
           </div>
 
           {/* Color picker */}

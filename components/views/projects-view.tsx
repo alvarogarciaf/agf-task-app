@@ -57,6 +57,7 @@ import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { MoreVertical, Edit2 } from "lucide-react"
 import { ICON_OPTIONS, ICONS, COLOR_PALETTE } from "@/lib/constants"
+import { IconPicker } from "@/components/icon-picker"
 import type { Context, Person, Project, Tag, Task, UrgencyLevel, ProjectStatus } from "@/lib/types"
 import { uploadImage } from "@/lib/image-upload"
 import { usePreloadProjectImages, preloadImage } from "@/lib/image-cache"
@@ -1020,7 +1021,6 @@ export function ProjectEditor({
   const [backgroundImage, setBackgroundImage] = useState<string>("")
   const [isUploading, setIsUploading] = useState(false)
   const [orderDependent, setOrderDependent] = useState<boolean>(false)
-  const [showMobileIconPicker, setShowMobileIconPicker] = useState(false)
   const [showMobileColorPicker, setShowMobileColorPicker] = useState(false)
 
 
@@ -1034,7 +1034,6 @@ export function ProjectEditor({
       setColor(project?.color ?? COLOR_PALETTE[0])
       setBackgroundImage(project?.background_image ?? "")
       setOrderDependent(project?.order_dependent ?? false)
-      setShowMobileIconPicker(false)
       setShowMobileColorPicker(false)
     }
   }, [open, project])
@@ -1104,42 +1103,7 @@ export function ProjectEditor({
           </div>
           <div className="grid gap-2">
             <Label>Icon</Label>
-            <div className={cn("md:hidden flex items-center gap-3", showMobileIconPicker ? "hidden" : "")}>
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-primary bg-primary/15 text-primary">
-                {(() => {
-                  const CurrentIcon = ICON_OPTIONS.find(o => o.name === icon)?.icon || FolderKanban
-                  return <CurrentIcon className="h-4 w-4" />
-                })()}
-              </div>
-              <Button variant="outline" size="sm" onClick={() => setShowMobileIconPicker(true)}>
-                Change Icon
-              </Button>
-            </div>
-            <div className={cn(
-              "grid-cols-8 gap-1.5 sm:grid-cols-9 max-h-40 overflow-y-auto rounded-md border border-border bg-background/40 p-2",
-              showMobileIconPicker ? "grid" : "hidden md:grid"
-            )}>
-              {ICON_OPTIONS.map((opt) => {
-                const OptIcon = opt.icon
-                const isSelected = icon === opt.name
-                return (
-                  <button
-                    key={opt.name}
-                    type="button"
-                    onClick={() => setIcon(opt.name)}
-                    className={cn(
-                      "flex h-9 w-9 items-center justify-center rounded-lg border transition-colors",
-                      isSelected
-                        ? "border-primary bg-primary/15 text-primary"
-                        : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                    aria-label={opt.name}
-                  >
-                    <OptIcon className="h-4 w-4" />
-                  </button>
-                )
-              })}
-            </div>
+            <IconPicker value={icon} onChange={setIcon} />
           </div>
           <div className="grid gap-2">
             <Label>Color</Label>

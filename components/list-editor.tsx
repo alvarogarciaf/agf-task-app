@@ -44,6 +44,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { IconPicker } from "@/components/icon-picker"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import type { ListItem, ListCategory } from "@/lib/types"
@@ -679,22 +680,10 @@ export function ListEditor({
               </div>
               <div className="grid gap-2">
                 <label className="text-sm font-medium">Icon</label>
-                <div className="grid grid-cols-8 gap-1.5 sm:grid-cols-9 max-h-40 overflow-y-auto rounded-md border border-border bg-background/40 p-2">
-                  {ICON_OPTIONS.map((opt) => {
-                    const OptIcon = opt.icon
-                    const isSelected = editingCategory.icon === opt.name
-                    return (
-                      <button
-                        key={opt.name}
-                        type="button"
-                        onClick={() => setEditingCategory({...editingCategory, icon: opt.name})}
-                        className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${isSelected ? "border-primary bg-primary/15 text-primary" : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-                      >
-                        <OptIcon className="h-4 w-4" />
-                      </button>
-                    )
-                  })}
-                </div>
+                <IconPicker 
+                  value={editingCategory.icon || "Tag"} 
+                  onChange={(val) => setEditingCategory({...editingCategory, icon: val})} 
+                />
               </div>
               <div className="grid gap-2">
                 <label className="text-sm font-medium">Color</label>
