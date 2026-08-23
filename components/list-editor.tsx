@@ -35,6 +35,7 @@ import {
   Palette,
   Check,
   Tag,
+  ChevronsUpDown,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -44,6 +45,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command"
 import { IconPicker } from "@/components/icon-picker"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
@@ -115,20 +118,6 @@ function SortableListRow({
         {isDone && <Check className="h-3 w-3" />}
       </button>
 
-      {item.category && showCategoryIcon && (
-        <div 
-          className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border"
-          style={{
-            color: categoryDef?.color || "var(--muted-foreground)",
-            borderColor: categoryDef?.color || "var(--border)",
-            backgroundColor: categoryDef?.color ? `color-mix(in oklch, ${categoryDef.color} 10%, transparent)` : "var(--muted)"
-          }}
-          title={item.category}
-        >
-          <CatIcon className="h-2.5 w-2.5" />
-        </div>
-      )}
-
       <div className="flex min-w-0 flex-1 flex-col">
         <span
           className={cn(
@@ -150,6 +139,20 @@ function SortableListRow({
           </span>
         )}
       </div>
+
+      {item.category && showCategoryIcon && (
+        <div 
+          className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border"
+          style={{
+            color: categoryDef?.color || "var(--muted-foreground)",
+            borderColor: categoryDef?.color || "var(--border)",
+            backgroundColor: categoryDef?.color ? `color-mix(in oklch, ${categoryDef.color} 10%, transparent)` : "var(--muted)"
+          }}
+          title={item.category}
+        >
+          <CatIcon className="h-2.5 w-2.5" />
+        </div>
+      )}
 
       <div onClick={(e) => e.stopPropagation()}>
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
@@ -217,6 +220,8 @@ function ItemModal({
   const [desc, setDesc] = useState(initialDescription)
   const [details, setDetails] = useState(initialDetails || "")
   const [cat, setCat] = useState(initialCategory || "")
+  const [catOpen, setCatOpen] = useState(false)
+  const [catInput, setCatInput] = useState("")
   
   useEffect(() => {
     if (open) {
@@ -274,25 +279,65 @@ function ItemModal({
           <div className="grid gap-2">
             <label className="text-sm font-medium">Category</label>
             <div className="relative">
-              <input
-                type="text"
-                list="modal-category-options"
-                value={cat}
-                onChange={(e) => setCat(e.target.value)}
-                placeholder="Optional category..."
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    handleSave()
-                  }
-                }}
-              />
-              <datalist id="modal-category-options">
-                {categories.map((c) => (
-                  <option key={c.id} value={c.name} />
-                ))}
-              </datalist>
+              <Popover open={catOpen} onOpenChange={setCatOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    role="combobox"
+                    aria-expanded={catOpen}
+                    className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    {cat ? cat : <span className="text-muted-foreground">Select or create category...</span>}
+                    <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput 
+                      placeholder="Search or create..." 
+                      value={catInput} 
+                      onValueChange={setCatInput} 
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        <button 
+                          type="button" 
+                          onClick={() => { setCat(catInput); setCatOpen(false) }}
+                          className="w-full text-left px-2 py-1.5 text-sm hover:bg-muted"
+                        >
+                          Create "{catInput}"
+                        </button>
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {categories.map((c) => (
+                          <CommandItem
+                            key={c.id}
+                            value={c.name}
+                            onSelect={() => {
+                              setCat(c.name)
+                              setCatOpen(false)
+                            }}
+                          >
+                            {c.name}
+                            <Check className={cn("ml-auto h-4 w-4", cat === c.name ? "opacity-100" : "opacity-0")} />
+                          </CommandItem>
+                        ))}
+                        {catInput && !categories.some(c => c.name.toLowerCase() === catInput.toLowerCase()) && (
+                          <CommandItem
+                            value={catInput}
+                            onSelect={() => {
+                              setCat(catInput)
+                              setCatOpen(false)
+                            }}
+                          >
+                            Create "{catInput}"
+                          </CommandItem>
+                        )}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>
@@ -489,28 +534,29 @@ export function ListEditor({
           Group by category
         </button>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground ml-0.5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <MoreVertical className="h-3.5 w-3.5" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={() => setShowCategoriesModal(true)}>
-              <Settings2 className="mr-2 h-4 w-4 text-muted-foreground" />
-              Categories
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {atLimit && (
-          <span className="ml-auto text-xs text-amber-500 font-medium">
-            {MAX_ITEMS} item limit
-          </span>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {atLimit && (
+            <span className="text-xs text-amber-500 font-medium">
+              {MAX_ITEMS} item limit
+            </span>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <MoreVertical className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => setShowCategoriesModal(true)}>
+                <Settings2 className="mr-2 h-4 w-4 text-muted-foreground" />
+                Categories
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
 
