@@ -398,7 +398,22 @@ import {
   ReplyAll,
   Rocket,
   Rose,
-  RotateCcwKey
+  RotateCcwKey,
+  LeafyGreen,
+  Vegan,
+  Carrot,
+  Cylinder,
+  Soup,
+  Banana,
+  Cherry,
+  Citrus,
+  Nut,
+  Pizza,
+  Hamburger,
+  Sandwich,
+  Wine,
+  CookingPot,
+  Candy
 } from "lucide-react"
 
 export const ICON_OPTIONS: { name: string; icon: any }[] = [
@@ -801,6 +816,22 @@ export const ICON_OPTIONS: { name: string; icon: any }[] = [
   { name: "Rocket", icon: Rocket },
   { name: "Rose", icon: Rose },
   { name: "RotateCcwKey", icon: RotateCcwKey }
+,
+  { name: "LeafyGreen", icon: LeafyGreen },
+  { name: "Vegan", icon: Vegan },
+  { name: "Carrot", icon: Carrot },
+  { name: "Cylinder", icon: Cylinder },
+  { name: "Soup", icon: Soup },
+  { name: "Banana", icon: Banana },
+  { name: "Cherry", icon: Cherry },
+  { name: "Citrus", icon: Citrus },
+  { name: "Nut", icon: Nut },
+  { name: "Pizza", icon: Pizza },
+  { name: "Hamburger", icon: Hamburger },
+  { name: "Sandwich", icon: Sandwich },
+  { name: "Wine", icon: Wine },
+  { name: "CookingPot", icon: CookingPot },
+  { name: "Candy", icon: Candy }
 ]
 
 export const ICONS: Record<string, LucideIcon> = Object.fromEntries(
