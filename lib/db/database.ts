@@ -102,6 +102,11 @@ export const getDatabase = async (userUid: string) => {
               }));
             }
             return oldDoc;
+          },
+          // 12: Migrate from version 11 to 12 (add icon to task/note)
+          12: (oldDoc: any) => {
+            oldDoc.icon = oldDoc.icon ?? null;
+            return oldDoc;
           }
         }
       },

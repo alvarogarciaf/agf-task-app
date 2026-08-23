@@ -3,13 +3,14 @@ import type { Task, Project, Person, Context } from '../types';
 
 export const taskSchemaLiteral = {
   title: 'task schema',
-  version: 11,
+  version: 12,
   description: 'describes a task or note (unified object)',
   primaryKey: 'id',
   type: 'object',
   properties: {
     id: { type: 'string', maxLength: 100 },
     type: { type: 'string', enum: ['task', 'note'], default: 'task' },
+    icon: { type: ['string', 'null'] },
     description: { type: 'string' },
     details: { type: ['string', 'null'] },
     date_created: { type: 'string' },

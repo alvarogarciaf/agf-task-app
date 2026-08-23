@@ -23,6 +23,8 @@ import { FormMultiSelect } from "@/components/form-multi-select"
 import { FormDateField } from "@/components/form-date-field"
 import { ProjectSelect } from "@/components/project-select"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { ICON_OPTIONS } from "@/lib/constants"
 import { Switch } from "@/components/ui/switch"
 import {
   Select,
@@ -42,6 +44,7 @@ import type {
   Task,
   UrgencyLevel,
 } from "@/lib/types"
+import { IconPicker } from "@/components/icon-picker"
 import { ListEditor } from "@/components/list-editor"
 
 /**
@@ -799,6 +802,38 @@ export function ObjectEditFields({
   return (
     <>
       <div className="mb-2 flex items-start gap-2">
+        {isNote && (() => {
+          const project = draft.project_id ? projects.find((p) => p.id === draft.project_id) : null
+          const hasProjectIcon = !!project?.icon
+          const displayIconName = project?.icon || draft.icon || "FileText"
+          const DisplayIcon = ICON_OPTIONS.find((o) => o.name === displayIconName)?.icon || ICON_OPTIONS[0].icon
+          
+          return (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  title={hasProjectIcon ? "Icon inherited from project" : "Change icon"}
+                  disabled={hasProjectIcon}
+                  className={cn(
+                    "mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors",
+                    hasProjectIcon ? "cursor-default opacity-80" : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                  )}
+                  style={hasProjectIcon && project?.color ? { color: project.color } : {}}
+                >
+                  <DisplayIcon className="h-5 w-5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-2" align="start">
+                <IconPicker
+                  inline
+                  value={draft.icon || "FileText"}
+                  onChange={(val) => update("icon", val)}
+                />
+              </PopoverContent>
+            </Popover>
+          )
+        })()}
         <textarea
           ref={descriptionRef}
           value={draft.description}

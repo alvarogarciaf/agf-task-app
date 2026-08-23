@@ -46,6 +46,7 @@ export interface AppObject {
   archived?: boolean
   google_event_id?: string | null
   bookmarked?: boolean
+  icon?: string | null
   order?: number
   /** When true the details editor is replaced by a list of ListItems */
   is_list?: boolean | null

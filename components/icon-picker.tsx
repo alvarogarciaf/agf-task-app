@@ -8,12 +8,14 @@ export function IconPicker({
   value,
   onChange,
   className,
+  inline = false,
 }: {
   value: string
   onChange: (value: string) => void
   className?: string
+  inline?: boolean
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(inline)
   const [search, setSearch] = useState("")
 
   const filteredIcons = useMemo(() => {
@@ -24,7 +26,7 @@ export function IconPicker({
 
   const CurrentIcon = ICON_OPTIONS.find((o) => o.name === value)?.icon || ICON_OPTIONS[0].icon
 
-  if (!expanded) {
+  if (!expanded && !inline) {
     return (
       <div className={cn("flex items-center gap-3", className)}>
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-primary bg-primary/10 text-primary shadow-sm">
@@ -40,9 +42,11 @@ export function IconPicker({
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-primary bg-primary/10 text-primary shadow-sm">
-          <CurrentIcon className="h-5 w-5" />
-        </div>
+        {!inline && (
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-primary bg-primary/10 text-primary shadow-sm">
+            <CurrentIcon className="h-5 w-5" />
+          </div>
+        )}
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
@@ -54,9 +58,11 @@ export function IconPicker({
             className="flex h-9 w-full rounded-md border border-input bg-transparent pl-8 pr-3 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
         </div>
-        <Button variant="ghost" size="sm" type="button" onClick={() => setExpanded(false)}>
-          Done
-        </Button>
+        {!inline && (
+          <Button variant="ghost" size="sm" type="button" onClick={() => setExpanded(false)}>
+            Done
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-7 sm:grid-cols-9 gap-1.5 max-h-72 overflow-y-auto rounded-md border border-border bg-background/40 p-2 shadow-inner">
