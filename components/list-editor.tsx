@@ -33,6 +33,7 @@ import {
   Columns3,
   Settings2,
   Palette,
+  Check,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -55,13 +56,13 @@ function SortableListRow({
   allCategories,
   onToggleStatus,
   onDelete,
-  onRename,
+  onEdit,
 }: {
   item: ListItem
   allCategories: string[]
   onToggleStatus: (id: string) => void
   onDelete: (id: string) => void
-  onRename: (id: string, description: string, category: string | null) => void
+  onEdit: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id })
@@ -75,166 +76,84 @@ function SortableListRow({
   }
 
   const [menuOpen, setMenuOpen] = useState(false)
-  const [editing, setEditing] = useState(false)
-  const [editDesc, setEditDesc] = useState(item.description)
-  const [editCat, setEditCat] = useState(item.category || "")
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (editing) {
-      inputRef.current?.focus()
-      inputRef.current?.select()
-    }
-  }, [editing])
-
-  const commitRename = () => {
-    const trimmedDesc = editDesc.trim()
-    const trimmedCat = editCat.trim() || null
-    if (trimmedDesc) {
-      onRename(item.id, trimmedDesc, trimmedCat)
-    } else {
-      setEditDesc(item.description)
-      setEditCat(item.category || "")
-    }
-    setEditing(false)
-  }
-
   const isDone = item.status === "Done"
-
-  if (editing) {
-    return (
-      <div
-        ref={setNodeRef}
-        style={style}
-        className="relative flex flex-col gap-2 rounded-xl border border-primary/40 bg-card p-3 shadow-sm"
-      >
-        <input
-          ref={inputRef}
-          value={editDesc}
-          onChange={(e) => setEditDesc(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") { e.preventDefault(); commitRename() }
-            if (e.key === "Escape") { setEditDesc(item.description); setEditing(false) }
-          }}
-          placeholder="Item description…"
-          className="w-full bg-transparent text-sm font-medium leading-tight text-foreground outline-none border-b border-primary/30 pb-1"
-        />
-        <div className="flex items-center gap-2">
-          <input
-            list="category-options"
-            value={editCat}
-            onChange={(e) => setEditCat(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") { e.preventDefault(); commitRename() }
-              if (e.key === "Escape") { setEditDesc(item.description); setEditing(false) }
-            }}
-            placeholder="Category (optional)"
-            className="flex-1 bg-transparent text-xs text-muted-foreground outline-none border-b border-primary/30 pb-1"
-          />
-          <datalist id="category-options">
-            {allCategories.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
-          <button
-            type="button"
-            onMouseDown={(e) => { e.preventDefault(); commitRename() }}
-            className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "relative flex min-h-[48px] items-center gap-3 rounded-xl border pl-4 pr-2.5 py-2 transition-all select-none shadow-sm",
-        isDone ? "opacity-65 bg-muted/20 border-border/60" : "border-border/80 bg-card hover:border-border",
-        isDragging && "shadow-lg border-primary/30 bg-background/50",
+        "group flex items-start gap-2 rounded-lg border bg-card p-2 transition-colors",
+        isDone ? "border-muted/50 bg-muted/20" : "border-border shadow-sm",
+        menuOpen && "border-primary/50 shadow-md",
       )}
     >
-      {/* Drag grip */}
       <div
         {...attributes}
         {...listeners}
-        data-drag-handle="true"
-        className="flex h-7 w-5 shrink-0 items-center justify-center -ml-1 text-muted-foreground/35 active:text-foreground transition-colors cursor-grab active:cursor-grabbing touch-none select-none"
-        onClick={(e) => e.stopPropagation()}
-        aria-label="Drag to reorder"
+        className="mt-0.5 flex cursor-grab items-center justify-center text-muted-foreground opacity-30 hover:opacity-100 active:cursor-grabbing"
       >
         <GripVertical className="h-4 w-4" />
       </div>
 
-      {/* Status toggle */}
       <button
         type="button"
         onClick={() => onToggleStatus(item.id)}
-        className="shrink-0 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
-        aria-label={isDone ? "Mark as open" : "Mark as done"}
-      >
-        {isDone ? (
-          <CircleCheck className="h-4.5 w-4.5 text-primary" />
-        ) : (
-          <Circle className="h-4.5 w-4.5" />
+        className={cn(
+          "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border transition-colors",
+          isDone
+            ? "border-primary bg-primary text-primary-foreground"
+            : "border-muted-foreground text-transparent hover:border-primary",
         )}
+      >
+        {isDone && <Check className="h-3 w-3" />}
       </button>
 
-      {/* Description */}
-      <div className="flex-1 min-w-0 flex flex-col justify-center">
+      <div className="flex min-w-0 flex-1 flex-col">
         <span
           className={cn(
-            "truncate text-sm font-medium leading-tight",
+            "truncate text-sm font-medium leading-tight cursor-pointer hover:text-primary transition-colors",
             isDone ? "text-muted-foreground line-through" : "text-foreground",
           )}
-          onDoubleClick={() => { setEditing(true); setEditDesc(item.description); setEditCat(item.category || "") }}
+          onClick={onEdit}
         >
           {item.description}
         </span>
       </div>
 
-      {/* Three-dot menu */}
       <div onClick={(e) => e.stopPropagation()}>
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted active:bg-muted cursor-pointer"
+              className={cn(
+                "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                menuOpen && "bg-muted text-foreground",
+              )}
             >
-              <MoreVertical className="h-4 w-4" />
+              <MoreVertical className="h-3.5 w-3.5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52 p-1.5">
-            <DropdownMenuLabel className="px-3 py-2 text-sm font-semibold">Item Actions</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="py-3 px-3 text-[15px] font-medium cursor-pointer"
-              onClick={() => { setMenuOpen(false); setEditing(true); setEditDesc(item.description); setEditCat(item.category || "") }}
-            >
-              <Pencil className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
-              <span>Edit</span>
+          <DropdownMenuContent align="end" className="w-36">
+            <DropdownMenuItem onClick={onEdit}>
+              <Pencil className="mr-2 h-4 w-4 text-muted-foreground" />
+              Edit
             </DropdownMenuItem>
-            <DropdownMenuItem
-              className="py-3 px-3 text-[15px] font-medium cursor-pointer"
-              onClick={() => { setMenuOpen(false); onToggleStatus(item.id) }}
-            >
-              {isDone ? (
-                <><RotateCcw className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" /><span>Mark as Open</span></>
-              ) : (
-                <><CircleCheck className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" /><span>Mark as Done</span></>
-              )}
-            </DropdownMenuItem>
+            {isDone ? (
+              <DropdownMenuItem onClick={() => onToggleStatus(item.id)}>
+                <RotateCcw className="mr-2 h-4 w-4 text-muted-foreground" />
+                Reopen
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onClick={() => onToggleStatus(item.id)}>
+                <Check className="mr-2 h-4 w-4 text-muted-foreground" />
+                Done
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="py-3 px-3 text-[15px] font-medium cursor-pointer text-destructive focus:text-destructive"
-              onClick={() => { setMenuOpen(false); onDelete(item.id) }}
-            >
-              <Trash2 className="mr-3 h-5 w-5 shrink-0" />
-              <span>Delete</span>
+            <DropdownMenuItem onClick={() => onDelete(item.id)} className="text-destructive focus:bg-destructive/10">
+              <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+              Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -243,117 +162,96 @@ function SortableListRow({
   )
 }
 
-// ─── AddItemRow ──────────────────────────────────────────────────────────────
 
-function AddItemRow({
-  onAdd,
-  onCancel,
-  defaultCategory,
-  allCategories,
-  isGrouped,
-  defaultActive = false,
+// ─── ItemModal ──────────────────────────────────────────────────────────────
+
+function ItemModal({
+  open,
+  onOpenChange,
+  initialDescription = "",
+  initialCategory = null,
+  onSave,
+  categories,
+  isEdit = false,
 }: {
-  onAdd: (description: string, category: string | null) => void
-  onCancel?: () => void
-  defaultCategory?: string | null
-  allCategories: string[]
-  isGrouped?: boolean
-  defaultActive?: boolean
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  initialDescription?: string
+  initialCategory?: string | null
+  onSave: (description: string, category: string | null) => void
+  categories: ListCategory[]
+  isEdit?: boolean
 }) {
-  const [active, setActive] = useState(defaultActive)
-  const [desc, setDesc] = useState("")
-  const [cat, setCat] = useState(defaultCategory || "")
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  const activate = () => {
-    setActive(true)
-    setTimeout(() => inputRef.current?.focus(), 0)
-  }
-
-  const commit = () => {
-    const trimmedDesc = desc.trim()
-    const trimmedCat = cat.trim() || null
-    if (trimmedDesc) onAdd(trimmedDesc, trimmedCat)
-    setDesc("")
-    setCat(defaultCategory || "")
-    // Keep active so user can keep adding
-    setTimeout(() => inputRef.current?.focus(), 0)
-  }
-
-  const cancel = () => {
-    setDesc("")
-    setCat(defaultCategory || "")
-    setActive(false)
-    onCancel?.()
-  }
-
-  if (!active) {
-    if (isGrouped) {
-      return (
-        <button
-          type="button"
-          onClick={activate}
-          className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
-        >
-          <Plus className="mr-1 h-3.5 w-3.5" />
-          Add to category
-        </button>
-      )
+  const [desc, setDesc] = useState(initialDescription)
+  const [cat, setCat] = useState(initialCategory || "")
+  
+  useEffect(() => {
+    if (open) {
+      setDesc(initialDescription)
+      setCat(initialCategory || "")
     }
+  }, [open, initialDescription, initialCategory])
 
-    return (
-      <button
-        type="button"
-        onClick={activate}
-        className="mt-1 flex w-full items-center gap-2 rounded-xl border border-dashed border-border/60 px-4 py-3 text-sm text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
-      >
-        <Plus className="h-4 w-4 shrink-0" />
-        Add item
-      </button>
-    )
+  const handleSave = () => {
+    if (!desc.trim()) return
+    onSave(desc.trim(), cat.trim() || null)
+    onOpenChange(false)
   }
 
   return (
-    <div className="mt-1 flex flex-col gap-2 rounded-xl border border-primary/40 bg-card p-3 shadow-sm">
-      <input
-        ref={inputRef}
-        value={desc}
-        onChange={(e) => setDesc(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") { e.preventDefault(); commit() }
-          if (e.key === "Escape") cancel()
-        }}
-        placeholder="Item description…"
-        className="w-full bg-transparent text-sm font-medium leading-tight text-foreground outline-none border-b border-primary/30 pb-1"
-      />
-      <div className="flex items-center gap-2">
-        <input
-          list="category-options"
-          value={cat}
-          onChange={(e) => setCat(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") { e.preventDefault(); commit() }
-            if (e.key === "Escape") cancel()
-          }}
-          placeholder="Category (optional)"
-          className="flex-1 bg-transparent text-xs text-muted-foreground outline-none border-b border-primary/30 pb-1"
-        />
-        <button
-          type="button"
-          onMouseDown={(e) => { e.preventDefault(); commit() }}
-          className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
-          Add
-        </button>
-        <button
-          type="button"
-          onMouseDown={(e) => { e.preventDefault(); cancel() }}
-          className="rounded-md px-3 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Edit Item" : "Add Item"}</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <label className="text-sm font-medium">Description</label>
+            <textarea
+              autoFocus
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              placeholder="What needs to be done?"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSave()
+                }
+              }}
+            />
+          </div>
+          <div className="grid gap-2">
+            <label className="text-sm font-medium">Category</label>
+            <div className="relative">
+              <input
+                type="text"
+                list="modal-category-options"
+                value={cat}
+                onChange={(e) => setCat(e.target.value)}
+                placeholder="Optional category..."
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    handleSave()
+                  }
+                }}
+              />
+              <datalist id="modal-category-options">
+                {categories.map((c) => (
+                  <option key={c.id} value={c.name} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <button type="button" onClick={() => onOpenChange(false)} className="rounded-md border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted">Cancel</button>
+          <button type="button" onClick={handleSave} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90">Save</button>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -377,8 +275,9 @@ export function ListEditor({
   const [showCategoriesModal, setShowCategoriesModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState<ListCategory | null>(null)
   
-  // State to trigger the global add FAB
-  const [showGlobalAdd, setShowGlobalAdd] = useState(false)
+  // States for Item Modal
+  const [addingToCategory, setAddingToCategory] = useState<string | null | undefined>(undefined)
+  const [editingItem, setEditingItem] = useState<ListItem | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -447,7 +346,7 @@ export function ListEditor({
         category,
       }
       onChange([...items, newItem])
-      setShowGlobalAdd(false) // Close global add if open
+      setAddingToCategory(undefined)
     },
     [items, onChange],
   )
@@ -563,12 +462,7 @@ export function ListEditor({
         )}
       </div>
 
-      {/* Global Add (if triggered by FAB) */}
-      {showGlobalAdd && !atLimit && (
-        <div className="mb-2">
-          <AddItemRow onAdd={handleAdd} onCancel={() => setShowGlobalAdd(false)} allCategories={allCategories} defaultActive={true} />
-        </div>
-      )}
+
 
       {/* List / Groups */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -593,12 +487,14 @@ export function ListEditor({
                     </span>
                   </h3>
                   {filter !== "done" && !atLimit && (
-                    <AddItemRow 
-                      onAdd={handleAdd} 
-                      allCategories={allCategories} 
-                      defaultCategory={group.id === "none" ? null : group.name}
-                      isGrouped
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setAddingToCategory(group.id === "none" ? null : group.name)}
+                      className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20 shrink-0"
+                    >
+                      <Plus className="h-3 w-3" />
+                      Add item
+                    </button>
                   )}
                 </div>
                 <SortableContext items={group.items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
@@ -610,7 +506,7 @@ export function ListEditor({
                         allCategories={allCategories}
                         onToggleStatus={handleToggleStatus}
                         onDelete={handleDelete}
-                        onRename={handleRename}
+                        onEdit={() => setEditingItem(item)}
                       />
                     ))}
                   </div>
@@ -640,7 +536,7 @@ export function ListEditor({
                     allCategories={allCategories}
                     onToggleStatus={handleToggleStatus}
                     onDelete={handleDelete}
-                    onRename={handleRename}
+                    onEdit={() => setEditingItem(item)}
                   />
                 ))
               )}
@@ -651,7 +547,14 @@ export function ListEditor({
 
       {/* Add item at bottom (only when not filtered and not grouped) */}
       {!isGrouped && filter !== "done" && !atLimit && (
-        <AddItemRow onAdd={handleAdd} allCategories={allCategories} />
+        <button
+          type="button"
+          onClick={() => setAddingToCategory(null)}
+          className="mt-2 flex w-full items-center gap-2 rounded-lg border border-dashed border-border p-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <Plus className="h-4 w-4" />
+          Add item
+        </button>
       )}
 
       {/* Floating Add Button (FAB) */}
@@ -659,7 +562,7 @@ export function ListEditor({
         <div className="sticky bottom-4 mt-8 flex justify-end right-4 z-50 pointer-events-none">
           <button
             type="button"
-            onClick={() => setShowGlobalAdd(true)}
+            onClick={() => setAddingToCategory(null)}
             className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-105 active:scale-95 transition-transform"
             aria-label="Add item"
           >
@@ -792,6 +695,33 @@ export function ListEditor({
           )}
         </DialogContent>
       </Dialog>
+
+      <ItemModal
+        open={addingToCategory !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setAddingToCategory(undefined)
+        }}
+        initialCategory={addingToCategory || null}
+        categories={categories}
+        onSave={handleAdd}
+      />
+      <ItemModal
+        open={!!editingItem}
+        onOpenChange={(open) => {
+          if (!open) setEditingItem(null)
+        }}
+        initialDescription={editingItem?.description || ""}
+        initialCategory={editingItem?.category || null}
+        categories={categories}
+        isEdit
+        onSave={(desc, cat) => {
+          if (editingItem) {
+            handleRename(editingItem.id, desc, cat)
+            setEditingItem(null)
+          }
+        }}
+      />
+
 </div>
   )
 }
