@@ -20,6 +20,13 @@ export interface ListItem {
 // context_ids and tag_ids so conversion between them stays lossless.
 export type ObjectType = "task" | "note"
 
+export interface ListCategory {
+  id: string
+  name: string
+  color?: string
+  icon?: string
+}
+
 export interface AppObject {
   id: string
   type?: ObjectType
@@ -43,6 +50,8 @@ export interface AppObject {
   is_list?: boolean | null
   /** The list items. Only meaningful when is_list = true */
   list_items?: ListItem[] | null
+  /** The list categories. Only meaningful when is_list = true */
+  list_categories?: ListCategory[] | null
 }
 
 // `Task` remains the name used across the app; it is now an alias of the

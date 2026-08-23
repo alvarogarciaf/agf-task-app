@@ -34,6 +34,7 @@ import {
 import type {
   Context,
   ListItem,
+  ListCategory,
   ObjectType,
   Person,
   Project,
@@ -534,11 +535,16 @@ export function useObjectDraft({
     update("list_items", items)
   }, [update])
 
+  const updateListCategories = useCallback((categories: ListCategory[]) => {
+    update("list_categories", categories)
+  }, [update])
+
   return {
     draft,
     setDraft,
     update,
     updateListItems,
+    updateListCategories,
     dirty,
     autoProcess,
     setAutoProcess,
@@ -882,6 +888,8 @@ export function ObjectDetailsEditor({
   isListMode = false,
   listItems,
   onListItemsChange,
+  listCategories,
+  onListCategoriesChange,
 }: {
   value: string
   onChange: (val: string | undefined) => void
@@ -892,6 +900,8 @@ export function ObjectDetailsEditor({
   isListMode?: boolean
   listItems?: ListItem[] | null
   onListItemsChange?: (items: ListItem[]) => void
+  listCategories?: ListCategory[] | null
+  onListCategoriesChange?: (categories: ListCategory[]) => void
 }) {
   if (isListMode) {
     return (
@@ -899,6 +909,8 @@ export function ObjectDetailsEditor({
         <ListEditor
           items={listItems ?? []}
           onChange={onListItemsChange ?? (() => {})}
+          categories={listCategories ?? []}
+          onCategoriesChange={onListCategoriesChange ?? (() => {})}
         />
       </div>
     )

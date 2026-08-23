@@ -1,4 +1,5 @@
 "use client"
+import { ICON_OPTIONS, COLOR_PALETTE } from "@/lib/constants"
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import { nanoid } from "nanoid"
@@ -30,6 +31,8 @@ import {
   Pencil,
   RotateCcw,
   Columns3,
+  Settings2,
+  Palette,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -39,8 +42,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
-import type { ListItem } from "@/lib/types"
+import type { ListItem, ListCategory } from "@/lib/types"
 
 const MAX_ITEMS = 200
 
@@ -191,11 +195,6 @@ function SortableListRow({
         >
           {item.description}
         </span>
-        {item.category && (
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mt-0.5">
-            {item.category}
-          </span>
-        )}
       </div>
 
       {/* Three-dot menu */}
@@ -365,12 +364,18 @@ type StatusFilter = "all" | "open" | "done"
 export function ListEditor({
   items,
   onChange,
+  categories = [],
+  onCategoriesChange = () => {},
 }: {
   items: ListItem[]
   onChange: (items: ListItem[]) => void
+  categories?: ListCategory[]
+  onCategoriesChange?: (cats: ListCategory[]) => void
 }) {
   const [filter, setFilter] = useState<StatusFilter>("all")
   const [isGrouped, setIsGrouped] = useState(false)
+  const [showCategoriesModal, setShowCategoriesModal] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<ListCategory | null>(null)
   
   // State to trigger the global add FAB
   const [showGlobalAdd, setShowGlobalAdd] = useState(false)
@@ -534,6 +539,23 @@ export function ListEditor({
           Group by category
         </button>
 
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground ml-0.5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <MoreVertical className="h-3.5 w-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={() => setShowCategoriesModal(true)}>
+              <Settings2 className="mr-2 h-4 w-4 text-muted-foreground" />
+              Categories
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {atLimit && (
           <span className="ml-auto text-xs text-amber-500 font-medium">
             {MAX_ITEMS} item limit
@@ -556,7 +578,15 @@ export function ListEditor({
               <div key={group.id} className="flex flex-col gap-2">
                 <div className="sticky top-0 z-10 flex items-center justify-between bg-background/95 md:bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 md:supports-[backdrop-filter]:bg-card/75 py-2 px-1">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    {(() => {
+                      const catDef = categories.find(c => c.name === group.name)
+                      const CatIcon = catDef?.icon ? ICON_OPTIONS.find(o => o.name === catDef.icon)?.icon : undefined
+                      return (
+                        <span className="flex items-center justify-center shrink-0 h-5 w-5 rounded-sm" style={{ color: catDef?.color || "var(--primary)", backgroundColor: catDef?.color ? `color-mix(in oklch, ${catDef.color} 15%, transparent)` : undefined }}>
+                          {CatIcon ? <CatIcon className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+                        </span>
+                      )
+                    })()}
                     {group.name}
                     <span className="ml-2 font-mono text-xs uppercase tracking-wider text-muted-foreground font-normal">
                       {group.items.length}
@@ -637,7 +667,132 @@ export function ListEditor({
           </button>
         </div>
       )}
-    </div>
+    
+
+      {/* Categories Modal */}
+      <Dialog open={showCategoriesModal} onOpenChange={setShowCategoriesModal}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="p-4 md:p-5 border-b pb-4">
+            <DialogTitle>Categories</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto p-4 md:p-5 flex flex-col gap-3">
+            {categories.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No categories configured yet.</p>
+            ) : (
+              categories.map(cat => {
+                const CatIcon = cat.icon ? ICON_OPTIONS.find(o => o.name === cat.icon)?.icon : undefined
+                return (
+                  <div key={cat.id} onClick={() => setEditingCategory(cat)} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:border-primary/50 cursor-pointer transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border" style={{ color: cat.color || "var(--foreground)", backgroundColor: cat.color ? `color-mix(in oklch, ${cat.color} 15%, transparent)` : "var(--muted)" }}>
+                        {CatIcon ? <CatIcon className="h-4 w-4" /> : <Circle className="h-4 w-4 opacity-50" />}
+                      </div>
+                      <span className="text-sm font-medium">{cat.name}</span>
+                    </div>
+                    <Settings2 className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                )
+              })
+            )}
+            <button 
+              onClick={() => setEditingCategory({ id: nanoid(), name: "New Category", color: COLOR_PALETTE[0], icon: "FolderKanban" })}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed p-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              Add Category
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Category Modal */}
+      <Dialog open={!!editingCategory} onOpenChange={(open) => { if (!open) setEditingCategory(null) }}>
+        <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{categories.find(c => c.id === editingCategory?.id) ? "Edit Category" : "New Category"}</DialogTitle>
+          </DialogHeader>
+          {editingCategory && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Name</label>
+                <input
+                  type="text"
+                  value={editingCategory.name}
+                  onChange={(e) => setEditingCategory({...editingCategory, name: e.target.value})}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Icon</label>
+                <div className="grid grid-cols-8 gap-1.5 sm:grid-cols-9 max-h-40 overflow-y-auto rounded-md border border-border bg-background/40 p-2">
+                  {ICON_OPTIONS.map((opt) => {
+                    const OptIcon = opt.icon
+                    const isSelected = editingCategory.icon === opt.name
+                    return (
+                      <button
+                        key={opt.name}
+                        type="button"
+                        onClick={() => setEditingCategory({...editingCategory, icon: opt.name})}
+                        className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${isSelected ? "border-primary bg-primary/15 text-primary" : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                      >
+                        <OptIcon className="h-4 w-4" />
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Color</label>
+                <div className="flex flex-wrap gap-2">
+                  {COLOR_PALETTE.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setEditingCategory({...editingCategory, color: c})}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all hover:scale-110"
+                      style={{
+                        backgroundColor: c,
+                        borderColor: editingCategory.color === c ? "var(--foreground)" : "transparent",
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-between mt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newCats = categories.filter(c => c.id !== editingCategory.id)
+                    onCategoriesChange(newCats)
+                    setEditingCategory(null)
+                  }}
+                  className="text-sm text-destructive hover:underline"
+                >
+                  Delete
+                </button>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setEditingCategory(null)} className="rounded-md border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted">Cancel</button>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      const idx = categories.findIndex(c => c.id === editingCategory.id)
+                      const newCats = [...categories]
+                      if (idx >= 0) newCats[idx] = editingCategory
+                      else newCats.push(editingCategory)
+                      onCategoriesChange(newCats)
+                      setEditingCategory(null)
+                    }} 
+                    className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+</div>
   )
 }
 

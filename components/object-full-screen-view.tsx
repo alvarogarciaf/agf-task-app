@@ -75,6 +75,7 @@ export function ObjectFullScreenView({
     canUndo,
     canRedo,
     updateListItems,
+    updateListCategories,
   } = useObjectDraft({
     task,
     projects,
@@ -344,6 +345,8 @@ export function ObjectFullScreenView({
               isListMode={!!draft.is_list}
               listItems={draft.list_items}
               onListItemsChange={updateListItems}
+              listCategories={draft.list_categories}
+              onListCategoriesChange={updateListCategories}
             />
           </div>
         </div>
