@@ -25,6 +25,29 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
   const uid = user?.uid;
   const lastProcessedTaskHash = useRef<Record<string, string>>({});
   const lastProcessedProjectHash = useRef<Record<string, string>>({});
+  
+  useEffect(() => {
+    try {
+      const storedTask = localStorage.getItem('syncHash_tasks');
+      if (storedTask) lastProcessedTaskHash.current = JSON.parse(storedTask);
+      const storedProj = localStorage.getItem('syncHash_projects');
+      if (storedProj) lastProcessedProjectHash.current = JSON.parse(storedProj);
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    const saveHashes = () => {
+      localStorage.setItem('syncHash_tasks', JSON.stringify(lastProcessedTaskHash.current));
+      localStorage.setItem('syncHash_projects', JSON.stringify(lastProcessedProjectHash.current));
+    };
+    window.addEventListener("beforeunload", saveHashes);
+    document.addEventListener("visibilitychange", saveHashes);
+    return () => {
+      saveHashes();
+      window.removeEventListener("beforeunload", saveHashes);
+      document.removeEventListener("visibilitychange", saveHashes);
+    };
+  }, []);
   const notifiedTasksRef = useRef<Set<string>>(new Set());
   const failedTaskQueue = useRef<Set<string>>(new Set());
   const failedProjectQueue = useRef<Set<string>>(new Set());
@@ -42,6 +65,15 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
       processed: task.processed,
       archived: task.archived,
       project_id: task.project_id,
+      list_items: task.list_items,
+      list_categories: task.list_categories,
+      is_list: task.is_list,
+      icon: task.icon,
+      show_on: task.show_on,
+      urgency_id: task.urgency_id,
+      tag_ids: task.tag_ids,
+      context_ids: task.context_ids,
+      updated_at: task.updated_at,
     });
   };
 
@@ -98,6 +130,14 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                 } else {
                   const existingTask = await db.tasks.findOne(msg.task.id).exec();
                   
+                  // Timestamp check: if incoming is strictly older than existing, ignore it
+                  if (existingTask && msg.task.updated_at && existingTask.updated_at) {
+                    if (msg.task.updated_at < existingTask.updated_at) {
+                      console.log(`[Sync] Ignored stale task ${msg.task.id}`);
+                      continue;
+                    }
+                  }
+                  
                   // Track this hash so our outbound listener ignores it
                   const hash = getSharedTaskHash(msg.task);
                   lastProcessedTaskHash.current[msg.task.id] = hash;
@@ -136,6 +176,14 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                       status: msg.task.status ?? existingTask.status ?? "Open",
                       processed: msg.task.processed ?? existingTask.processed ?? false,
                       archived: msg.task.archived ?? existingTask.archived ?? false,
+                      list_items: msg.task.list_items ?? existingTask.list_items ?? null,
+                      list_categories: msg.task.list_categories ?? existingTask.list_categories ?? null,
+                      is_list: msg.task.is_list ?? existingTask.is_list ?? null,
+                      icon: msg.task.icon ?? existingTask.icon ?? null,
+                      urgency_id: msg.task.urgency_id ?? existingTask.urgency_id ?? "u_medium",
+                      tag_ids: msg.task.tag_ids ?? existingTask.tag_ids ?? [],
+                      context_ids: msg.task.context_ids ?? existingTask.context_ids ?? [],
+                      updated_at: msg.task.updated_at ?? existingTask.updated_at ?? Date.now(),
                       person_id: mappedPerson.id, // Ensure it's assigned to the linked person
                       project_id: finalProjId ?? null,
                     });
@@ -150,12 +198,17 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                       date_created: msg.task.date_created!,
                       action_date: msg.task.action_date ?? null,
                       show_on: msg.task.show_on ?? null,
-                      status: (msg.task.status as any) ?? "Open",
+                      status: msg.task.status ?? "Open",
                       processed: msg.task.processed ?? false,
                       archived: msg.task.archived ?? false,
-                      urgency_id: defaultUrgency?.id || "u_medium",
-                      context_ids: [],
-                      tag_ids: [],
+                      list_items: msg.task.list_items ?? null,
+                      list_categories: msg.task.list_categories ?? null,
+                      is_list: msg.task.is_list ?? null,
+                      icon: msg.task.icon ?? null,
+                      urgency_id: msg.task.urgency_id ?? defaultUrgency?.id ?? "u_medium",
+                      tag_ids: msg.task.tag_ids ?? [],
+                      context_ids: msg.task.context_ids ?? [],
+                      updated_at: msg.task.updated_at ?? Date.now(),
                       person_id: mappedPerson.id,
                       project_id: finalProjId ?? null,
                       google_event_id: null,
@@ -341,6 +394,15 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                 processed: taskData.processed ?? false,
                 archived: taskData.archived ?? false,
                 project_id: taskData.project_id ?? null,
+                list_items: taskData.list_items ?? null,
+                list_categories: taskData.list_categories ?? null,
+                is_list: taskData.is_list ?? null,
+                icon: taskData.icon ?? null,
+                show_on: taskData.show_on ?? null,
+                urgency_id: taskData.urgency_id ?? "u_medium",
+                tag_ids: taskData.tag_ids ?? [],
+                context_ids: taskData.context_ids ?? [],
+                updated_at: taskData.updated_at ?? Date.now(),
               },
               timestamp: serverTimestamp(),
             });
@@ -413,22 +475,31 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
           try {
             const msgRef = doc(collection(firestoreDb, `users/${person.linked_uid}/messages`));
             await setDoc(msgRef, {
-              type: "task_upsert",
-              fromUid: uid,
-              task: {
-                id: taskData.id,
-                type: taskData.type ?? "task",
-                description: taskData.description,
-                details: taskData.details ?? null,
-                date_created: taskData.date_created,
-                action_date: taskData.action_date ?? null,
-                status: taskData.status ?? "Open",
-                processed: taskData.processed ?? false,
-                archived: taskData.archived ?? false,
-                project_id: taskData.project_id ?? null,
-              },
-              timestamp: serverTimestamp()
-            });
+                type: "task_upsert",
+                fromUid: uid,
+                task: {
+                  id: taskData.id,
+                  type: taskData.type ?? "task",
+                  description: taskData.description,
+                  details: taskData.details ?? null,
+                  date_created: taskData.date_created,
+                  action_date: taskData.action_date ?? null,
+                  status: taskData.status ?? "Open",
+                  processed: taskData.processed ?? false,
+                  archived: taskData.archived ?? false,
+                  project_id: taskData.project_id ?? null,
+                  list_items: taskData.list_items ?? null,
+                  list_categories: taskData.list_categories ?? null,
+                  is_list: taskData.is_list ?? null,
+                  icon: taskData.icon ?? null,
+                  show_on: taskData.show_on ?? null,
+                  urgency_id: taskData.urgency_id ?? "u_medium",
+                  tag_ids: taskData.tag_ids ?? [],
+                  context_ids: taskData.context_ids ?? [],
+                  updated_at: taskData.updated_at ?? Date.now(),
+                },
+                timestamp: serverTimestamp()
+              });
 
             // Set hash ONLY after successful Firestore write
             lastProcessedTaskHash.current[taskData.id] = newHash;

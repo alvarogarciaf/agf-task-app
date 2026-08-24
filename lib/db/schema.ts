@@ -3,7 +3,7 @@ import type { Task, Project, Person, Context } from '../types';
 
 export const taskSchemaLiteral = {
   title: 'task schema',
-  version: 12,
+  version: 13,
   description: 'describes a task or note (unified object)',
   primaryKey: 'id',
   type: 'object',
@@ -14,6 +14,7 @@ export const taskSchemaLiteral = {
     description: { type: 'string' },
     details: { type: ['string', 'null'] },
     date_created: { type: 'string' },
+    updated_at: { type: ['number', 'null'] },
     show_on: { type: ['string', 'null'] },
     action_date: { type: ['string', 'null'] },
     project_id: { type: ['string', 'null'] },
@@ -92,7 +93,7 @@ export type UrgencyDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof urg
 
 export const projectSchemaLiteral = {
   title: 'project schema',
-  version: 4,
+  version: 5,
   description: 'describes a project',
   primaryKey: 'id',
   type: 'object',
@@ -104,6 +105,7 @@ export const projectSchemaLiteral = {
       type: 'string',
       enum: ['Ongoing', 'Closed'],
     },
+    updated_at: { type: ['number', 'null'] },
     linked_person_id: { type: ['string', 'null'] },
     icon: { type: ['string', 'null'] },
     color: { type: ['string', 'null'] },

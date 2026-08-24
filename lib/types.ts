@@ -34,6 +34,7 @@ export interface AppObject {
   description: string
   details?: string | null
   date_created: string
+  updated_at?: number
   show_on?: string | null
   action_date?: string | null
   project_id?: string | null
@@ -65,6 +66,7 @@ export interface Project {
   name: string
   details?: string | null
   status: ProjectStatus
+  updated_at?: number
   linked_person_id?: string | null
   icon?: string | null
   color?: string | null

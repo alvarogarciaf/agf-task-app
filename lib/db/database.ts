@@ -107,6 +107,11 @@ export const getDatabase = async (userUid: string) => {
           12: (oldDoc: any) => {
             oldDoc.icon = oldDoc.icon ?? null;
             return oldDoc;
+          },
+          // 13: Migrate from version 12 to 13 (add updated_at to task/note)
+          13: (oldDoc: any) => {
+            oldDoc.updated_at = oldDoc.updated_at ?? Date.now();
+            return oldDoc;
           }
         }
       },
@@ -134,6 +139,11 @@ export const getDatabase = async (userUid: string) => {
             oldDoc.order_dependent = oldDoc.order_dependent ?? false;
             oldDoc.order = oldDoc.order ?? 0;
             oldDoc.background_image = oldDoc.background_image ?? null;
+            return oldDoc;
+          },
+          // 5: Migrate from version 4 to 5 (add updated_at)
+          5: (oldDoc: any) => {
+            oldDoc.updated_at = oldDoc.updated_at ?? Date.now();
             return oldDoc;
           }
         }

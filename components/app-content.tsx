@@ -310,6 +310,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       tag_ids: input.tagIds ?? [],
       project_id: input.projectId ?? null,
       person_id: finalPersonId ?? null,
+      updated_at: Date.now(),
       // Notes carry no urgency semantics in the UI but the schema still expects a
       // value, so fall back to the default urgency to keep the insert valid.
       urgency_id: input.urgencyId || defaultUrgency,
@@ -382,6 +383,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       }
 
       if (hasChanges) {
+        patchObj.updated_at = Date.now()
         await doc.incrementalPatch(patchObj)
         undoStackRef.current.push({
           label: "Undo update task",
@@ -482,6 +484,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       name: p.name,
       details: p.details ?? null,
       status: p.status || "Ongoing",
+      updated_at: Date.now(),
       linked_person_id: p.linked_person_id ?? null,
       icon: p.icon ?? null,
       color: p.color ?? null,
@@ -495,12 +498,12 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     const doc = await db.projects.findOne(p.id).exec()
     if (doc) {
       const prevLinkedPersonId = doc.get("linked_person_id")
-      await doc.incrementalPatch(p)
+      await doc.incrementalPatch({ ...p, updated_at: Date.now() })
       
       // Enforce: if project linked to a person, batch update all tasks in this project
       if (p.linked_person_id && p.linked_person_id !== prevLinkedPersonId) {
         const tasksToUpdate = await db.tasks.find({ selector: { project_id: p.id } }).exec()
-        await Promise.all(tasksToUpdate.map(tDoc => tDoc.incrementalPatch({ person_id: p.linked_person_id })))
+        await Promise.all(tasksToUpdate.map(tDoc => tDoc.incrementalPatch({ person_id: p.linked_person_id, updated_at: Date.now() })))
         toast.success(`Synced all tasks in "${p.name}" with shared partner.`)
       }
     }
