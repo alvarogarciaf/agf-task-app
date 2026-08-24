@@ -473,10 +473,7 @@ export function ListEditor({
       if (category && !categories.some((c) => c.name.toLowerCase() === category.toLowerCase())) {
         const newCat: ListCategory = {
           id: nanoid(),
-          name: category,
-          icon: null,
-          color: null,
-          date_created: now
+          name: category
         }
         onCategoriesChange([...categories, newCat])
       }
