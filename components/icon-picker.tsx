@@ -24,6 +24,25 @@ export function IconPicker({
     return ICON_OPTIONS.filter((opt) => opt.name.toLowerCase().includes(lower))
   }, [search])
 
+  const groupedIcons = useMemo(() => {
+    const groups: { category: string; icons: typeof ICON_OPTIONS }[] = []
+    const categoryMap = new Map<string, typeof ICON_OPTIONS>()
+
+    filteredIcons.forEach((opt) => {
+      const cat = opt.category || "General & Symbols"
+      if (!categoryMap.has(cat)) {
+        categoryMap.set(cat, [])
+      }
+      categoryMap.get(cat)!.push(opt)
+    })
+
+    categoryMap.forEach((icons, category) => {
+      groups.push({ category, icons })
+    })
+
+    return groups
+  }, [filteredIcons])
+
   const CurrentIcon = ICON_OPTIONS.find((o) => o.name === value)?.icon || ICON_OPTIONS[0].icon
 
   if (!expanded && !inline) {
@@ -65,33 +84,43 @@ export function IconPicker({
         )}
       </div>
 
-      <div className="grid grid-cols-7 sm:grid-cols-9 gap-1.5 max-h-72 overflow-y-auto rounded-md border border-border bg-background/40 p-2 shadow-inner">
-        {filteredIcons.length === 0 ? (
-          <div className="col-span-full py-4 text-center text-sm text-muted-foreground">
+      <div className="max-h-80 overflow-y-auto rounded-md border border-border bg-background/40 p-2.5 shadow-inner space-y-3">
+        {groupedIcons.length === 0 ? (
+          <div className="py-6 text-center text-sm text-muted-foreground">
             No icons found
           </div>
         ) : (
-          filteredIcons.map((opt) => {
-            const OptIcon = opt.icon
-            const isSelected = value === opt.name
-            return (
-              <button
-                key={opt.name}
-                type="button"
-                onClick={() => onChange(opt.name)}
-                className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-lg border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  isSelected
-                    ? "border-primary bg-primary/15 text-primary shadow-sm scale-110 z-10"
-                    : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground hover:scale-105"
-                )}
-                title={opt.name}
-                aria-label={opt.name}
-              >
-                <OptIcon className="h-5 w-5" />
-              </button>
-            )
-          })
+          groupedIcons.map((group) => (
+            <div key={group.category} className="space-y-1.5">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1 pt-1 flex items-center justify-between">
+                <span>{group.category}</span>
+                <span className="text-[10px] opacity-60 font-mono">{group.icons.length}</span>
+              </div>
+              <div className="grid grid-cols-7 sm:grid-cols-8 gap-1.5">
+                {group.icons.map((opt) => {
+                  const OptIcon = opt.icon
+                  const isSelected = value === opt.name
+                  return (
+                    <button
+                      key={opt.name}
+                      type="button"
+                      onClick={() => onChange(opt.name)}
+                      className={cn(
+                        "flex h-9 w-9 items-center justify-center rounded-lg border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        isSelected
+                          ? "border-primary bg-primary/15 text-primary shadow-sm scale-110 z-10"
+                          : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground hover:scale-105"
+                      )}
+                      title={opt.name}
+                      aria-label={opt.name}
+                    >
+                      <OptIcon className="h-4.5 w-4.5" />
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))
         )}
       </div>
     </div>
