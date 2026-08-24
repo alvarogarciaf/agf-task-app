@@ -498,7 +498,21 @@ function NotificationsPanel({ userUid }: { userUid?: string }) {
       return
     }
     setPermissionStatus(Notification.permission)
-    setIsEnabled(localStorage.getItem("notifications_enabled") === "true")
+    
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready.then(async (registration) => {
+        const sub = await registration.pushManager.getSubscription()
+        if (sub) {
+          setIsEnabled(true)
+          localStorage.setItem("notifications_enabled", "true")
+        } else {
+          setIsEnabled(false)
+          localStorage.setItem("notifications_enabled", "false")
+        }
+      })
+    } else {
+      setIsEnabled(false)
+    }
   }, [])
 
   const handleEnableNotifications = async () => {

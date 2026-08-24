@@ -76,10 +76,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setDoc(ref, { uid: firebaseUser.uid }).catch(err => console.error("Failed to publish to directory", err))
             
             // Dynamically re-bind push subscription to the current user if already subscribed
-            if ("serviceWorker" in navigator && localStorage.getItem("notifications_enabled") === "true") {
+            if ("serviceWorker" in navigator) {
               navigator.serviceWorker.ready.then(async (registration) => {
                 const subscription = await registration.pushManager.getSubscription()
                 if (subscription) {
+                  localStorage.setItem("notifications_enabled", "true")
                   const subJson = subscription.toJSON()
                   const subId = btoa(subJson.endpoint || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 40)
                   setDoc(doc(fsDb, `users/${firebaseUser.uid}/push_subscriptions/${subId}`), {
@@ -87,6 +88,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     createdAt: new Date().toISOString(),
                     userAgent: navigator.userAgent,
                   }).catch(e => console.warn("Failed to auto-bind push sub", e))
+                } else {
+                  localStorage.setItem("notifications_enabled", "false")
                 }
               })
             }
