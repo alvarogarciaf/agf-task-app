@@ -468,6 +468,19 @@ export function ListEditor({
     (description: string, category: string | null = null, details: string | null = null) => {
       if (items.length >= MAX_ITEMS) return
       const now = new Date().toISOString()
+      
+      // Check if category is new and add it to categories list
+      if (category && !categories.some((c) => c.name.toLowerCase() === category.toLowerCase())) {
+        const newCat: ListCategory = {
+          id: nanoid(),
+          name: category,
+          icon: null,
+          color: null,
+          date_created: now
+        }
+        onCategoriesChange([...categories, newCat])
+      }
+
       const newItem: ListItem = {
         id: nanoid(),
         description,
@@ -480,7 +493,7 @@ export function ListEditor({
       onChange([...items, newItem])
       setAddingToCategory(undefined)
     },
-    [items, onChange],
+    [items, onChange, categories, onCategoriesChange],
   )
 
   const openCount = items.filter((i) => i.status === "Open").length
