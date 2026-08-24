@@ -925,6 +925,7 @@ export function ObjectDetailsEditor({
   onListItemsChange,
   listCategories,
   onListCategoriesChange,
+  listId,
 }: {
   value: string
   onChange: (val: string | undefined) => void
@@ -937,11 +938,13 @@ export function ObjectDetailsEditor({
   onListItemsChange?: (items: ListItem[]) => void
   listCategories?: ListCategory[] | null
   onListCategoriesChange?: (categories: ListCategory[]) => void
+  listId?: string
 }) {
   if (isListMode) {
     return (
       <div ref={containerRef} className={cn(fillHeight && "flex min-h-0 flex-1 flex-col", className)}>
         <ListEditor
+          listId={listId}
           items={listItems ?? []}
           onChange={onListItemsChange ?? (() => {})}
           categories={listCategories ?? []}

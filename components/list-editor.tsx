@@ -391,18 +391,33 @@ function ItemModal({
 type StatusFilter = "all" | "open" | "done"
 
 export function ListEditor({
+  listId,
   items,
   onChange,
   categories = [],
   onCategoriesChange = () => {},
 }: {
+  listId?: string
   items: ListItem[]
   onChange: (items: ListItem[]) => void
   categories?: ListCategory[]
   onCategoriesChange?: (cats: ListCategory[]) => void
 }) {
   const [filter, setFilter] = useState<StatusFilter>("open")
-  const [isGrouped, setIsGrouped] = useState(false)
+  const [isGrouped, setIsGrouped] = useState(() => {
+    if (typeof window !== "undefined" && listId) {
+      const stored = localStorage.getItem(`list_grouped_${listId}`)
+      if (stored !== null) return stored === "true"
+    }
+    return false
+  })
+  
+  useEffect(() => {
+    if (listId) {
+      localStorage.setItem(`list_grouped_${listId}`, isGrouped.toString())
+    }
+  }, [isGrouped, listId])
+
   const [showCategoriesModal, setShowCategoriesModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState<ListCategory | null>(null)
   

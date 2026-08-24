@@ -347,6 +347,7 @@ export function ObjectFullScreenView({
               onListItemsChange={updateListItems}
               listCategories={draft.list_categories}
               onListCategoriesChange={updateListCategories}
+              listId={draft.id}
             />
           </div>
         </div>

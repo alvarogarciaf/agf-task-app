@@ -366,6 +366,7 @@ export function TaskDetailDialog({
                   onListItemsChange={updateListItems}
                   listCategories={draft.list_categories}
                   onListCategoriesChange={updateListCategories}
+                  listId={draft.id}
                 />
               </div>
             </div>
