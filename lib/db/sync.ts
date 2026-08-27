@@ -70,7 +70,8 @@ export const setupReplication = (db: RxDatabase, userUid: string) => {
     const firestoreCollection = collection(firestoreDb, 'users', userUid, collectionName);
 
     // Set conflict handler at collection level (this is the correct RxDB API)
-    db[collectionName].conflictHandler = conflictHandler;
+    // Cast required because TS can't narrow our return type through RxDB's discriminated union
+    (db[collectionName] as any).conflictHandler = conflictHandler;
 
     return replicateFirestore({
       replicationIdentifier: `firestore-sync-${userUid}-${collectionName}`,
