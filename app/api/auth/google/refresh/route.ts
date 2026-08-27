@@ -24,15 +24,20 @@ export async function POST(request: Request) {
     const data = await response.json();
     if (!response.ok) {
       console.error("Token refresh failed:", data);
-      return NextResponse.json({ error: data.error_description || "Token refresh failed" }, { status: response.status });
+      const isInvalidGrant = data.error === "invalid_grant" || data.error_description?.toLowerCase().includes("revoked") || data.error_description?.toLowerCase().includes("expired");
+      return NextResponse.json({ 
+        error: data.error_description || data.error || "Token refresh failed",
+        error_code: data.error,
+        is_invalid_grant: isInvalidGrant
+      }, { status: response.status });
     }
 
     return NextResponse.json({
       access_token: data.access_token,
       expires_in: data.expires_in,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Refresh error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }

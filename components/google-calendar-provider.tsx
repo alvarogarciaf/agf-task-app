@@ -66,6 +66,7 @@ export function GoogleCalendarProvider({ children }: { children: ReactNode }) {
   const [isConnecting, setIsConnecting] = useState(false);
   const tokenRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const alertShownRef = useRef(false);
+  const inFlightRefreshPromise = useRef<Promise<string | null> | null>(null);
 
   // ─── Subscribe to Firestore calendar preferences ───────────────────
   useEffect(() => {
@@ -77,6 +78,10 @@ export function GoogleCalendarProvider({ children }: { children: ReactNode }) {
 
     const unsub = onCalendarPreferences(uid, (newPrefs) => {
       setPrefs(newPrefs);
+      // If Firestore contains a refresh token, back it up to localStorage for offline resilience
+      if (newPrefs.refreshToken && typeof window !== "undefined") {
+        localStorage.setItem("gcal_refresh_token", newPrefs.refreshToken);
+      }
     });
 
     return () => unsub();
@@ -93,6 +98,114 @@ export function GoogleCalendarProvider({ children }: { children: ReactNode }) {
     document.head.appendChild(script);
   }, []);
 
+  // ─── Schedule token refresh ~50 min (before Google's 60 min expiry) ─
+  const scheduleRefresh = useCallback((ms: number = 50 * 60 * 1000) => {
+    if (tokenRefreshTimer.current) clearTimeout(tokenRefreshTimer.current);
+
+    tokenRefreshTimer.current = setTimeout(async () => {
+      console.log("[calendar] Scheduled token refresh triggered");
+      await acquireTokenSilently();
+    }, ms);
+  }, []);
+
+  // ─── Silent token acquisition ──────────────────────────────────────
+  const acquireTokenSilently = async (): Promise<string | null> => {
+    // If a refresh is already in flight, reuse the promise to prevent duplicate API requests
+    if (inFlightRefreshPromise.current) {
+      return inFlightRefreshPromise.current;
+    }
+
+    const doRefresh = async (): Promise<string | null> => {
+      const effectiveRefreshToken =
+        prefs.refreshToken ||
+        (typeof window !== "undefined" ? localStorage.getItem("gcal_refresh_token") : null);
+
+      if (!effectiveRefreshToken) {
+        // If prefs aren't marked as connected, don't show any error
+        if (!prefs.connected) return null;
+
+        // If marked connected but no refresh token found anywhere, warn once
+        if (!alertShownRef.current) {
+          console.warn("[calendar] Connected state set but no refresh token available.");
+          toast.error("Google Calendar session expired. Please reconnect in Settings.", {
+            id: "gcal_expired",
+            duration: 8000,
+          });
+          alertShownRef.current = true;
+        }
+        return null;
+      }
+
+      // Check if we are offline
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        console.log("[calendar] Offline, postponing token refresh");
+        // Retry in 15 seconds when device is likely back online
+        scheduleRefresh(15 * 1000);
+        return accessToken;
+      }
+
+      try {
+        const res = await fetch("/api/auth/google/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: effectiveRefreshToken }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          // Check if Google explicitly revoked or expired the grant
+          if (res.status === 400 && (data.is_invalid_grant || data.error_code === "invalid_grant")) {
+            console.warn("[calendar] Refresh token revoked or expired, disconnecting...");
+            await disconnect();
+            if (!alertShownRef.current) {
+              toast.error("Google Calendar connection has expired. Please reconnect.", {
+                id: "gcal_expired",
+                duration: 8000,
+              });
+              alertShownRef.current = true;
+            }
+            return null;
+          }
+
+          // Transient server error (500, 429, 503) — schedule retry without alerting
+          console.warn("[calendar] Transient refresh failure:", data.error || res.statusText);
+          scheduleRefresh(30 * 1000); // Retry in 30s
+          return accessToken;
+        }
+
+        const expiresAt = Date.now() + 50 * 60 * 1000;
+        localStorage.setItem("gcal_access_token", data.access_token);
+        localStorage.setItem("gcal_token_expires_at", expiresAt.toString());
+        if (effectiveRefreshToken) {
+          localStorage.setItem("gcal_refresh_token", effectiveRefreshToken);
+        }
+
+        setAccessToken(data.access_token);
+        alertShownRef.current = false;
+        scheduleRefresh(50 * 60 * 1000);
+
+        // Auto-heal: If Firestore was missing the refresh token, write it back
+        if (uid && !prefs.refreshToken && effectiveRefreshToken) {
+          setCalendarPreferences(uid, { refreshToken: effectiveRefreshToken }).catch(() => {});
+        }
+
+        return data.access_token;
+      } catch (e: any) {
+        console.warn("[calendar] Silent token refresh network/fetch error (will retry):", e);
+        // Do NOT wipe tokens on transient network errors; retry when network recovers
+        scheduleRefresh(15 * 1000);
+        return accessToken;
+      }
+    };
+
+    inFlightRefreshPromise.current = doRefresh().finally(() => {
+      inFlightRefreshPromise.current = null;
+    });
+
+    return inFlightRefreshPromise.current;
+  };
+
   // ─── Auto-acquire token when prefs say "connected" ─────────────────
   useEffect(() => {
     if (!prefs.connected || isConnecting || !uid) return;
@@ -100,78 +213,34 @@ export function GoogleCalendarProvider({ children }: { children: ReactNode }) {
     if (!accessToken) {
       acquireTokenSilently();
     } else {
-      // If we have a token loaded from localStorage, ensure refresh timer is scheduled
       scheduleRefresh();
     }
-  }, [prefs.connected, accessToken, uid, isConnecting]);
+  }, [prefs.connected, isConnecting, uid]);
 
-  // ─── Schedule token refresh ~50 min (before Google's 60 min expiry) ─
-  const scheduleRefresh = useCallback(() => {
-    if (tokenRefreshTimer.current) clearTimeout(tokenRefreshTimer.current);
-
-    tokenRefreshTimer.current = setTimeout(async () => {
-      console.log("[calendar] Token refresh triggered");
-      await acquireTokenSilently();
-    }, 50 * 60 * 1000); // 50 minutes
-  }, []);
-
-  // Cleanup timer
+  // ─── Network reconnection & visibility listeners ───────────────────
   useEffect(() => {
+    const handleOnlineOrVisible = () => {
+      if (!prefs.connected || !uid) return;
+      const expiresAt = localStorage.getItem("gcal_token_expires_at");
+      const isExpired = !expiresAt || parseInt(expiresAt, 10) <= Date.now() + 5 * 60 * 1000;
+      if (!accessToken || isExpired) {
+        console.log("[calendar] App resumed / online - refreshing token");
+        acquireTokenSilently();
+      }
+    };
+
+    window.addEventListener("online", handleOnlineOrVisible);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        handleOnlineOrVisible();
+      }
+    });
+
     return () => {
+      window.removeEventListener("online", handleOnlineOrVisible);
       if (tokenRefreshTimer.current) clearTimeout(tokenRefreshTimer.current);
     };
-  }, []);
-
-  // ─── Silent token acquisition ──────────────────────────────────────
-  const acquireTokenSilently = async (): Promise<string | null> => {
-    if (!prefs.refreshToken) {
-      setAccessToken(null);
-      localStorage.removeItem("gcal_access_token");
-      localStorage.removeItem("gcal_token_expires_at");
-      if (!alertShownRef.current) {
-        toast.error("Google Calendar session expired. Please go to Settings to reconnect.", { id: "gcal_expired", duration: 8000 });
-        alertShownRef.current = true;
-      }
-      return null;
-    }
-
-    try {
-      const res = await fetch("/api/auth/google/refresh", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: prefs.refreshToken }),
-      });
-      
-      if (!res.ok) {
-        if (res.status === 400) {
-          console.warn("[calendar] Stale or revoked refresh token (400), auto-disconnecting...");
-          await disconnect();
-          toast.error("Google Calendar connection has been revoked or expired. Please reconnect.", { id: "gcal_expired", duration: 8000 });
-          alertShownRef.current = true;
-          return null;
-        }
-        throw new Error("Refresh failed");
-      }
-      
-      const data = await res.json();
-
-      const expiresAt = Date.now() + 50 * 60 * 1000;
-      localStorage.setItem("gcal_access_token", data.access_token);
-      localStorage.setItem("gcal_token_expires_at", expiresAt.toString());
-      setAccessToken(data.access_token);
-      alertShownRef.current = false;
-      scheduleRefresh();
-      return data.access_token;
-    } catch (e) {
-      console.error("[calendar] Silent token refresh failed:", e);
-      setAccessToken(null);
-      if (!alertShownRef.current) {
-        toast.error("Failed to refresh Google Calendar connection. Please reconnect.", { id: "gcal_expired", duration: 8000 });
-        alertShownRef.current = true;
-      }
-      return null;
-    }
-  };
+  }, [prefs.connected, uid, accessToken]);
 
   // ─── Manual connect (the "Connect Google Calendar" button) ─────────
   const connect = async () => {
@@ -212,14 +281,19 @@ export function GoogleCalendarProvider({ children }: { children: ReactNode }) {
       const expiresAt = Date.now() + 50 * 60 * 1000;
       localStorage.setItem("gcal_access_token", data.access_token);
       localStorage.setItem("gcal_token_expires_at", expiresAt.toString());
+      if (data.refresh_token) {
+        localStorage.setItem("gcal_refresh_token", data.refresh_token);
+      }
       setAccessToken(data.access_token);
       alertShownRef.current = false;
       scheduleRefresh();
 
+      const effectiveRefreshToken = data.refresh_token || prefs.refreshToken || localStorage.getItem("gcal_refresh_token");
+
       await setCalendarPreferences(uid, {
         connected: true,
         connectedAt: new Date().toISOString(),
-        refreshToken: data.refresh_token || prefs.refreshToken, // Google might not send refresh token if already granted
+        refreshToken: effectiveRefreshToken,
       });
       toast.success("Calendar connected permanently!");
     } catch (error) {
@@ -238,6 +312,7 @@ export function GoogleCalendarProvider({ children }: { children: ReactNode }) {
     setAccessToken(null);
     localStorage.removeItem("gcal_access_token");
     localStorage.removeItem("gcal_token_expires_at");
+    localStorage.removeItem("gcal_refresh_token");
     alertShownRef.current = false;
     
     if (tokenRefreshTimer.current) clearTimeout(tokenRefreshTimer.current);
