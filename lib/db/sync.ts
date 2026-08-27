@@ -34,6 +34,7 @@ export const setupReplication = (db: RxDatabase, userUid: string) => {
 
   /**
    * Custom conflict handler applied to every replicated collection.
+   * Uses the RxDB v17 object-shaped API: { isEqual(), resolve() }.
    *
    * Without this, RxDB's default resolver lets the remote (non-deleted)
    * Firestore document win when the live onSnapshot pull fires before the
@@ -45,24 +46,38 @@ export const setupReplication = (db: RxDatabase, userUid: string) => {
    *   2. Both alive: last-write-wins via updated_at timestamp.
    *   3. Fallback: local state wins.
    */
-  const conflictHandler = async (input: any, _context: string) => {
-    const local = input.newDocumentState;
-    const remote = input.realMasterState;
+  const conflictHandler = {
+    /**
+     * Called by RxDB upstream to quickly check if two document states are
+     * already equal, so it can skip an unnecessary push. Must be synchronous.
+     */
+    isEqual(a: any, b: any, _context: string): boolean {
+      return a._deleted === b._deleted && a.updated_at === b.updated_at;
+    },
 
-    // Rule 1: if we deleted locally, keep it deleted regardless of Firestore state
-    if (local._deleted) {
-      return { isEqual: false, documentData: local };
-    }
+    /**
+     * Called when a real conflict is detected. Returns the winning document
+     * data directly (not wrapped — RxDB v17 changed the return shape).
+     */
+    async resolve(input: any, _context: string): Promise<any> {
+      const local = input.newDocumentState;
+      const remote = input.realMasterState;
 
-    // Rule 2: both alive — last-write-wins via updated_at
-    const localTime: number = local.updated_at ?? 0;
-    const remoteTime: number = remote?.updated_at ?? 0;
-    if (remoteTime > localTime) {
-      return { isEqual: false, documentData: remote };
-    }
+      // Rule 1: if we deleted locally, keep it deleted regardless of Firestore state
+      if (local._deleted) {
+        return local;
+      }
 
-    // Rule 3: local wins as safe default
-    return { isEqual: false, documentData: local };
+      // Rule 2: both alive — last-write-wins via updated_at
+      const localTime: number = local.updated_at ?? 0;
+      const remoteTime: number = remote?.updated_at ?? 0;
+      if (remoteTime > localTime) {
+        return remote;
+      }
+
+      // Rule 3: local wins as safe default
+      return local;
+    },
   };
 
   return syncCollections.map((collectionName) => {
