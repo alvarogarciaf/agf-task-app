@@ -52,6 +52,8 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
   const failedTaskQueue = useRef<Set<string>>(new Set());
   const failedProjectQueue = useRef<Set<string>>(new Set());
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Track task IDs we deleted locally; ignore any upsert bounce-back for them for 30s
+  const recentlyDeletedTaskIds = useRef<Map<string, number>>(new Map());
 
   // Function to hash the shared portion of a task
   const getSharedTaskHash = (task: Partial<Task>) => {
@@ -130,7 +132,18 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                 } else {
                   const existingTask = await db.tasks.findOne(msg.task.id).exec();
                   
-                  // Timestamp check: if incoming is strictly older than existing, ignore it
+                  // Ignore upserts for tasks we recently deleted locally (bounce-back protection)
+                  const _deletedAt = recentlyDeletedTaskIds.current.get(msg.task.id);
+                  if (_deletedAt) {
+                    if (Date.now() - _deletedAt < 30_000) {
+                      console.log(`[Sync] Ignored bounce-back upsert for recently deleted task ${msg.task.id}`);
+                      continue;
+                    } else {
+                      recentlyDeletedTaskIds.current.delete(msg.task.id);
+                    }
+                  }
+
+                 // Timestamp check: if incoming is strictly older than existing, ignore it
                   if (existingTask && msg.task.updated_at && existingTask.updated_at) {
                     if (msg.task.updated_at < existingTask.updated_at) {
                       console.log(`[Sync] Ignored stale task ${msg.task.id}`);
@@ -437,6 +450,8 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
 
           if (isDeleted) {
             notifiedTasksRef.current.delete(taskData.id);
+            // Mark as recently deleted to block any bounce-back upserts from the partner
+            recentlyDeletedTaskIds.current.set(taskData.id, Date.now());
             if (lastProcessedTaskHash.current[taskData.id] === "deleted") {
               delete lastProcessedTaskHash.current[taskData.id];
               return;
