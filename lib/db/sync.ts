@@ -51,6 +51,38 @@ export const setupReplication = (db: RxDatabase, userUid: string) => {
         modifier: (doc: any) => cleanUndefinedValues(doc),
       },
       live: true,
+      /**
+       * Custom conflict handler to fix the delete-reappears race condition.
+       *
+       * Without this, RxDB's default resolver lets the remote (non-deleted)
+       * Firestore document win when the live onSnapshot pull fires before the
+       * local delete push has landed in Firestore. The result is that a deleted
+       * task gets re-inserted locally within ~100-300ms.
+       *
+       * Rules:
+       *   1. Local delete always wins — core fix for the race condition.
+       *   2. Both alive: last-write-wins via updated_at timestamp.
+       *   3. Fallback: local state wins.
+       */
+      conflictHandler: async (input: any, _context: string) => {
+        const local = input.newDocumentState;
+        const remote = input.realMasterState;
+
+        // Rule 1: if we deleted locally, keep it deleted regardless of Firestore state
+        if (local._deleted) {
+          return { isEqual: false, documentData: local };
+        }
+
+        // Rule 2: both alive — last-write-wins via updated_at
+        const localTime: number = local.updated_at ?? 0;
+        const remoteTime: number = remote?.updated_at ?? 0;
+        if (remoteTime > localTime) {
+          return { isEqual: false, documentData: remote };
+        }
+
+        // Rule 3: local wins as safe default
+        return { isEqual: false, documentData: local };
+      },
     });
   });
 };
