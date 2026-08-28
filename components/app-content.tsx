@@ -697,7 +697,16 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     if (finalUiPatch.initialProjectId) {
       lastOpenProjectIdRef.current = finalUiPatch.initialProjectId
     } else if (finalView === "projects" && !("initialProjectId" in (uiPatch || {}))) {
-      if (lastOpenProjectIdRef.current && projects.some(p => p.id === lastOpenProjectIdRef.current)) {
+      // If we are ALREADY in the projects view and currently viewing a specific project,
+      // clicking the Projects navbar button again returns to the general projects page showing all projects.
+      const isAlreadyInSpecificProject = isMobile
+        ? (activeView === "projects" && !!initialProjectId)
+        : (activeTab.route.kind === "view" && activeTab.route.view === "projects" && (!!activeTab.ui.initialProjectId || !!activeTab.ui.objectId));
+
+      if (isAlreadyInSpecificProject) {
+        lastOpenProjectIdRef.current = undefined
+        finalUiPatch = { ...finalUiPatch, initialProjectId: undefined }
+      } else if (lastOpenProjectIdRef.current && projects.some(p => p.id === lastOpenProjectIdRef.current)) {
         finalUiPatch = { ...finalUiPatch, initialProjectId: lastOpenProjectIdRef.current }
       }
     }
@@ -824,7 +833,17 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       if (finalUiPatch.initialProjectId) {
         lastOpenProjectIdRef.current = finalUiPatch.initialProjectId
       } else if (finalView === "projects" && !("initialProjectId" in (uiPatch || {}))) {
-        if (lastOpenProjectIdRef.current && projects.some(p => p.id === lastOpenProjectIdRef.current)) {
+        // If we are ALREADY in the projects view and currently viewing a specific project,
+        // clicking the Projects navbar button again returns to the general projects page showing all projects.
+        const isAlreadyInSpecificProject = 
+          activeTab.route.kind === "view" && 
+          activeTab.route.view === "projects" && 
+          (!!activeTab.ui.initialProjectId || !!activeTab.ui.objectId);
+
+        if (isAlreadyInSpecificProject) {
+          lastOpenProjectIdRef.current = undefined
+          finalUiPatch = { ...finalUiPatch, initialProjectId: undefined }
+        } else if (lastOpenProjectIdRef.current && projects.some(p => p.id === lastOpenProjectIdRef.current)) {
           finalUiPatch = { ...finalUiPatch, initialProjectId: lastOpenProjectIdRef.current }
         }
       }
@@ -837,7 +856,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         settingsTab,
       })
     },
-    [activeTabId, navigateTab, projects],
+    [activeTabId, navigateTab, projects, activeTab],
   )
 
   const updateTabUi = useCallback((tabId: string, patch: Partial<TabUiState>) => {
@@ -1819,11 +1838,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                     </div>
                     <NotesMobileNav
                       active={mobileSelectorType || (initialTagId ? "tags" : initialProjectId ? "projects" : activeView === "bookmarks" ? "bookmarks" : activeView === "projects" ? "projects" : "notes")}
-                      onChange={(k) => { 
-                        setInitialTagId(undefined); 
-                        setInitialProjectId(undefined); 
-                        handleNavigate(k);
-                      }}
+                      onChange={handleNavigate}
                       onOpenSelector={(type) => setMobileSelectorType((prev) => (prev === type ? null : type))}
                     />
                   </div>
