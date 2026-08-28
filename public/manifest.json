@@ -2,8 +2,16 @@
   "name": "TASKER AGF",
   "short_name": "TASKER AGF",
   "description": "Zero-latency, offline-first task manager",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "launch_handler": {
+    "client_mode": ["focus-existing", "auto"]
+  },
+  "handle_links": "preferred",
+  "capture_links": "existing-client-navigate",
   "background_color": "#020817",
   "theme_color": "#020817",
   "orientation": "any",

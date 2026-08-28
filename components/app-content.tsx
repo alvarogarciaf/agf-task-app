@@ -1567,6 +1567,33 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }
   }, [openObjectById])
 
+  // Support W3C Web App Launch Handler API (e.g. Chrome / Edge / Android PWA link capture)
+  useEffect(() => {
+    if (typeof window === "undefined" || !("launchQueue" in window)) return
+
+    try {
+      // @ts-ignore
+      window.launchQueue.setConsumer((launchParams: any) => {
+        if (!launchParams?.targetURL) return
+        try {
+          const url = new URL(launchParams.targetURL)
+          const objId = url.searchParams.get("objectId")
+          if (objId) {
+            openObjectById(objId).then((opened) => {
+              if (!opened) {
+                pendingOpenObjectIdRef.current = objId
+              }
+            })
+          }
+        } catch (err) {
+          console.warn("[PWA] Error parsing targetURL from launchQueue:", err)
+        }
+      })
+    } catch (e) {
+      console.warn("[PWA] LaunchQueue registration error:", e)
+    }
+  }, [openObjectById])
+
   const routeLabel = useCallback(
     (route: TabRoute, task?: Task | null): string => {
       if (route.kind !== "view") return "previous"
