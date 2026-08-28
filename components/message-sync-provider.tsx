@@ -563,6 +563,9 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                       subscriptions,
                       title: `New ${itemType} added by ${senderName}`,
                       body: taskData.description || "",
+                      taskId: taskData.id,
+                      itemType,
+                      url: `/?objectId=${taskData.id}`,
                     }),
                   }).catch((e) => console.warn("[Sync] Push notification failed:", e));
                 }

@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   try {
     ensureVapidDetails();
     const body = await request.json();
-    const { subscriptions, title, body: notifBody } = body;
+    const { subscriptions, title, body: notifBody, taskId, itemType, url } = body;
 
     if (!subscriptions || !Array.isArray(subscriptions) || subscriptions.length === 0) {
       return NextResponse.json({ error: "No subscriptions provided" }, { status: 400 });
@@ -36,10 +36,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
     }
 
+    const targetUrl = url || (taskId ? `/?objectId=${taskId}` : "/");
+
     const payload = JSON.stringify({
       title,
       body: notifBody || "",
-      url: "/",
+      url: targetUrl,
+      taskId: taskId || null,
+      itemType: itemType || "task",
     });
 
     // Send push to all subscriptions concurrently

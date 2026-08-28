@@ -1,4 +1,4 @@
-const CACHE_NAME = "tasker-agf-v1787867458713";
+const CACHE_NAME = "tasker-agf-v1787881258255";
 const IMAGE_CACHE_NAME = "tasker-images-v1";
 const PRECACHE_URLS = ["/", "/manifest.json", "/logo.svg", "/placeholder.jpg"];
 
@@ -57,10 +57,15 @@ self.addEventListener("push", (event) => {
   }
 
   const title = payload.title || "Task App";
+  const urlToOpen = payload.url || (payload.taskId ? `/?objectId=${payload.taskId}` : "/");
   const options = {
     body: payload.body || "",
+    icon: "/logo.svg",
+    badge: "/logo.svg",
     data: {
-      url: payload.url || "/",
+      url: urlToOpen,
+      taskId: payload.taskId,
+      itemType: payload.itemType,
     },
   };
 
@@ -71,16 +76,20 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
   const urlToOpen = event.notification.data?.url || "/";
+  const taskId = event.notification.data?.taskId;
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      // If a window is already open, focus it
+      // If a window is already open, focus it and notify it to open the task/note
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && "focus" in client) {
+          if (taskId) {
+            client.postMessage({ type: "OPEN_OBJECT", objectId: taskId, url: urlToOpen });
+          }
           return client.focus();
         }
       }
-      // Otherwise open a new window
+      // Otherwise open a new window with the direct object URL
       return self.clients.openWindow(urlToOpen);
     })
   );

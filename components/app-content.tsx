@@ -37,6 +37,7 @@ import { createGoogleEvent, updateGoogleEvent, deleteGoogleEvent } from "@/lib/g
 import { useTodaySectionFilter, isTaskForTodaySection } from "@/lib/today-filter"
 import { useGoogleCalendar } from "@/components/google-calendar-provider"
 import { SaveViewDialog } from "./save-view-dialog"
+import { TaskDetailDialog } from "@/components/task-detail-dialog"
 import { usePreloadProjectImages } from "@/lib/image-cache"
 
 const CACHE_PREFIX = "tasker_cache_"
@@ -1470,6 +1471,83 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     [activeTasks, notes, inboxTasks],
   )
 
+  const [directOpenTask, setDirectOpenTask] = useState<Task | null>(null)
+  const pendingOpenObjectIdRef = useRef<string | null>(null)
+
+  const openObjectById = useCallback(
+    async (objectId: string) => {
+      let task = findObjectById(objectId)
+      if (!task && db) {
+        try {
+          const doc = await db.tasks.findOne(objectId).exec()
+          if (doc) task = doc.toJSON() as Task
+        } catch (e) {}
+      }
+      if (task) {
+        if (isMobile) {
+          if (task.type === "note") {
+            setMobileSection("notes")
+            emblaApi?.scrollTo(1)
+          } else {
+            setMobileSection("tasks")
+            emblaApi?.scrollTo(0)
+          }
+          setDirectOpenTask(task)
+        } else {
+          updateTabUi(activeTabIdRef.current, { objectId: task.id, objectMode: "edit" })
+        }
+        return true
+      }
+      return false
+    },
+    [findObjectById, db, isMobile, emblaApi, updateTabUi],
+  )
+
+  // Check URL on mount for ?objectId=... (e.g. opened from notification)
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const params = new URLSearchParams(window.location.search)
+    const objId = params.get("objectId")
+    if (objId) {
+      pendingOpenObjectIdRef.current = objId
+      openObjectById(objId).then((opened) => {
+        if (opened) pendingOpenObjectIdRef.current = null
+      })
+    }
+  }, [openObjectById])
+
+  // When tasks update via RxDB replication, check if there's a pending object to open
+  useEffect(() => {
+    if (pendingOpenObjectIdRef.current) {
+      openObjectById(pendingOpenObjectIdRef.current).then((opened) => {
+        if (opened) {
+          pendingOpenObjectIdRef.current = null
+        }
+      })
+    }
+  }, [activeTasks, notes, inboxTasks, openObjectById])
+
+  // Listen for Service Worker notification click events while app is already open
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return
+
+    const handleSwMessage = (event: MessageEvent) => {
+      if (event.data?.type === "OPEN_OBJECT" && event.data?.objectId) {
+        const objId = event.data.objectId
+        openObjectById(objId).then((opened) => {
+          if (!opened) {
+            pendingOpenObjectIdRef.current = objId
+          }
+        })
+      }
+    }
+
+    navigator.serviceWorker.addEventListener("message", handleSwMessage)
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handleSwMessage)
+    }
+  }, [openObjectById])
+
   const routeLabel = useCallback(
     (route: TabRoute, task?: Task | null): string => {
       if (route.kind !== "view") return "previous"
@@ -1899,6 +1977,29 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             setEditingProject(null)
           }}
           persons={persons}
+        />
+      )}
+      {directOpenTask && (
+        <TaskDetailDialog
+          task={directOpenTask}
+          open={directOpenTask !== null}
+          onOpenChange={(open) => {
+            if (!open) setDirectOpenTask(null)
+          }}
+          projects={projects}
+          persons={persons}
+          contexts={contexts}
+          tags={tags}
+          urgencies={urgencies}
+          onUpdate={(updatedTask) => {
+            handleUpdateTask(updatedTask)
+            setDirectOpenTask(updatedTask)
+          }}
+          onDelete={(id) => {
+            handleDeleteTask(id)
+            setDirectOpenTask(null)
+          }}
+          mode="edit"
         />
       )}
     </div>
