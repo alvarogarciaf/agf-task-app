@@ -547,49 +547,101 @@ export function ListEditor({
 
   const atLimit = items.length >= MAX_ITEMS
 
+  const [showGroupInMenu, setShowGroupInMenu] = useState(() => {
+    if (typeof window !== "undefined") return window.innerWidth < 480
+    return false
+  })
+  const barContainerRef = useRef<HTMLDivElement>(null)
+  const filtersRef = useRef<HTMLDivElement>(null)
+  const rightControlsRef = useRef<HTMLDivElement>(null)
+  const groupMeasureRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    const container = barContainerRef.current
+    if (!container) return
+
+    const checkFit = () => {
+      const containerWidth = container.clientWidth
+      if (!containerWidth) return
+
+      const filtersWidth = filtersRef.current?.offsetWidth || 0
+      const rightWidth = rightControlsRef.current?.offsetWidth || 0
+      const groupWidth = groupMeasureRef.current?.offsetWidth || 155
+      // 12px for spacing between groups + 16px comfortable padding buffer
+      const totalNeeded = filtersWidth + groupWidth + rightWidth + 28
+
+      setShowGroupInMenu(containerWidth < totalNeeded)
+    }
+
+    checkFit()
+
+    const observer = new ResizeObserver(checkFit)
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [items.length])
+
   return (
     <div className="flex flex-col gap-3 relative pb-20">
+      {/* Invisible measurement element to calculate natural button width */}
+      <button
+        ref={groupMeasureRef}
+        type="button"
+        aria-hidden="true"
+        tabIndex={-1}
+        className="pointer-events-none invisible absolute -left-[9999px] -top-[9999px] flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold"
+      >
+        <Columns3 className="h-3.5 w-3.5" />
+        <span>Group by category</span>
+      </button>
+
       {/* Filter bar */}
-      <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar pb-1 -mb-1">
-        {(["all", "open", "done"] as StatusFilter[]).map((f) => {
-          const active = filter === f
-          return (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
-              className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
-                active
-                  ? "bg-primary/15 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </button>
-          )
-        })}
-        
-        <div className="w-px h-4 bg-border mx-1 shrink-0" />
+      <div
+        ref={barContainerRef}
+        className="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar pb-1 -mb-1"
+      >
+        <div ref={filtersRef} className="flex items-center gap-1.5 shrink-0">
+          {(["all", "open", "done"] as StatusFilter[]).map((f) => {
+            const active = filter === f
+            return (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
+                  active
+                    ? "bg-primary/15 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
+            )
+          })}
+          
+          <div className="w-px h-4 bg-border mx-1 shrink-0" />
+        </div>
 
-        <button
-          type="button"
-          onClick={() => setIsGrouped(!isGrouped)}
-          title="Group by category"
-          className={cn(
-            "flex shrink-0 items-center gap-1.5 rounded-full px-2 sm:px-3 py-1.5 text-xs font-semibold transition-colors",
-            isGrouped
-              ? "bg-primary/15 text-primary"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground",
-          )}
-        >
-          <Columns3 className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Group by category</span>
-        </button>
+        {!showGroupInMenu && (
+          <button
+            type="button"
+            onClick={() => setIsGrouped(!isGrouped)}
+            title="Group by category"
+            className={cn(
+              "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
+              isGrouped
+                ? "bg-primary/15 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <Columns3 className="h-3.5 w-3.5" />
+            <span>Group by category</span>
+          </button>
+        )}
 
-        <div className="ml-auto flex items-center gap-2">
+        <div ref={rightControlsRef} className="ml-auto flex items-center gap-2 shrink-0">
           {atLimit && (
-            <span className="text-xs text-amber-500 font-medium">
+            <span className="text-xs text-amber-500 font-medium whitespace-nowrap">
               {MAX_ITEMS} item limit
             </span>
           )}
@@ -597,12 +649,26 @@ export function ListEditor({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="More list options"
+                className={cn(
+                  "flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  showGroupInMenu && isGrouped && "text-primary bg-primary/15 hover:bg-primary/25",
+                )}
               >
                 <MoreVertical className="h-3.5 w-3.5" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-52">
+              {showGroupInMenu && (
+                <>
+                  <DropdownMenuItem onClick={() => setIsGrouped(!isGrouped)}>
+                    <Columns3 className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <span className="flex-1">Group by category</span>
+                    {isGrouped && <Check className="ml-auto h-4 w-4 text-primary" />}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem onClick={() => setShowCategoriesModal(true)}>
                 <Settings2 className="mr-2 h-4 w-4 text-muted-foreground" />
                 Categories
