@@ -211,10 +211,14 @@ export function MobileSelector({
   return (
     <>
       <div 
-        className="fixed inset-0 bottom-[72px] z-[40] bg-black/50 animate-in fade-in duration-200"
+        style={{ bottom: "var(--bottom-nav-height, 72px)" }}
+        className="fixed inset-0 z-[40] bg-black/50 animate-in fade-in duration-200"
         onClick={onClose}
       />
-      <div className="fixed inset-x-0 bottom-[72px] top-0 z-[40] overflow-hidden pointer-events-none">
+      <div 
+        style={{ bottom: "var(--bottom-nav-height, 72px)" }}
+        className="fixed inset-x-0 top-0 z-[40] overflow-hidden pointer-events-none"
+      >
         <div className="absolute bottom-0 left-0 right-0 max-h-[85vh] bg-background flex flex-col rounded-t-xl border-t border-border animate-in slide-in-from-bottom duration-200 shadow-2xl pointer-events-auto">
           <header className="flex h-[60px] shrink-0 items-center justify-between border-b border-border px-4 pt-4 rounded-t-xl bg-background">
             <h2 className="text-[17px] font-semibold">{getTitle()}</h2>

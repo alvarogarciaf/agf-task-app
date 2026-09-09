@@ -66,7 +66,7 @@ export function TasksMobileNav({
 
   return (
     <nav className={cn(
-      "md:hidden absolute bottom-0 w-full z-10 flex h-[72px] items-center justify-around border-t border-border bg-background/90 backdrop-blur pb-safe px-2 transition-transform duration-200",
+      "md:hidden absolute bottom-0 w-full z-10 flex bottom-nav-safe items-center justify-around border-t border-border bg-background/95 backdrop-blur-md px-1 pt-1 transition-transform duration-200",
       isKeyboardOpen ? "translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
     )}>
       {items.map((item) => {
@@ -76,6 +76,7 @@ export function TasksMobileNav({
         return (
           <button
             key={item.key}
+            type="button"
             onClick={() => {
               if (item.isSelector) {
                 onOpenSelector(item.key as "contexts" | "projects" | "views")
@@ -84,19 +85,19 @@ export function TasksMobileNav({
               }
             }}
             className={cn(
-              "relative flex flex-col items-center justify-center w-full h-full gap-1 text-[11px] font-medium transition-colors min-w-0",
-              isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              "relative flex flex-col items-center justify-center flex-1 h-full py-0.5 gap-0.5 text-[10px] sm:text-[11px] font-medium tracking-tight transition-colors min-w-0 select-none active:scale-95",
+              isActive ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <div className="relative">
-              <Icon className="h-6 w-6" />
+            <div className="relative flex items-center justify-center h-5 w-5 shrink-0">
+              <Icon className="h-5 w-5 shrink-0" />
               {item.badge !== undefined && item.badge > 0 && (
-                <span className="absolute -top-1.5 -right-2.5 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                  {item.badge}
+                <span className="absolute -top-1.5 -right-2.5 flex min-w-[15px] h-[15px] px-1 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground leading-none shadow-sm pointer-events-none">
+                  {item.badge > 99 ? "99+" : item.badge}
                 </span>
               )}
             </div>
-            <span className="truncate max-w-full px-0.5">{item.label}</span>
+            <span className="truncate max-w-full text-center leading-tight px-0.5">{item.label}</span>
           </button>
         )
       })}
@@ -126,7 +127,7 @@ export function NotesMobileNav({
 
   return (
     <nav className={cn(
-      "md:hidden absolute bottom-0 w-full z-10 flex h-[72px] items-center justify-around border-t border-border bg-background/90 backdrop-blur pb-safe px-2 transition-transform duration-200",
+      "md:hidden absolute bottom-0 w-full z-10 flex bottom-nav-safe items-center justify-around border-t border-border bg-background/95 backdrop-blur-md px-1 pt-1 transition-transform duration-200",
       isKeyboardOpen ? "translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
     )}>
       {items.map((item) => {
@@ -136,6 +137,7 @@ export function NotesMobileNav({
         return (
           <button
             key={item.key}
+            type="button"
             onClick={() => {
               if (item.isSelector) {
                 onOpenSelector(item.key as "tags" | "projects")
@@ -144,14 +146,14 @@ export function NotesMobileNav({
               }
             }}
             className={cn(
-              "relative flex flex-col items-center justify-center w-full h-full gap-1 text-[11px] font-medium transition-colors min-w-0",
-              isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              "relative flex flex-col items-center justify-center flex-1 h-full py-0.5 gap-0.5 text-[10px] sm:text-[11px] font-medium tracking-tight transition-colors min-w-0 select-none active:scale-95",
+              isActive ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <div className="relative">
-              <Icon className="h-6 w-6" />
+            <div className="relative flex items-center justify-center h-5 w-5 shrink-0">
+              <Icon className="h-5 w-5 shrink-0" />
             </div>
-            <span className="truncate max-w-full px-0.5">{item.label}</span>
+            <span className="truncate max-w-full text-center leading-tight px-0.5">{item.label}</span>
           </button>
         )
       })}

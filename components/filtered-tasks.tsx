@@ -1164,7 +1164,10 @@ export function FilteredTasks({
       </div>
 
       {/* Mobile Actions Overlay */}
-      <div className="fixed bottom-[88px] right-4 z-50 flex flex-col items-end gap-3 md:hidden">
+      <div 
+        style={{ bottom: "calc(var(--bottom-nav-height, 72px) + 16px)" }}
+        className="fixed right-4 z-50 flex flex-col items-end gap-3 md:hidden"
+      >
         {onCreate && (
           <button
             type="button"

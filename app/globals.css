@@ -7,6 +7,9 @@
    Palette: deep blue-black background, white foreground,
    modern blue primary, neutral grays, single amber accent. */
 :root {
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
+  --bottom-nav-height: calc(52px + var(--safe-bottom));
+
   --background: oklch(0.145 0.012 260);
   --foreground: oklch(0.985 0 0);
 
@@ -168,6 +171,10 @@
 }
 .pt-safe {
   padding-top: env(safe-area-inset-top, 0px);
+}
+.bottom-nav-safe {
+  padding-bottom: var(--safe-bottom);
+  height: var(--bottom-nav-height);
 }
 
 /* Hide scrollbar but keep scrollability (used for horizontal tab strips) */

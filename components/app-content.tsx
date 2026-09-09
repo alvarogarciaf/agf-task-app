@@ -1832,7 +1832,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                 </div>
               )}
               {/* Mobile Floating Search Button */}
-              <div className="fixed bottom-[148px] right-4 z-50 flex flex-col items-end gap-3 md:hidden">
+              <div 
+                style={{ bottom: "calc(var(--bottom-nav-height, 72px) + 76px)" }}
+                className="fixed right-4 z-50 flex flex-col items-end gap-3 md:hidden"
+              >
                 <button
                   type="button"
                   onClick={() => window.dispatchEvent(new CustomEvent("open-search"))}
