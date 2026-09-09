@@ -13,6 +13,7 @@ export interface ListItem {
   status: "Open" | "Done"
   order: number
   date_created: string
+  category_id?: string | null
   category?: string | null
   details?: string | null
 }

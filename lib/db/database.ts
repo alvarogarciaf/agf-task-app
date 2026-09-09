@@ -112,6 +112,36 @@ export const getDatabase = async (userUid: string) => {
           13: (oldDoc: any) => {
             oldDoc.updated_at = oldDoc.updated_at ?? Date.now();
             return oldDoc;
+          },
+          // 14: Migrate from version 13 to 14 (add category_id to list_items and backfill from category)
+          14: (oldDoc: any) => {
+            if (Array.isArray(oldDoc.list_items)) {
+              const categories = Array.isArray(oldDoc.list_categories) ? [...oldDoc.list_categories] : [];
+              let catsModified = false;
+              oldDoc.list_items = oldDoc.list_items.map((item: any) => {
+                let category_id = item.category_id ?? null;
+                if (!category_id && item.category) {
+                  let matched = categories.find((c: any) => c.name === item.category || c.id === item.category);
+                  if (!matched) {
+                    matched = {
+                      id: "cat_" + Math.random().toString(36).substring(2, 9),
+                      name: item.category,
+                    };
+                    categories.push(matched);
+                    catsModified = true;
+                  }
+                  category_id = matched.id;
+                }
+                return {
+                  ...item,
+                  category_id,
+                };
+              });
+              if (catsModified) {
+                oldDoc.list_categories = categories;
+              }
+            }
+            return oldDoc;
           }
         }
       },

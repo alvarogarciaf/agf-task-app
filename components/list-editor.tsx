@@ -213,13 +213,14 @@ function ItemModal({
   initialDescription?: string
   initialDetails?: string | null
   initialCategory?: string | null
-  onSave: (description: string, category: string | null, details: string | null) => void
+  onSave: (description: string, categoryId: string | null, details: string | null, newCategoryName?: string | null) => void
   categories: ListCategory[]
   isEdit?: boolean
 }) {
   const [desc, setDesc] = useState(initialDescription)
   const [details, setDetails] = useState(initialDetails || "")
-  const [cat, setCat] = useState(initialCategory || "")
+  const [selectedCatId, setSelectedCatId] = useState<string | null>(null)
+  const [newCatName, setNewCatName] = useState<string>("")
   const [catOpen, setCatOpen] = useState(false)
   const [catInput, setCatInput] = useState("")
   
@@ -227,15 +228,30 @@ function ItemModal({
     if (open) {
       setDesc(initialDescription)
       setDetails(initialDetails || "")
-      setCat(initialCategory || "")
+      if (initialCategory) {
+        const found = categories.find((c) => c.id === initialCategory || c.name === initialCategory)
+        if (found) {
+          setSelectedCatId(found.id)
+          setNewCatName("")
+        } else {
+          setSelectedCatId(null)
+          setNewCatName(initialCategory)
+        }
+      } else {
+        setSelectedCatId(null)
+        setNewCatName("")
+      }
+      setCatInput("")
     }
-  }, [open, initialDescription, initialDetails, initialCategory])
+  }, [open, initialDescription, initialDetails, initialCategory, categories])
 
   const handleSave = () => {
     if (!desc.trim()) return
-    onSave(desc.trim(), cat.trim() || null, details.trim() || null)
+    onSave(desc.trim(), selectedCatId, details.trim() || null, newCatName.trim() || null)
     onOpenChange(false)
   }
+
+  const selectedCat = categories.find((c) => c.id === selectedCatId) || (newCatName ? { id: "temp", name: newCatName, color: undefined, icon: undefined } : null)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -288,10 +304,8 @@ function ItemModal({
                     className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   >
                     {(() => {
-                      if (!cat) return <span className="text-muted-foreground">Select or create category...</span>
-                      const selectedCat = categories.find(c => c.name === cat)
-                      if (!selectedCat) return cat
-                      const SelectedIcon = selectedCat.icon ? ICON_OPTIONS.find(o => o.name === selectedCat.icon)?.icon : Tag
+                      if (!selectedCat) return <span className="text-muted-foreground">Select or create category...</span>
+                      const SelectedIcon = selectedCat.icon ? ICON_OPTIONS.find((o) => o.name === selectedCat.icon)?.icon : Tag
                       const IconComp = SelectedIcon || Tag
                       return (
                         <div className="flex items-center gap-2">
@@ -305,7 +319,7 @@ function ItemModal({
                           >
                             <IconComp className="h-3 w-3" />
                           </div>
-                          {cat}
+                          {selectedCat.name}
                         </div>
                       )
                     })()}
@@ -323,22 +337,41 @@ function ItemModal({
                       <CommandEmpty>
                         <button 
                           type="button" 
-                          onClick={() => { setCat(catInput); setCatOpen(false) }}
-                          className="w-full text-left px-2 py-1.5 text-sm hover:bg-muted"
+                          onClick={() => {
+                            setSelectedCatId(null)
+                            setNewCatName(catInput.trim())
+                            setCatOpen(false)
+                          }}
+                          className="w-full text-left px-2 py-1.5 text-sm hover:bg-muted flex items-center gap-2"
                         >
-                          Create "{catInput}"
+                          <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                          Create "{catInput.trim()}"
                         </button>
                       </CommandEmpty>
                       <CommandGroup>
+                        <CommandItem
+                          value="__none__"
+                          onSelect={() => {
+                            setSelectedCatId(null)
+                            setNewCatName("")
+                            setCatOpen(false)
+                          }}
+                          className="flex items-center gap-2 text-muted-foreground"
+                        >
+                          <Circle className="h-3 w-3 opacity-40" />
+                          None (No Category)
+                          <Check className={cn("ml-auto h-4 w-4", !selectedCatId && !newCatName ? "opacity-100" : "opacity-0")} />
+                        </CommandItem>
                         {categories.map((c) => {
-                          const CatIcon = c.icon ? ICON_OPTIONS.find(o => o.name === c.icon)?.icon : undefined
+                          const CatIcon = c.icon ? ICON_OPTIONS.find((o) => o.name === c.icon)?.icon : undefined
                           const IconComp = CatIcon || Tag
                           return (
                             <CommandItem
                               key={c.id}
                               value={c.name}
                               onSelect={() => {
-                                setCat(c.name)
+                                setSelectedCatId(c.id)
+                                setNewCatName("")
                                 setCatOpen(false)
                               }}
                               className="flex items-center gap-2"
@@ -354,19 +387,21 @@ function ItemModal({
                                 <IconComp className="h-3 w-3" />
                               </div>
                               {c.name}
-                              <Check className={cn("ml-auto h-4 w-4", cat === c.name ? "opacity-100" : "opacity-0")} />
+                              <Check className={cn("ml-auto h-4 w-4", selectedCatId === c.id ? "opacity-100" : "opacity-0")} />
                             </CommandItem>
                           )
                         })}
-                        {catInput && !categories.some(c => c.name.toLowerCase() === catInput.toLowerCase()) && (
+                        {catInput.trim() && !categories.some((c) => c.name.toLowerCase() === catInput.trim().toLowerCase()) && (
                           <CommandItem
-                            value={catInput}
+                            value={catInput.trim()}
                             onSelect={() => {
-                              setCat(catInput)
+                              setSelectedCatId(null)
+                              setNewCatName(catInput.trim())
                               setCatOpen(false)
                             }}
                           >
-                            Create "{catInput}"
+                            <Plus className="mr-2 h-4 w-4 text-muted-foreground" />
+                            Create "{catInput.trim()}"
                           </CommandItem>
                         )}
                       </CommandGroup>
@@ -431,6 +466,46 @@ export function ListEditor({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
+  const getCategoryDef = useCallback(
+    (item: ListItem) => {
+      if (item.category_id) {
+        const found = categories.find((c) => c.id === item.category_id)
+        if (found) return found
+      }
+      if (item.category) {
+        return categories.find((c) => c.name === item.category || c.id === item.category)
+      }
+      return undefined
+    },
+    [categories],
+  )
+
+  const resolveCategory = useCallback(
+    (categoryId: string | null, newCategoryName?: string | null): { id: string | null; name: string | null } => {
+      if (newCategoryName && newCategoryName.trim()) {
+        const trimmed = newCategoryName.trim()
+        const existing = categories.find((c) => c.name.toLowerCase() === trimmed.toLowerCase())
+        if (existing) {
+          return { id: existing.id, name: existing.name }
+        }
+        const newCat: ListCategory = {
+          id: nanoid(),
+          name: trimmed,
+          color: COLOR_PALETTE[categories.length % COLOR_PALETTE.length],
+          icon: "Tag",
+        }
+        onCategoriesChange([...categories, newCat])
+        return { id: newCat.id, name: newCat.name }
+      }
+      if (categoryId) {
+        const cat = categories.find((c) => c.id === categoryId)
+        return { id: categoryId, name: cat ? cat.name : null }
+      }
+      return { id: null, name: null }
+    },
+    [categories, onCategoriesChange],
+  )
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event
@@ -444,14 +519,19 @@ export function ListEditor({
       // If grouped, dragging into a new category should update its category
       if (isGrouped) {
         const targetItem = items[newIndex]
+        const targetCatDef = getCategoryDef(targetItem)
+        const targetCatId = targetCatDef ? targetCatDef.id : null
+        const targetCatName = targetCatDef ? targetCatDef.name : null
         reordered = reordered.map((item) => 
-          item.id === active.id ? { ...item, category: targetItem.category } : item
+          item.id === active.id
+            ? { ...item, category_id: targetCatId, category: targetCatName }
+            : item
         )
       }
 
       onChange(reordered.map((item, idx) => ({ ...item, order: idx })))
     },
-    [items, onChange, isGrouped],
+    [items, onChange, isGrouped, getCategoryDef],
   )
 
   const handleToggleStatus = useCallback(
@@ -473,32 +553,35 @@ export function ListEditor({
   )
 
   const handleRename = useCallback(
-    (id: string, description: string, category: string | null, details: string | null = null) => {
-      if (category && !categories.some((c) => c.name.toLowerCase() === category.toLowerCase())) {
-        const newCat: ListCategory = {
-          id: nanoid(),
-          name: category,
-        }
-        onCategoriesChange([...categories, newCat])
-      }
-      onChange(items.map((item) => (item.id === id ? { ...item, description, category, details } : item)))
+    (
+      id: string,
+      description: string,
+      categoryId: string | null,
+      details: string | null = null,
+      newCategoryName?: string | null,
+    ) => {
+      const { id: finalCatId, name: finalCatName } = resolveCategory(categoryId, newCategoryName)
+      onChange(
+        items.map((item) =>
+          item.id === id
+            ? { ...item, description, category_id: finalCatId, category: finalCatName, details }
+            : item,
+        ),
+      )
     },
-    [items, onChange, categories, onCategoriesChange],
+    [items, onChange, resolveCategory],
   )
 
   const handleAdd = useCallback(
-    (description: string, category: string | null = null, details: string | null = null) => {
+    (
+      description: string,
+      categoryId: string | null = null,
+      details: string | null = null,
+      newCategoryName?: string | null,
+    ) => {
       if (items.length >= MAX_ITEMS) return
       const now = new Date().toISOString()
-      
-      // Check if category is new and add it to categories list
-      if (category && !categories.some((c) => c.name.toLowerCase() === category.toLowerCase())) {
-        const newCat: ListCategory = {
-          id: nanoid(),
-          name: category
-        }
-        onCategoriesChange([...categories, newCat])
-      }
+      const { id: finalCatId, name: finalCatName } = resolveCategory(categoryId, newCategoryName)
 
       const newItem: ListItem = {
         id: nanoid(),
@@ -506,13 +589,14 @@ export function ListEditor({
         status: "Open",
         order: items.length,
         date_created: now,
-        category,
+        category_id: finalCatId,
+        category: finalCatName,
         details,
       }
       onChange([...items, newItem])
       setAddingToCategory(undefined)
     },
-    [items, onChange, categories, onCategoriesChange],
+    [items, onChange, resolveCategory],
   )
 
   const openCount = items.filter((i) => i.status === "Open").length
@@ -533,26 +617,28 @@ export function ListEditor({
 
   const groupedItems = useMemo(() => {
     if (!isGrouped) return null
-    const validCategoryNames = new Set(categories.map((c) => c.name))
     const groups: Record<string, ListItem[]> = {}
     visibleItems.forEach((t) => {
-      const isKnown = t.category && validCategoryNames.has(t.category)
-      const cid = isKnown ? (t.category as string) : "none"
-      if (!groups[cid]) groups[cid] = []
-      groups[cid].push(t)
+      const catDef = getCategoryDef(t)
+      const gid = catDef ? catDef.id : "none"
+      if (!groups[gid]) groups[gid] = []
+      groups[gid].push(t)
     })
     return Object.entries(groups)
-      .map(([cid, groupItems]) => ({
-        id: cid,
-        name: cid === "none" ? "No Category" : cid,
-        items: groupItems,
-      }))
+      .map(([gid, groupItems]) => {
+        const cat = categories.find((c) => c.id === gid)
+        return {
+          id: gid,
+          name: cat ? cat.name : "No Category",
+          items: groupItems,
+        }
+      })
       .sort((a, b) => {
         if (a.id === "none") return 1
         if (b.id === "none") return -1
         return a.name.localeCompare(b.name)
       })
-  }, [visibleItems, isGrouped, categories])
+  }, [visibleItems, isGrouped, categories, getCategoryDef])
 
   const atLimit = items.length >= MAX_ITEMS
 
@@ -698,8 +784,8 @@ export function ListEditor({
                 <div className="sticky top-0 z-10 flex items-center justify-between bg-background/95 md:bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 md:supports-[backdrop-filter]:bg-card/75 py-2 px-1">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                     {(() => {
-                      const catDef = categories.find(c => c.name === group.name)
-                      const CatIcon = catDef?.icon ? ICON_OPTIONS.find(o => o.name === catDef.icon)?.icon : undefined
+                      const catDef = categories.find((c) => c.id === group.id)
+                      const CatIcon = catDef?.icon ? ICON_OPTIONS.find((o) => o.name === catDef.icon)?.icon : undefined
                       return (
                         <span className="flex items-center justify-center shrink-0 h-5 w-5 rounded-sm" style={{ color: catDef?.color || "var(--primary)", backgroundColor: catDef?.color ? `color-mix(in oklch, ${catDef.color} 15%, transparent)` : undefined }}>
                           {CatIcon ? <CatIcon className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
@@ -714,7 +800,7 @@ export function ListEditor({
                   {filter !== "done" && !atLimit && (
                     <button
                       type="button"
-                      onClick={() => setAddingToCategory(group.id === "none" ? null : group.name)}
+                      onClick={() => setAddingToCategory(group.id === "none" ? null : group.id)}
                       className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20 shrink-0"
                     >
                       <Plus className="h-3 w-3" />
@@ -728,7 +814,7 @@ export function ListEditor({
                       <SortableListRow
                         key={item.id}
                         item={item}
-                        categoryDef={categories.find(c => c.name === item.category)}
+                        categoryDef={getCategoryDef(item)}
                         showCategoryIcon={false}
                         onToggleStatus={handleToggleStatus}
                         onDelete={handleDelete}
@@ -759,7 +845,7 @@ export function ListEditor({
                   <SortableListRow
                     key={item.id}
                     item={item}
-                    categoryDef={categories.find(c => c.name === item.category)}
+                    categoryDef={getCategoryDef(item)}
                     showCategoryIcon={true}
                     onToggleStatus={handleToggleStatus}
                     onDelete={handleDelete}
@@ -880,14 +966,17 @@ export function ListEditor({
                 <button
                   type="button"
                   onClick={() => {
-                    const oldCat = categories.find(c => c.id === editingCategory.id)
+                    const deletedId = editingCategory.id
+                    const oldCat = categories.find((c) => c.id === deletedId)
                     const targetName = oldCat?.name || editingCategory.name
-                    const newCats = categories.filter(c => c.id !== editingCategory.id)
+                    const newCats = categories.filter((c) => c.id !== deletedId)
                     onCategoriesChange(newCats)
 
-                    // Clear category on all items that had this deleted category
+                    // Clear category_id and category on all items that had this category
                     const updatedItems = items.map((item) =>
-                      item.category === targetName ? { ...item, category: null } : item
+                      item.category_id === deletedId || item.category === targetName
+                        ? { ...item, category_id: null, category: null }
+                        : item,
                     )
                     onChange(updatedItems)
                     setEditingCategory(null)
@@ -901,17 +990,19 @@ export function ListEditor({
                   <button 
                     type="button" 
                     onClick={() => {
-                      const oldCat = categories.find(c => c.id === editingCategory.id)
-                      const idx = categories.findIndex(c => c.id === editingCategory.id)
+                      const oldCat = categories.find((c) => c.id === editingCategory.id)
+                      const idx = categories.findIndex((c) => c.id === editingCategory.id)
                       const newCats = [...categories]
                       if (idx >= 0) newCats[idx] = editingCategory
                       else newCats.push(editingCategory)
                       onCategoriesChange(newCats)
 
-                      // If renamed, update all items that had the previous category name
+                      // Also sync category name string on items for backwards compatibility
                       if (oldCat && oldCat.name !== editingCategory.name) {
                         const updatedItems = items.map((item) =>
-                          item.category === oldCat.name ? { ...item, category: editingCategory.name } : item
+                          item.category_id === editingCategory.id || item.category === oldCat.name
+                            ? { ...item, category_id: editingCategory.id, category: editingCategory.name }
+                            : item,
                         )
                         onChange(updatedItems)
                       }
@@ -944,12 +1035,12 @@ export function ListEditor({
         }}
         initialDescription={editingItem?.description || ""}
         initialDetails={editingItem?.details || ""}
-        initialCategory={editingItem?.category || null}
+        initialCategory={editingItem?.category_id || editingItem?.category || null}
         categories={categories}
         isEdit
-        onSave={(desc, cat, details) => {
+        onSave={(desc, catId, details, newCatName) => {
           if (editingItem) {
-            handleRename(editingItem.id, desc, cat, details)
+            handleRename(editingItem.id, desc, catId, details, newCatName)
             setEditingItem(null)
           }
         }}
