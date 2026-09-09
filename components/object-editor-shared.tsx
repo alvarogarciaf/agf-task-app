@@ -362,10 +362,11 @@ export function useObjectDraft({
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
       debounceTimerRef.current = setTimeout(() => {
         setAutosaveStatus("saving")
-        onUpdate({ ...draft })
-        lastSavedSnapshotRef.current = toPlain(draft)
-        prevDetailsRef.current = draft.details
-        prevDescriptionRef.current = draft.description
+        const withTs = { ...draft, updated_at: Date.now() }
+        onUpdate(withTs)
+        lastSavedSnapshotRef.current = toPlain(withTs)
+        prevDetailsRef.current = withTs.details
+        prevDescriptionRef.current = withTs.description
         isTypingRef.current = false
         setAutosaveStatus("saved")
       }, 2500)
@@ -386,7 +387,7 @@ export function useObjectDraft({
       // Immediately autosave non-text fields. Text fields are debounced.
       // Bookmarks always autosave immediately even if autosave is false (e.g. in modal)
       if ((autosave && key !== "details" && key !== "description") || key === "bookmarked") {
-        onUpdate({ ...next })
+        onUpdate({ ...next, updated_at: Date.now() })
         lastSavedSnapshotRef.current = toPlain(next)
         if (autosave) setAutosaveStatus("saved")
       }

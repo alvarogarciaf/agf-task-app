@@ -403,7 +403,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     if (doc) {
       const current = doc.get("processed")
       const next = !current
-      await doc.incrementalPatch({ processed: next })
+      await doc.incrementalPatch({ processed: next, updated_at: Date.now() })
       undoStackRef.current.push({
         label: "Undo toggle processed",
         reverse: async () => {
@@ -423,7 +423,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     if (doc) {
       const current = doc.get("status")
       const next = current === "Open" ? "Done" : "Open"
-      await doc.incrementalPatch({ status: next })
+      await doc.incrementalPatch({ status: next, updated_at: Date.now() })
       undoStackRef.current.push({
         label: "Undo toggle status",
         reverse: async () => {
@@ -442,7 +442,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     const doc = await db.tasks.findOne(id).exec()
     if (doc) {
       const current = doc.get("archived")
-      await doc.incrementalPatch({ archived: true })
+      await doc.incrementalPatch({ archived: true, updated_at: Date.now() })
       undoStackRef.current.push({
         label: "Undo archive",
         reverse: async () => {

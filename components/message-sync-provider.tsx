@@ -143,10 +143,12 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                     }
                   }
 
-                 // Timestamp check: if incoming is strictly older than existing, ignore it
+                 // Timestamp check: if incoming is the same age or older than existing, ignore it.
+                  // Using <= ensures local state always wins on a tie, protecting against a partner's
+                  // stale copy arriving with an equal updated_at overwriting a recent local change.
                   if (existingTask && msg.task.updated_at && existingTask.updated_at) {
-                    if (msg.task.updated_at < existingTask.updated_at) {
-                      console.log(`[Sync] Ignored stale task ${msg.task.id}`);
+                    if (msg.task.updated_at <= existingTask.updated_at) {
+                      console.log(`[Sync] Ignored stale/equal task ${msg.task.id}`);
                       continue;
                     }
                   }
