@@ -25,7 +25,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-import { ArrowLeft, FolderKanban, FileText, ListChecks, Circle, Dot, Plus, Trash2, StickyNote, Pencil, LayoutGrid, List, Image as ImageIcon, Loader2, Star, Search } from "lucide-react"
+import { ArrowLeft, FolderKanban, FileText, ListChecks, Circle, Dot, Plus, Trash2, StickyNote, Pencil, LayoutGrid, List, Image as ImageIcon, Loader2, Star, Search, Archive, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useDatabase } from "@/components/db-provider"
 import { FilteredTasks } from "@/components/filtered-tasks"
@@ -51,6 +51,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Switch } from "@/components/ui/switch"
@@ -683,11 +684,11 @@ export function ProjectHeader({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent("open-search"))}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-card px-2 sm:px-2.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
             title="Search tasks, notes, and projects"
           >
             <Search className="h-3.5 w-3.5" />
@@ -718,19 +719,21 @@ export function ProjectHeader({
               })
               toast.success("Added to Views")
             }}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-card px-2 sm:px-2.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             <Star className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Add to Views</span>
           </button>
+
+          {/* Desktop-only direct action buttons */}
           <button
             type="button"
             onClick={onEdit}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="hidden sm:inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
             title="Edit project"
           >
             <Pencil className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Edit</span>
+            <span>Edit</span>
           </button>
           <button
             type="button"
@@ -742,7 +745,7 @@ export function ProjectHeader({
               })
             }}
             className={cn(
-              "flex h-8 items-center rounded-md border px-2.5 text-xs transition-colors",
+              "hidden sm:inline-flex h-8 items-center rounded-md border px-2.5 text-xs transition-colors",
               project.status === "Ongoing"
                 ? "border-border bg-card hover:bg-muted"
                 : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20",
@@ -763,17 +766,73 @@ export function ProjectHeader({
                   }
                 }}
                 className={cn(
-                  "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs transition-colors",
+                  "hidden sm:inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs transition-colors",
                   hasItems
                     ? "border-border bg-card text-muted-foreground/40 cursor-not-allowed"
                     : "border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20",
                 )}
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Delete</span>
+                <span>Delete</span>
               </button>
             )
           })()}
+
+          {/* Mobile-only three-dots menu */}
+          <div className="sm:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="More project options"
+                  className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:text-foreground hover:bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={onEdit}>
+                  <Pencil className="h-4 w-4 mr-2 text-muted-foreground" />
+                  Edit project
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    const current = project.status
+                    onUpdateProject({
+                      ...project,
+                      status: current === "Ongoing" ? "Closed" : "Ongoing",
+                    })
+                  }}
+                >
+                  {project.status === "Ongoing" ? (
+                    <Archive className="h-4 w-4 mr-2 text-muted-foreground" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 mr-2 text-muted-foreground" />
+                  )}
+                  {project.status === "Ongoing" ? "Close project" : "Reopen project"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {(() => {
+                  const hasItems = tasks.some((t) => t.project_id === project.id) || notes.some((n) => n.project_id === project.id)
+                  return (
+                    <DropdownMenuItem
+                      className={cn("text-destructive focus:text-destructive", hasItems && "opacity-40 pointer-events-none")}
+                      disabled={hasItems}
+                      onClick={() => {
+                        if (confirm(`Are you sure you want to delete "${project.name}"?`)) {
+                          onDeleteProject(project.id)
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete project
+                      {hasItems && <span className="ml-auto text-xs text-muted-foreground font-normal">Has items</span>}
+                    </DropdownMenuItem>
+                  )
+                })()}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </>
