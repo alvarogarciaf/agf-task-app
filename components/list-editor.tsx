@@ -474,9 +474,16 @@ export function ListEditor({
 
   const handleRename = useCallback(
     (id: string, description: string, category: string | null, details: string | null = null) => {
+      if (category && !categories.some((c) => c.name.toLowerCase() === category.toLowerCase())) {
+        const newCat: ListCategory = {
+          id: nanoid(),
+          name: category,
+        }
+        onCategoriesChange([...categories, newCat])
+      }
       onChange(items.map((item) => (item.id === id ? { ...item, description, category, details } : item)))
     },
-    [items, onChange],
+    [items, onChange, categories, onCategoriesChange],
   )
 
   const handleAdd = useCallback(
@@ -526,9 +533,11 @@ export function ListEditor({
 
   const groupedItems = useMemo(() => {
     if (!isGrouped) return null
+    const validCategoryNames = new Set(categories.map((c) => c.name))
     const groups: Record<string, ListItem[]> = {}
     visibleItems.forEach((t) => {
-      const cid = t.category || "none"
+      const isKnown = t.category && validCategoryNames.has(t.category)
+      const cid = isKnown ? (t.category as string) : "none"
       if (!groups[cid]) groups[cid] = []
       groups[cid].push(t)
     })
@@ -543,7 +552,7 @@ export function ListEditor({
         if (b.id === "none") return -1
         return a.name.localeCompare(b.name)
       })
-  }, [visibleItems, isGrouped])
+  }, [visibleItems, isGrouped, categories])
 
   const atLimit = items.length >= MAX_ITEMS
 
@@ -871,8 +880,16 @@ export function ListEditor({
                 <button
                   type="button"
                   onClick={() => {
+                    const oldCat = categories.find(c => c.id === editingCategory.id)
+                    const targetName = oldCat?.name || editingCategory.name
                     const newCats = categories.filter(c => c.id !== editingCategory.id)
                     onCategoriesChange(newCats)
+
+                    // Clear category on all items that had this deleted category
+                    const updatedItems = items.map((item) =>
+                      item.category === targetName ? { ...item, category: null } : item
+                    )
+                    onChange(updatedItems)
                     setEditingCategory(null)
                   }}
                   className="text-sm text-destructive hover:underline"
@@ -884,11 +901,20 @@ export function ListEditor({
                   <button 
                     type="button" 
                     onClick={() => {
+                      const oldCat = categories.find(c => c.id === editingCategory.id)
                       const idx = categories.findIndex(c => c.id === editingCategory.id)
                       const newCats = [...categories]
                       if (idx >= 0) newCats[idx] = editingCategory
                       else newCats.push(editingCategory)
                       onCategoriesChange(newCats)
+
+                      // If renamed, update all items that had the previous category name
+                      if (oldCat && oldCat.name !== editingCategory.name) {
+                        const updatedItems = items.map((item) =>
+                          item.category === oldCat.name ? { ...item, category: editingCategory.name } : item
+                        )
+                        onChange(updatedItems)
+                      }
                       setEditingCategory(null)
                     }} 
                     className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
