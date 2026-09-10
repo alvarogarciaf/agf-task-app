@@ -39,6 +39,7 @@ import { useGoogleCalendar } from "@/components/google-calendar-provider"
 import { SaveViewDialog } from "./save-view-dialog"
 import { TaskDetailDialog } from "@/components/task-detail-dialog"
 import { usePreloadProjectImages } from "@/lib/image-cache"
+import { holdBackTask } from "@/lib/sync-coordinator"
 
 const CACHE_PREFIX = "tasker_cache_"
 function getCachedData<T>(key: string, defaultVal: T): T {
@@ -287,6 +288,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     actionDate?: string | null
     type?: "task" | "note"
     tagIds?: string[]
+    holdBackSync?: boolean
   }) => {
     const byOrder = [...urgencies].sort((a, b) => a.order - b.order)
     const defaultUrgency = byOrder[0]?.id ?? "u_low"
@@ -301,9 +303,13 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }
 
     const isNote = input.type === "note"
+    const taskId = crypto.randomUUID()
+    if (input.holdBackSync) {
+      holdBackTask(taskId)
+    }
 
     const doc = await db.tasks.insert({
-      id: crypto.randomUUID(),
+      id: taskId,
       type: input.type ?? "task",
       description: input.description,
       details: input.details ?? null,
@@ -335,6 +341,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     projectId: string | null
     personId: string | null
     processed: boolean
+    holdBackSync?: boolean
   }) => {
     return handleCreateTask({
       description: input.description,
@@ -343,6 +350,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       personId: input.personId,
       type: "note",
       tagIds: [],
+      holdBackSync: input.holdBackSync,
     })
   }
 

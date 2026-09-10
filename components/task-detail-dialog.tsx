@@ -33,6 +33,12 @@ import {
   useObjectDraft,
 } from "@/components/object-editor-shared"
 import { useOpenObjectFullScreen } from "@/components/tab-object-context"
+import {
+  startEditingTask,
+  finishEditingTask,
+  discardHeldBackTask,
+  commitHeldBackTask,
+} from "@/lib/sync-coordinator"
 import type { Context, Person, Project, Tag as TagType, Task, UrgencyLevel } from "@/lib/types"
 
 interface TaskDetailDialogProps {
@@ -52,6 +58,7 @@ interface TaskDetailDialogProps {
   portalContainer?: HTMLElement | null
   /** Desktop: expand into the active tab's full-screen editor (e.g. from search modal). */
   onExpandFullScreen?: (taskId: string, mode: "view" | "edit") => void
+  isCreating?: boolean
 }
 
 export function TaskDetailDialog({
@@ -70,11 +77,27 @@ export function TaskDetailDialog({
   onModeChange,
   portalContainer,
   onExpandFullScreen,
+  isCreating = false,
 }: TaskDetailDialogProps) {
   const isMobile = useIsMobile()
   const tabObject = useOpenObjectFullScreen()
   const expandFullScreen =
     onExpandFullScreen ?? tabObject?.openObjectFullScreen
+
+  const isSavedRef = useRef(false)
+  const isDiscardingRef = useRef(false)
+
+  // Track active editing for existing tasks so intermediate autosaves aren't pushed to partner
+  useEffect(() => {
+    if (open && task && !isCreating) {
+      startEditingTask(task.id)
+    }
+    return () => {
+      if (task && !isCreating) {
+        finishEditingTask(task.id)
+      }
+    }
+  }, [open, task?.id, isCreating])
 
   const {
     draft,
@@ -103,6 +126,27 @@ export function TaskDetailDialog({
     onClose: () => onOpenChange(false),
     autosave: true,
   })
+
+  const handleDiscard = async () => {
+    if (isDiscardingRef.current || isSavedRef.current) return
+    isDiscardingRef.current = true
+    if (task) {
+      discardHeldBackTask(task.id)
+      if (onDelete) {
+        onDelete(task.id)
+      }
+    }
+    onOpenChange(false)
+  }
+
+  const handleSaveAndClose = async () => {
+    if (!draft || !(draft.description || "").trim()) return
+    isSavedRef.current = true
+    const finalDraft = { ...draft }
+    if (autoProcess) finalDraft.processed = true
+    save()
+    await commitHeldBackTask(finalDraft.id, finalDraft)
+  }
 
   // Keyboard shortcut listener for Undo (Ctrl+Z / Cmd+Z) and Redo (Ctrl+Shift+Z / Cmd+Shift+Z / Ctrl+Y)
   useEffect(() => {
@@ -134,6 +178,10 @@ export function TaskDetailDialog({
 
   const handleDelete = () => {
     if (!draft || !onDelete) return
+    if (isCreating) {
+      handleDiscard()
+      return
+    }
     if (window.confirm(draft.type === "note" ? "Are you sure you want to delete this note?" : "Are you sure you want to delete this task?")) {
       onDelete(draft.id)
       onOpenChange(false)
@@ -181,7 +229,13 @@ export function TaskDetailDialog({
   const canExpand = !isMobile && !!expandFullScreen && !!task
   function expand() {
     if (!task || !expandFullScreen) return
-    save()
+    if (isCreating) {
+      isSavedRef.current = true
+      save()
+      void commitHeldBackTask(task.id, draft ? { ...draft } : undefined)
+    } else {
+      save()
+    }
     expandFullScreen(task.id, "edit")
     onOpenChange(false)
   }
@@ -194,7 +248,23 @@ export function TaskDetailDialog({
   const isProjectShared = !!(selectedProject && selectedProject.linked_person_id);
 
   return (
-    <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(o) : cancel())}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) {
+          if (isCreating) {
+            if (!isSavedRef.current) {
+              handleDiscard()
+            }
+          } else {
+            if (task) {
+              finishEditingTask(task.id, draft ? { ...draft } : undefined)
+            }
+            cancel()
+          }
+        }
+      }}
+    >
       <DialogContent
         showCloseButton={false}
         portalContainer={isMobile ? null : portalContainer}
@@ -284,7 +354,7 @@ export function TaskDetailDialog({
                     <Maximize2 className="h-4 w-4" />
                   </button>
                 )}
-                {onDelete && (
+                {onDelete && !isCreating && (
                   <button
                     type="button"
                     onClick={handleDelete}
@@ -297,9 +367,10 @@ export function TaskDetailDialog({
                 )}
                 <button
                   type="button"
-                  onClick={cancel}
+                  onClick={isCreating ? handleDiscard : cancel}
                   className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  aria-label="Close"
+                  aria-label={isCreating ? "Discard" : "Close"}
+                  title={isCreating ? "Discard" : "Close"}
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -353,7 +424,7 @@ export function TaskDetailDialog({
                 detailsRef={detailsRef}
                 isMobile={isMobile}
                 defaultPropertiesOpen={inboxMode}
-                onSubmit={save}
+                onSubmit={isCreating ? handleSaveAndClose : save}
               />
 
               <div className="mt-5">
@@ -400,7 +471,7 @@ export function TaskDetailDialog({
                   <ArrowLeftRight className="h-3 w-3" />
                   {isNote ? "To task" : "To note"}
                 </button>
-                {onDelete && (
+                {onDelete && !isCreating && (
                   <button
                     type="button"
                     onClick={handleDelete}
@@ -413,24 +484,26 @@ export function TaskDetailDialog({
                 )}
                 <button
                   type="button"
-                  onClick={cancel}
+                  onClick={isCreating ? handleDiscard : cancel}
                   className="rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs whitespace-nowrap"
                 >
-                  Close
+                  {isCreating ? "Discard" : "Close"}
                 </button>
                 <button
                   type="button"
-                  onClick={saveWithoutClose}
-                  disabled={!dirty || !(draft.description || "").trim()}
+                  onClick={isCreating ? handleSaveAndClose : saveWithoutClose}
+                  disabled={isCreating ? !(draft.description || "").trim() : (!dirty || !(draft.description || "").trim())}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-md px-4 py-2.5 text-sm font-medium transition-colors md:px-3.5 md:py-1.5 md:text-xs whitespace-nowrap",
-                    dirty
+                    (isCreating ? !!(draft.description || "").trim() : dirty)
                       ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs"
                       : "bg-muted text-muted-foreground border border-border/40 cursor-not-allowed opacity-60"
                   )}
                 >
                   <Check className="h-3.5 w-3.5" />
-                  {dirty ? "Save now" : "Saved"}
+                  {isCreating
+                    ? (isNote ? "Create note" : "Create task")
+                    : (dirty ? "Save now" : "Saved")}
                 </button>
               </div>
             </div>

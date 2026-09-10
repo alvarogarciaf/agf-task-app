@@ -8,6 +8,14 @@ import { useAuth } from "@/components/auth-provider";
 import type { Task, Project } from "@/lib/types";
 import { Subscription } from "rxjs";
 import objectHash from "object-hash";
+import {
+  isHeldBack,
+  isDiscarded,
+  isEditingTask,
+  discardHeldBackTask,
+  registerTaskSyncer,
+  unregisterTaskSyncer,
+} from "@/lib/sync-coordinator";
 
 export interface SyncMessage {
   id: string;
@@ -375,6 +383,10 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
         for (const taskDoc of allTasks) {
           const taskData = taskDoc.toJSON() as Task;
 
+          if (isHeldBack(taskData.id) || isEditingTask(taskData.id)) {
+            continue;
+          }
+
           // Auto-fix: task is in a shared project but lacks person_id
           if (taskData.project_id && !taskData.person_id) {
             const proj = sharedProjects.find(p => p.id === taskData.project_id);
@@ -452,6 +464,11 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
 
           if (isDeleted) {
             notifiedTasksRef.current.delete(taskData.id);
+            // If this task was a discarded held back creation, skip sending task_delete!
+            if (isDiscarded(taskData.id) || isHeldBack(taskData.id)) {
+              discardHeldBackTask(taskData.id);
+              return;
+            }
             // Mark as recently deleted to block any bounce-back upserts from the partner
             recentlyDeletedTaskIds.current.set(taskData.id, Date.now());
             if (lastProcessedTaskHash.current[taskData.id] === "deleted") {
@@ -474,6 +491,11 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
               failedTaskQueue.current.add(taskData.id);
               scheduleRetry();
             }
+            return;
+          }
+ 
+          // Suppress outgoing sync while the task is being created or actively edited in modal
+          if (isHeldBack(taskData.id) || isEditingTask(taskData.id)) {
             return;
           }
 
@@ -695,7 +717,112 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
       window.addEventListener("online", handleOnline);
     }
 
+    const syncTaskNow = async (taskId: string, isFromCreation = false, taskOverride?: Task) => {
+      if (!uid || !db) return;
+      try {
+        let taskData: Task | undefined = taskOverride;
+        if (!taskData) {
+          const doc = await db.tasks.findOne(taskId).exec();
+          if (doc) {
+            taskData = doc.toJSON() as Task;
+          }
+        }
+        if (!taskData) return;
+
+        // Auto-fix / resolve person_id if in a shared project
+        const currentProjectId = taskData.project_id;
+        if (currentProjectId && !taskData.person_id) {
+          const allProjects = await db.projects.find().exec();
+          const proj = allProjects.find(p => p.id === currentProjectId);
+          if (proj && proj.linked_person_id) {
+            taskData = { ...taskData, person_id: proj.linked_person_id };
+            const doc = await db.tasks.findOne(taskId).exec();
+            if (doc) await doc.incrementalPatch({ person_id: proj.linked_person_id });
+          }
+        }
+
+        if (!taskData.person_id) return;
+        const person = await db.persons.findOne(taskData.person_id).exec();
+        if (!person || !person.linked_uid) return;
+
+        const newHash = getSharedTaskHash(taskData);
+        if (!isFromCreation && lastProcessedTaskHash.current[taskData.id] === newHash && !failedTaskQueue.current.has(taskData.id)) {
+          return;
+        }
+
+        const msgRef = doc(collection(firestoreDb, `users/${person.linked_uid}/messages`));
+        await setDoc(msgRef, {
+          type: "task_upsert",
+          fromUid: uid,
+          task: {
+            id: taskData.id,
+            type: taskData.type ?? "task",
+            description: taskData.description,
+            details: taskData.details ?? null,
+            date_created: taskData.date_created,
+            action_date: taskData.action_date ?? null,
+            status: taskData.status ?? "Open",
+            processed: taskData.processed ?? false,
+            archived: taskData.archived ?? false,
+            project_id: taskData.project_id ?? null,
+            list_items: taskData.list_items ?? null,
+            list_categories: taskData.list_categories ?? null,
+            is_list: taskData.is_list ?? null,
+            icon: taskData.icon ?? null,
+            show_on: taskData.show_on ?? null,
+            urgency_id: taskData.urgency_id ?? "u_medium",
+            tag_ids: taskData.tag_ids ?? [],
+            context_ids: taskData.context_ids ?? [],
+            updated_at: taskData.updated_at ?? Date.now(),
+          },
+          timestamp: serverTimestamp(),
+        });
+
+        lastProcessedTaskHash.current[taskData.id] = newHash;
+        failedTaskQueue.current.delete(taskData.id);
+
+        // Push notification logic
+        const hasBeenNotified = notifiedTasksRef.current.has(taskData.id);
+        const isPlaceholder = taskData.description === "New task" || taskData.description === "New note" || !taskData.description.trim();
+        const isRecentlyCreated = taskData.date_created
+          ? Math.abs(Date.now() - new Date(taskData.date_created).getTime()) < 60_000
+          : false;
+
+        if (!hasBeenNotified && !isPlaceholder && (isFromCreation || isRecentlyCreated)) {
+          notifiedTasksRef.current.add(taskData.id);
+          try {
+            const subsRef = collection(firestoreDb, `users/${person.linked_uid}/push_subscriptions`);
+            const subsSnap = await getDocs(subsRef);
+            if (!subsSnap.empty) {
+              const subscriptions = subsSnap.docs.map((d) => d.data());
+              const senderName = user?.displayName || user?.email || "Someone";
+              const itemType = taskData.type === "note" ? "note" : "task";
+              fetch("/api/notifications/push", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  subscriptions,
+                  title: `New ${itemType} added by ${senderName}`,
+                  body: taskData.description || "",
+                  taskId: taskData.id,
+                  itemType,
+                  url: `/?objectId=${taskData.id}`,
+                }),
+              }).catch((e) => console.warn("[Sync] Push notification failed:", e));
+            }
+          } catch (pushErr) {
+            console.warn("[Sync] Push notification error:", pushErr);
+          }
+        }
+      } catch (err) {
+        console.error("[Sync] Error in syncTaskNow:", err);
+      }
+    };
+
+    registerTaskSyncer(syncTaskNow);
+
     return () => {
+      unregisterTaskSyncer();
       sub.unsubscribe();
       if (typeof document !== "undefined") {
         document.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -708,7 +835,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
         retryTimerRef.current = null;
       }
     };
-  }, [uid, db]);
+  }, [uid, db, user]);
 
   return <>{children}</>;
 }

@@ -265,6 +265,7 @@ export const TasksTable = memo(function TasksTable({
     : "popup"
 
   const [convertedTaskFallback, setConvertedTaskFallback] = useState<Task | null>(null)
+  const [isCreatingTask, setIsCreatingTask] = useState(false)
 
   /** Open a task/note, routing to full-screen for notes when the preference is set, or if requested explicitly via newTab. */
   const openObject = useCallback((task: Task, mode: "view" | "edit", newTab = false) => {
@@ -284,11 +285,15 @@ export const TasksTable = memo(function TasksTable({
     if (autoFocusTaskId) {
       const task = tasks.find((t) => t.id === autoFocusTaskId)
       if (task) {
+        const willOpenFullScreen = task.type === "note" && openNotesAs === "fullscreen"
+        if (!willOpenFullScreen) {
+          setIsCreatingTask(true)
+        }
         openObject(task, "edit")
         onAutoFocusComplete?.()
       }
     }
-  }, [autoFocusTaskId, tasks, onAutoFocusComplete, openObject])
+  }, [autoFocusTaskId, tasks, onAutoFocusComplete, openObject, openNotesAs])
 
   // Refocus cell when exiting edit mode
   useEffect(() => {
@@ -367,6 +372,7 @@ export const TasksTable = memo(function TasksTable({
   useEffect(() => {
     if (!activeTaskId) {
       setDetailMode("view")
+      setIsCreatingTask(false)
     }
   }, [activeTaskId])
 
@@ -993,8 +999,10 @@ export const TasksTable = memo(function TasksTable({
           if (!o) {
             handleCloseTask()
             setConvertedTaskFallback(null)
+            setIsCreatingTask(false)
           }
         }}
+        isCreating={isCreatingTask}
         projects={projects}
         persons={persons}
         contexts={contexts}

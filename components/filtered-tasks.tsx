@@ -89,6 +89,7 @@ interface FilteredTasksProps {
     projectId: string | null
     personId: string | null
     processed: boolean
+    holdBackSync?: boolean
   }) => Promise<string | void>
   hideFilterBar?: boolean
   fullWidthOnMobile?: boolean
@@ -423,12 +424,19 @@ export function FilteredTasks({
 
   const handleAddNewTask = async (overriddenProjectId?: string | null) => {
     if (!onCreate) return
+    const openNotesAs = typeof window !== "undefined"
+      ? (localStorage.getItem("open_notes_as") as "popup" | "fullscreen") || "popup"
+      : "popup"
+
+    const willOpenFullScreen = notesMode && openNotesAs === "fullscreen"
+
     const id = await onCreate({
       description: notesMode ? "New note" : "New task",
       contextIds: contextIds,
       projectId: overriddenProjectId !== undefined ? overriddenProjectId : projectId,
       personId: personId,
       processed: !inboxMode,
+      holdBackSync: !willOpenFullScreen,
     })
     if (id) {
       setAutoFocusTaskId(id)

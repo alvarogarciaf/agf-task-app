@@ -56,6 +56,7 @@ interface WorkspaceViewContentProps {
     actionDate?: string | null
     type?: "task" | "note"
     tagIds?: string[]
+    holdBackSync?: boolean
   }) => Promise<string>
   onCreateNote: (input: {
     description: string
@@ -63,6 +64,7 @@ interface WorkspaceViewContentProps {
     projectId: string | null
     personId: string | null
     processed: boolean
+    holdBackSync?: boolean
   }) => Promise<string>
   onUpdateTask: (task: Task) => Promise<void>
   onToggleProcessed: (id: string) => Promise<void>
