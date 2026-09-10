@@ -192,13 +192,20 @@ export function TaskDetailDialog({
   const detailsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (open && (draft?.description === "New task" || draft?.description === "New note")) {
-      setDraft((prev) => (prev ? { ...prev, description: "" } : prev))
-      setTimeout(() => {
-        descriptionRef.current?.focus()
-      }, 0)
+    if (open && (isCreating || draft?.description === "New task" || draft?.description === "New note")) {
+      if (draft?.description === "New task" || draft?.description === "New note") {
+        setDraft((prev) => (prev ? { ...prev, description: "" } : prev))
+      }
+      const timer = setTimeout(() => {
+        if (descriptionRef.current) {
+          descriptionRef.current.focus()
+          const len = descriptionRef.current.value.length
+          descriptionRef.current.setSelectionRange(len, len)
+        }
+      }, 50)
+      return () => clearTimeout(timer)
     }
-  }, [open, draft?.description])
+  }, [open, isCreating, task?.id])
 
   // Press E in view mode to jump into edit (e.g. after opening from search).
   useEffect(() => {
@@ -266,6 +273,21 @@ export function TaskDetailDialog({
       }}
     >
       <DialogContent
+        onOpenAutoFocus={(e) => {
+          if (isCreating || draft?.description === "New task" || draft?.description === "New note") {
+            e.preventDefault()
+            if (draft?.description === "New task" || draft?.description === "New note") {
+              setDraft((prev) => (prev ? { ...prev, description: "" } : prev))
+            }
+            setTimeout(() => {
+              if (descriptionRef.current) {
+                descriptionRef.current.focus()
+                const len = descriptionRef.current.value.length
+                descriptionRef.current.setSelectionRange(len, len)
+              }
+            }, 50)
+          }
+        }}
         showCloseButton={false}
         portalContainer={isMobile ? null : portalContainer}
         disableTabPortal={!!portalContainer}

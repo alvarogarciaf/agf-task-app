@@ -121,7 +121,22 @@ export function ObjectFullScreenView({
     : null
   const isProjectShared = !!(selectedProject && selectedProject.linked_person_id)
 
+  const descriptionRef = useRef<HTMLTextAreaElement>(null)
   const detailsRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (draft?.description === "New note" || draft?.description === "New task") {
+      setDraft((prev) => (prev ? { ...prev, description: "" } : prev))
+    }
+    const timer = setTimeout(() => {
+      if (descriptionRef.current) {
+        descriptionRef.current.focus()
+        const len = descriptionRef.current.value.length
+        descriptionRef.current.setSelectionRange(len, len)
+      }
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [task?.id])
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -330,6 +345,7 @@ export function ObjectFullScreenView({
             tags={tags}
             sortedUrgencies={sortedUrgencies}
             isProjectShared={isProjectShared}
+            descriptionRef={descriptionRef}
             detailsRef={detailsRef}
           />
         </div>

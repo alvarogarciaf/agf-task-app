@@ -1266,7 +1266,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             navigate("notes")
             setTimeout(() => {
               window.dispatchEvent(new CustomEvent('global-create-note', { cancelable: true }))
-            }, 100)
+            }, 150)
           }
         } else { // Ctrl+N -> Task
           const event = new CustomEvent('global-create-task', { cancelable: true })
@@ -1275,7 +1275,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             navigate("home")
             setTimeout(() => {
               window.dispatchEvent(new CustomEvent('global-create-task', { cancelable: true }))
-            }, 100)
+            }, 150)
           }
         }
         return

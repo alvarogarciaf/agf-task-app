@@ -614,8 +614,24 @@ export function ObjectEditFields({
   }, [defaultPropertiesOpen, draft.id])
 
   function focusDetails() {
-    const el = detailsRef?.current?.querySelector<HTMLElement>('[contenteditable]')
-    el?.focus()
+    if (!detailsRef?.current) return
+    const el = detailsRef.current.querySelector<HTMLElement>('[contenteditable]:not([contenteditable="false"]), input, textarea')
+    if (!el) return
+    el.focus({ preventScroll: false })
+    if (el.isContentEditable) {
+      const selection = window.getSelection()
+      if (selection) {
+        const range = document.createRange()
+        const targetNode = el.lastElementChild || el
+        range.selectNodeContents(targetNode)
+        range.collapse(false)
+        selection.removeAllRanges()
+        selection.addRange(range)
+      }
+    } else if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+      const len = el.value.length
+      el.setSelectionRange(len, len)
+    }
   }
 
   const propertiesContent = (
