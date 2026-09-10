@@ -1044,7 +1044,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }
   }
 
-  const handleUpdateSavedView = async (data: { name: string; icon: string; color: string }) => {
+  const handleUpdateSavedView = async (data: Partial<SavedView>) => {
     if (!editingView) return
     const doc = await db.saved_views.findOne(editingView.id).exec()
     if (doc) {
@@ -2011,6 +2011,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         onOpenChange={(open) => !open && setEditingView(null)}
         onSave={handleUpdateSavedView}
         editingView={editingView}
+        contexts={contexts}
+        projects={projects}
+        persons={persons}
       />
       {editingProject && (
         <ProjectEditor

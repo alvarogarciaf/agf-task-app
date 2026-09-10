@@ -43,6 +43,7 @@ import {
   isTaskHiddenOnlyByShowOn,
   isTaskVisibleByShowOnRule,
 } from "@/lib/show-on-filter"
+import { COLOR_PALETTE } from "@/lib/constants"
 import {
   getDefaultFilterMatchMode,
   useDefaultFilterMatchMode,
@@ -555,7 +556,7 @@ export function FilteredTasks({
     }))
   }
 
-  const handleSaveView = async (data: { name: string; icon: string; color: string }) => {
+  const handleSaveView = async (data: Partial<SavedView>) => {
     if (!db) return
     const existing = await db.saved_views.find().exec()
     const maxOrder = existing.reduce((max, v) => Math.max(max, v.order || 0), -1)
@@ -563,18 +564,18 @@ export function FilteredTasks({
     const id = crypto.randomUUID()
     const newView: SavedView = {
       id,
-      name: data.name,
-      icon: data.icon,
-      color: data.color,
-      context_ids: contextIds,
-      project_id: projectId,
-      person_id: personId,
-      show_status: showStatus,
-      is_grouped_by_project: isGroupedByProject,
-      show_hidden_by_show_on: showHiddenByShowOn,
-      sort_key: sortConfig.key,
-      sort_direction: sortConfig.direction,
-      filter_mode: filterMode,
+      name: data.name || "Untitled View",
+      icon: data.icon || "Star",
+      color: data.color || COLOR_PALETTE[0],
+      context_ids: data.context_ids ?? contextIds,
+      project_id: data.project_id !== undefined ? data.project_id : projectId,
+      person_id: data.person_id !== undefined ? data.person_id : personId,
+      show_status: data.show_status ?? showStatus,
+      is_grouped_by_project: data.is_grouped_by_project ?? isGroupedByProject,
+      show_hidden_by_show_on: data.show_hidden_by_show_on ?? showHiddenByShowOn,
+      sort_key: data.sort_key ?? sortConfig.key,
+      sort_direction: data.sort_direction ?? sortConfig.direction,
+      filter_mode: data.filter_mode ?? filterMode,
       date_created: new Date().toISOString(),
       order: maxOrder + 1,
     }
@@ -1184,6 +1185,20 @@ export function FilteredTasks({
         open={isSaveDialogOpen}
         onOpenChange={setIsSaveDialogOpen}
         onSave={handleSaveView}
+        initialFilters={{
+          context_ids: contextIds,
+          project_id: projectId,
+          person_id: personId,
+          show_status: showStatus,
+          is_grouped_by_project: isGroupedByProject,
+          show_hidden_by_show_on: showHiddenByShowOn,
+          sort_key: sortConfig.key,
+          sort_direction: sortConfig.direction,
+          filter_mode: filterMode,
+        }}
+        contexts={contexts}
+        projects={projects}
+        persons={persons}
       />
 
       {/* Mobile Filters Dialog */}
