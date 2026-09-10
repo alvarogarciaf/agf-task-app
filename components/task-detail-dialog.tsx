@@ -38,6 +38,7 @@ import {
   finishEditingTask,
   discardHeldBackTask,
   commitHeldBackTask,
+  isHeldBack,
 } from "@/lib/sync-coordinator"
 import type { Context, Person, Project, Tag as TagType, Task, UrgencyLevel } from "@/lib/types"
 
@@ -84,20 +85,38 @@ export function TaskDetailDialog({
   const expandFullScreen =
     onExpandFullScreen ?? tabObject?.openObjectFullScreen
 
+  const isActuallyCreating = isCreating || (!!task && isHeldBack(task.id))
+
   const isSavedRef = useRef(false)
   const isDiscardingRef = useRef(false)
 
+  // Track the active task key to reset discard and save flags synchronously when switching or opening tasks
+  const lastActiveTaskKeyRef = useRef<string | null>(null)
+  const currentTaskKey = open && task ? `${task.id}:${isActuallyCreating}` : null
+  if (currentTaskKey !== lastActiveTaskKeyRef.current) {
+    lastActiveTaskKeyRef.current = currentTaskKey
+    isSavedRef.current = false
+    isDiscardingRef.current = false
+  }
+
+  useEffect(() => {
+    if (open) {
+      isSavedRef.current = false
+      isDiscardingRef.current = false
+    }
+  }, [open, task?.id])
+
   // Track active editing for existing tasks so intermediate autosaves aren't pushed to partner
   useEffect(() => {
-    if (open && task && !isCreating) {
+    if (open && task && !isActuallyCreating) {
       startEditingTask(task.id)
     }
     return () => {
-      if (task && !isCreating) {
+      if (task && !isActuallyCreating) {
         finishEditingTask(task.id)
       }
     }
-  }, [open, task?.id, isCreating])
+  }, [open, task?.id, isActuallyCreating])
 
   const {
     draft,
@@ -130,10 +149,12 @@ export function TaskDetailDialog({
   const handleDiscard = async () => {
     if (isDiscardingRef.current || isSavedRef.current) return
     isDiscardingRef.current = true
-    if (task) {
-      discardHeldBackTask(task.id)
+    cancel()
+    const idToDiscard = task?.id
+    if (idToDiscard) {
+      discardHeldBackTask(idToDiscard)
       if (onDelete) {
-        onDelete(task.id)
+        onDelete(idToDiscard)
       }
     }
     onOpenChange(false)
@@ -178,7 +199,7 @@ export function TaskDetailDialog({
 
   const handleDelete = () => {
     if (!draft || !onDelete) return
-    if (isCreating) {
+    if (isActuallyCreating) {
       handleDiscard()
       return
     }
@@ -192,7 +213,7 @@ export function TaskDetailDialog({
   const detailsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (open && (isCreating || draft?.description === "New task" || draft?.description === "New note")) {
+    if (open && (isActuallyCreating || draft?.description === "New task" || draft?.description === "New note")) {
       if (draft?.description === "New task" || draft?.description === "New note") {
         setDraft((prev) => (prev ? { ...prev, description: "" } : prev))
       }
@@ -205,7 +226,7 @@ export function TaskDetailDialog({
       }, 50)
       return () => clearTimeout(timer)
     }
-  }, [open, isCreating, task?.id])
+  }, [open, isActuallyCreating, task?.id])
 
   // Press E in view mode to jump into edit (e.g. after opening from search).
   useEffect(() => {
@@ -236,7 +257,7 @@ export function TaskDetailDialog({
   const canExpand = !isMobile && !!expandFullScreen && !!task
   function expand() {
     if (!task || !expandFullScreen) return
-    if (isCreating) {
+    if (isActuallyCreating) {
       isSavedRef.current = true
       save()
       void commitHeldBackTask(task.id, draft ? { ...draft } : undefined)
@@ -259,8 +280,8 @@ export function TaskDetailDialog({
       open={open}
       onOpenChange={(o) => {
         if (!o) {
-          if (isCreating) {
-            if (!isSavedRef.current) {
+          if (isActuallyCreating) {
+            if (!isSavedRef.current && !isDiscardingRef.current) {
               handleDiscard()
             }
           } else {
@@ -269,12 +290,14 @@ export function TaskDetailDialog({
             }
             cancel()
           }
+          isSavedRef.current = false
+          isDiscardingRef.current = false
         }
       }}
     >
       <DialogContent
         onOpenAutoFocus={(e) => {
-          if (isCreating || draft?.description === "New task" || draft?.description === "New note") {
+          if (isActuallyCreating || draft?.description === "New task" || draft?.description === "New note") {
             e.preventDefault()
             if (draft?.description === "New task" || draft?.description === "New note") {
               setDraft((prev) => (prev ? { ...prev, description: "" } : prev))
@@ -376,7 +399,7 @@ export function TaskDetailDialog({
                     <Maximize2 className="h-4 w-4" />
                   </button>
                 )}
-                {onDelete && !isCreating && (
+                {onDelete && !isActuallyCreating && (
                   <button
                     type="button"
                     onClick={handleDelete}
@@ -389,10 +412,10 @@ export function TaskDetailDialog({
                 )}
                 <button
                   type="button"
-                  onClick={isCreating ? handleDiscard : cancel}
+                  onClick={isActuallyCreating ? handleDiscard : cancel}
                   className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  aria-label={isCreating ? "Discard" : "Close"}
-                  title={isCreating ? "Discard" : "Close"}
+                  aria-label={isActuallyCreating ? "Discard" : "Close"}
+                  title={isActuallyCreating ? "Discard" : "Close"}
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -446,7 +469,7 @@ export function TaskDetailDialog({
                 detailsRef={detailsRef}
                 isMobile={isMobile}
                 defaultPropertiesOpen={inboxMode}
-                onSubmit={isCreating ? handleSaveAndClose : save}
+                onSubmit={isActuallyCreating ? handleSaveAndClose : save}
               />
 
               <div className="mt-5">
@@ -493,7 +516,7 @@ export function TaskDetailDialog({
                   <ArrowLeftRight className="h-3 w-3" />
                   {isNote ? "To task" : "To note"}
                 </button>
-                {onDelete && !isCreating && (
+                {onDelete && !isActuallyCreating && (
                   <button
                     type="button"
                     onClick={handleDelete}
@@ -506,24 +529,24 @@ export function TaskDetailDialog({
                 )}
                 <button
                   type="button"
-                  onClick={isCreating ? handleDiscard : cancel}
+                  onClick={isActuallyCreating ? handleDiscard : cancel}
                   className="rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs whitespace-nowrap"
                 >
-                  {isCreating ? "Discard" : "Close"}
+                  {isActuallyCreating ? "Discard" : "Close"}
                 </button>
                 <button
                   type="button"
-                  onClick={isCreating ? handleSaveAndClose : saveWithoutClose}
-                  disabled={isCreating ? !(draft.description || "").trim() : (!dirty || !(draft.description || "").trim())}
+                  onClick={isActuallyCreating ? handleSaveAndClose : saveWithoutClose}
+                  disabled={isActuallyCreating ? !(draft.description || "").trim() : (!dirty || !(draft.description || "").trim())}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-md px-4 py-2.5 text-sm font-medium transition-colors md:px-3.5 md:py-1.5 md:text-xs whitespace-nowrap",
-                    (isCreating ? !!(draft.description || "").trim() : dirty)
+                    (isActuallyCreating ? !!(draft.description || "").trim() : dirty)
                       ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs"
                       : "bg-muted text-muted-foreground border border-border/40 cursor-not-allowed opacity-60"
                   )}
                 >
                   <Check className="h-3.5 w-3.5" />
-                  {isCreating
+                  {isActuallyCreating
                     ? (isNote ? "Create note" : "Create task")
                     : (dirty ? "Save now" : "Saved")}
                 </button>
