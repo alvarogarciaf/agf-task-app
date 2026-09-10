@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from "react"
 import { Search, Command, Settings, Menu, Users, Tags, Tag as TagIcon, AlertCircle, Calendar, Trash2, Info, Bell, Circle, CheckCircle2, FolderKanban, ListChecks, FileText, Plus, ChevronLeft, ChevronRight } from "lucide-react"
 import { UserMenu } from "@/components/user-menu"
+import { ProjectOptionIcon } from "@/components/project-select"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import type { TabToolbarState } from "@/components/tab-toolbar-context"
 import type { ViewKey, Task, Project, Person, Context, Tag, UrgencyLevel } from "@/lib/types"
@@ -607,7 +608,19 @@ export function AppHeader({
                       {/* Leading icon */}
                       <div className="mt-0.5 shrink-0">
                         {isNote ? (
-                           <FileText className="h-4.5 w-4.5 text-muted-foreground" />
+                          project ? (
+                            <ProjectOptionIcon
+                              icon={t.icon || project.icon || "FileText"}
+                              color={project.color}
+                              size="sm"
+                            />
+                          ) : (
+                            (() => {
+                              const effectiveIcon = t.icon || "FileText"
+                              const IconComp = (effectiveIcon && ICONS[effectiveIcon]) || FileText
+                              return <IconComp className="h-4.5 w-4.5 text-muted-foreground" />
+                            })()
+                          )
                         ) : isDone ? (
                           <CheckCircle2 className="h-4.5 w-4.5 text-primary" />
                         ) : (

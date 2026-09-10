@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react"
-import { Search } from "lucide-react"
-import { ICON_OPTIONS } from "@/lib/constants"
+import { Search, FileText } from "lucide-react"
+import { ICON_OPTIONS, ICONS } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
@@ -43,7 +43,7 @@ export function IconPicker({
     return groups
   }, [filteredIcons])
 
-  const CurrentIcon = ICON_OPTIONS.find((o) => o.name === value)?.icon || ICON_OPTIONS[0].icon
+  const CurrentIcon = (value && ICONS[value]) || ICON_OPTIONS.find((o) => o.name === value)?.icon || FileText
 
   if (!expanded && !inline) {
     return (

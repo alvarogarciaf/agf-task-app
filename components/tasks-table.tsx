@@ -3,6 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect, memo } from "react"
 import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock, Pencil, FileText, ArrowLeftRight, ArrowUpRight, GripVertical } from "lucide-react"
 import { ProjectChip, ProjectOptionIcon } from "@/components/project-select"
+import { ICONS } from "@/lib/constants"
 import { toast } from "sonner"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -897,6 +898,8 @@ export const TasksTable = memo(function TasksTable({
                                 }
                               },
                               openNotesAs,
+                              notesMode,
+                              hasStatusColumn: visibleColumns.includes("status"),
                             })
                           )}
                         </td>
@@ -1023,13 +1026,32 @@ interface CellContext {
   onOpenView?: (id: string, newTab?: boolean) => void
   onOpenEdit?: (id: string, newTab?: boolean) => void
   openNotesAs: "popup" | "fullscreen"
+  notesMode?: boolean
+  hasStatusColumn?: boolean
 }
 
 function renderCell(key: TaskColumnKey, ctx: CellContext) {
   const { task, project, person, contexts, tags, urgency, onToggleProcessed, onToggleStatus, inboxMode } = ctx
 
   switch (key) {
-    case "status":
+    case "status": {
+      if (task.type === "note" || ctx.notesMode) {
+        const effectiveIconName = task.icon || project?.icon || "FileText"
+        const IconComponent = (effectiveIconName && ICONS[effectiveIconName]) || FileText
+        return (
+          <span className="shrink-0 flex items-center justify-center">
+            {project ? (
+              <ProjectOptionIcon
+                icon={effectiveIconName}
+                color={project.color}
+                size="sm"
+              />
+            ) : (
+              <IconComponent className="h-4 w-4 text-muted-foreground" />
+            )}
+          </span>
+        )
+      }
       return (
         <button
           type="button"
@@ -1060,6 +1082,7 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
           )}
         </button>
       )
+    }
 
     case "urgency":
       return urgency ? (
@@ -1071,9 +1094,26 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
         </span>
       ) : <Empty />
 
-    case "description":
+    case "description": {
+      const isNote = task.type === "note" || ctx.notesMode
+      const effectiveIconName = task.icon || project?.icon || "FileText"
+      const IconComponent = (effectiveIconName && ICONS[effectiveIconName]) || FileText
+
       return (
-        <div className="group/desc relative flex items-center w-full min-w-0 h-full min-h-[1.5rem]">
+        <div className="group/desc relative flex items-center gap-2 w-full min-w-0 h-full min-h-[1.5rem]">
+          {isNote && !ctx.hasStatusColumn && (
+            <span className="shrink-0 flex items-center">
+              {project ? (
+                <ProjectOptionIcon
+                  icon={effectiveIconName}
+                  color={project.color}
+                  size="sm"
+                />
+              ) : (
+                <IconComponent className="h-4 w-4 text-muted-foreground" />
+              )}
+            </span>
+          )}
           <span
             className={cn(
               "truncate text-sm min-w-0 transition-all duration-200",
@@ -1098,6 +1138,7 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
           </div>
         </div>
       )
+    }
 
     case "details":
       return task.details ? (
@@ -1411,16 +1452,20 @@ const MobileTaskRow = memo(function MobileTaskRow({
       </div>
 
       {/* Note icon or checkbox status toggle (Left) */}
-      {notesMode ? (
-        <span className="shrink-0">
+      {notesMode || task.type === "note" ? (
+        <span className="shrink-0 flex items-center justify-center">
           {project ? (
             <ProjectOptionIcon
-              icon={project.icon}
+              icon={task.icon || project.icon || "FileText"}
               color={project.color}
               size="sm"
             />
           ) : (
-            <FileText className="h-4.5 w-4.5 text-muted-foreground" />
+            (() => {
+              const effectiveIcon = task.icon || "FileText"
+              const IconComp = (effectiveIcon && ICONS[effectiveIcon]) || FileText
+              return <IconComp className="h-4.5 w-4.5 text-muted-foreground" />
+            })()
           )}
         </span>
       ) : (
