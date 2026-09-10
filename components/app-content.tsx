@@ -390,7 +390,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           label: "Undo update task",
           reverse: async () => {
             const d = await db.tasks.findOne(task.id).exec()
-            if (d) await d.incrementalPatch(prevData)
+            if (d) await d.incrementalPatch({ ...prevData, updated_at: Date.now() })
           },
         })
       }
@@ -408,7 +408,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         label: "Undo toggle processed",
         reverse: async () => {
           const d = await db.tasks.findOne(id).exec()
-          if (d) await d.incrementalPatch({ processed: current })
+          if (d) await d.incrementalPatch({ processed: current, updated_at: Date.now() })
         },
       })
       toast(next ? "Marked as processed" : "Moved back to inbox", {
@@ -428,7 +428,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         label: "Undo toggle status",
         reverse: async () => {
           const d = await db.tasks.findOne(id).exec()
-          if (d) await d.incrementalPatch({ status: current })
+          if (d) await d.incrementalPatch({ status: current, updated_at: Date.now() })
         },
       })
       toast(next === "Done" ? "Task marked as done" : "Task reopened", {
@@ -447,7 +447,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         label: "Undo archive",
         reverse: async () => {
           const d = await db.tasks.findOne(id).exec()
-          if (d) await d.incrementalPatch({ archived: current })
+          if (d) await d.incrementalPatch({ archived: current, updated_at: Date.now() })
         },
       })
       toast("Task archived", {
@@ -519,7 +519,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         
         // Ensure no task continues linked to a deleted project
         const tasksToUpdate = await db.tasks.find({ selector: { project_id: id } }).exec()
-        await Promise.all(tasksToUpdate.map(t => t.incrementalPatch({ project_id: null })))
+        await Promise.all(tasksToUpdate.map(t => t.incrementalPatch({ project_id: null, updated_at: Date.now() })))
       } catch (err) {
         console.error("Failed to delete project", err)
       }
