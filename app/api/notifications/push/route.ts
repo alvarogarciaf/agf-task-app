@@ -6,16 +6,16 @@ let isVapidInitialized = false;
 function ensureVapidDetails() {
   if (isVapidInitialized) return;
 
-  const VAPID_PUBLIC_KEY = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY !== "undefined")
-    ? process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-    : "BDu7S7201JRVRfWAFy9BDfnQ4f_lFRpw2DL2j_sCfw16vd3L_hgnWLZ2iSonMVOW1h9NdHoieWqrH8cnyi_d3dM";
+  const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+  const VAPID_CONTACT_EMAIL = process.env.VAPID_CONTACT_EMAIL;
 
-  const VAPID_PRIVATE_KEY = (process.env.VAPID_PRIVATE_KEY && process.env.VAPID_PRIVATE_KEY !== "undefined")
-    ? process.env.VAPID_PRIVATE_KEY
-    : ("Zq-SKCdPg2Red8" + "ja9yTTaAMbTWbI" + "--l_t8VDASTrSQ8");
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY || !VAPID_CONTACT_EMAIL) {
+    throw new Error("Missing VAPID configuration: NEXT_PUBLIC_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_CONTACT_EMAIL are required");
+  }
 
   webpush.setVapidDetails(
-    "mailto:notifications@garciaamar.com",
+    `mailto:${VAPID_CONTACT_EMAIL}`,
     VAPID_PUBLIC_KEY,
     VAPID_PRIVATE_KEY
   );

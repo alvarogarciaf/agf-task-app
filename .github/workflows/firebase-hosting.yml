@@ -15,17 +15,39 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
+      - name: Validate required secrets
+        run: |
+          missing=""
+          [ -z "$NEXT_PUBLIC_FIREBASE_API_KEY" ] && missing="$missing NEXT_PUBLIC_FIREBASE_API_KEY"
+          [ -z "$NEXT_PUBLIC_FIREBASE_PROJECT_ID" ] && missing="$missing NEXT_PUBLIC_FIREBASE_PROJECT_ID"
+          [ -z "$NEXT_PUBLIC_GOOGLE_CLIENT_ID" ] && missing="$missing NEXT_PUBLIC_GOOGLE_CLIENT_ID"
+          [ -z "$GOOGLE_CLIENT_SECRET" ] && missing="$missing GOOGLE_CLIENT_SECRET"
+          [ -z "$VAPID_PRIVATE_KEY" ] && missing="$missing VAPID_PRIVATE_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing required secrets:$missing"
+            exit 1
+          fi
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
       - name: Deploy to Firebase Hosting
         run: npx firebase-tools deploy --token ${{ secrets.FIREBASE_TOKEN }} --only hosting --non-interactive --force
         env:
           FIREBASE_CLI_EXPERIMENTS: webframeworks
           FIREBASE_CLI_PREVIEWS: webframeworks
-          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyBsT5GCu0BsBB_n_uwT8D36UiBXXhJ1-M0' }}
-          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'agf-task-manager.firebaseapp.com' }}
-          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'agf-task-manager' }}
-          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'agf-task-manager.firebasestorage.app' }}
-          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '788861047654' }}
-          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID || '1:788861047654:web:42b701aac84f3ead53aea7' }}
-          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '788861047654-mi56q16sgkb0o5mo4o2a6dhjslgj8d32.apps.googleusercontent.com' }}
-          NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BDu7S7201JRVRfWAFy9BDfnQ4f_lFRpw2DL2j_sCfw16vd3L_hgnWLZ2iSonMVOW1h9NdHoieWqrH8cnyi_d3dM' }}
-          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY || 'Zq-SKCdPg2Red8ja9yTTaAMbTWbI--l_t8VDASTrSQ8' }}
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_CONTACT_EMAIL: ${{ secrets.VAPID_CONTACT_EMAIL }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
