@@ -1,16 +1,18 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from "react"
-import { Users, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Info, Database, Calendar, Copy, LogOut, Bell, BellOff, BellRing, CheckCircle2, XCircle, ShieldAlert, Eye } from "lucide-react"
+import { Users, AlertCircle, Plus, Edit2, Trash2, Check, X, RefreshCw, Info, Database, Calendar, Copy, LogOut, Bell, BellOff, BellRing, CheckCircle2, XCircle, ShieldAlert, Eye, Download } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useGoogleCalendar } from "@/components/google-calendar-provider"
 import { listGoogleCalendars, type GoogleCalendar } from "@/lib/google-calendar"
 import { useAuth } from "@/components/auth-provider"
 import { collection, doc, setDoc, deleteDoc, getDocs } from "firebase/firestore"
-import { firestoreDb } from "@/lib/firebase/config"
+import { httpsCallable } from "firebase/functions"
+import { firestoreDb, functions } from "@/lib/firebase/config"
 import type { Person, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "@/components/db-provider"
+import { useDatabase } from "@/components/db-provider"
 import { useTodaySectionFilter, setTodaySectionFilter } from "@/lib/today-filter"
 import { useDefaultFilterMatchMode, setDefaultFilterMatchMode } from "@/lib/filter-match-mode"
 
@@ -120,6 +122,92 @@ export function SettingsView({
       toast.success("Google Calendar disconnected.")
     } catch (err) {
       toast.error("Failed to disconnect.")
+    }
+  }
+
+  const db = useDatabase()
+  const { signOut } = useAuth()
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+
+  const handleExportData = async () => {
+    setIsExporting(true)
+    try {
+      const collections = ["tasks", "projects", "persons", "contexts", "tags", "urgencies", "saved_views"]
+      const exportData: Record<string, any[]> = {}
+      for (const col of collections) {
+        if (db[col as keyof typeof db]) {
+          const docs = await (db[col as keyof typeof db] as any).find().exec()
+          exportData[col] = docs.map((d: any) => d.toJSON())
+        }
+      }
+      const dataStr = JSON.stringify(exportData, null, 2)
+      const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(dataStr)
+      const exportFileDefaultName = `tasker-export-${new Date().toISOString().split("T")[0]}.json`
+      const linkElement = document.createElement("a")
+      linkElement.setAttribute("href", dataUri)
+      linkElement.setAttribute("download", exportFileDefaultName)
+      linkElement.click()
+      toast.success("Data exported successfully!")
+    } catch (err: any) {
+      console.error("Export failed:", err)
+      toast.error("Failed to export data: " + err.message)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    const confirmText = prompt('Type "DELETE" to permanently delete your account and all data. This cannot be undone.')
+    if (confirmText !== "DELETE") {
+      if (confirmText !== null) toast.error("Account deletion cancelled.")
+      return
+    }
+    
+    setIsDeletingAccount(true)
+    try {
+      const deleteUserAccountFn = httpsCallable(functions, "deleteUserAccount")
+      await deleteUserAccountFn()
+      
+      // Cleanup local stuff
+      localStorage.clear()
+      sessionStorage.clear()
+      
+      if (window.indexedDB) {
+        if (userUid) {
+          window.indexedDB.deleteDatabase(`taskeragf_${userUid}`)
+        }
+        if ((window.indexedDB as any).databases) {
+          const dbs = await (window.indexedDB as any).databases()
+          for (const d of dbs) {
+            if (d.name) window.indexedDB.deleteDatabase(d.name)
+          }
+        }
+      }
+      
+      if ('caches' in window) {
+        const keys = await caches.keys()
+        for (const key of keys) {
+          await caches.delete(key)
+        }
+      }
+      
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations()
+        for (const reg of regs) {
+          await reg.unregister()
+        }
+      }
+      
+      await signOut()
+      toast.success("Your account has been deleted.")
+      setTimeout(() => {
+        window.location.href = "/"
+      }, 1500)
+    } catch (err: any) {
+      console.error("Failed to delete account:", err)
+      toast.error("Failed to delete account: " + err.message)
+      setIsDeletingAccount(false)
     }
   }
 
@@ -264,6 +352,23 @@ export function SettingsView({
             </p>
 
             <div className="space-y-4">
+              <div className="p-4 border border-border bg-muted/30 rounded-lg flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium">Export My Data</h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Download a JSON file containing all your tasks, projects, contexts, tags, and settings.
+                  </p>
+                </div>
+                <button
+                  onClick={handleExportData}
+                  disabled={isExporting}
+                  className="px-4 py-2 bg-secondary text-secondary-foreground text-xs font-medium rounded-md hover:bg-secondary/80 transition-colors flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Download className="h-4 w-4" />
+                  {isExporting ? "Exporting..." : "Export Data"}
+                </button>
+              </div>
+
               <div className="p-4 border border-destructive/20 bg-destructive/5 rounded-lg flex items-center justify-between">
                 <div>
                   <h4 className="font-medium text-destructive">Clear All Tasks</h4>
@@ -279,7 +384,23 @@ export function SettingsView({
                   }}
                   className="px-4 py-2 bg-destructive text-destructive-foreground text-xs font-medium rounded-md hover:bg-destructive/90 transition-colors"
                 >
-                  Delete Everything
+                  Delete Tasks
+                </button>
+              </div>
+
+              <div className="p-4 border border-destructive/40 bg-destructive/10 rounded-lg flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium text-destructive">Delete Account</h4>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                    Permanently delete your account, authentication details, and completely erase all cloud data.
+                  </p>
+                </div>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={isDeletingAccount}
+                  className="px-4 py-2 bg-destructive text-destructive-foreground text-xs font-medium rounded-md hover:bg-destructive/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isDeletingAccount ? "Deleting..." : "Delete Account"}
                 </button>
               </div>
             </div>
