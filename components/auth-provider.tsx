@@ -7,22 +7,25 @@ import { getFirestore } from "firebase/firestore"
 
 const CACHED_USER_KEY = "tasker_cached_user"
 
-interface CachedUser {
+export interface CachedUser {
   uid: string
   displayName: string | null
   email: string | null
+  emailVerified: boolean
 }
 
 interface AuthContextValue {
   user: User | CachedUser | null
   loading: boolean
   signOut: () => Promise<void>
+  reloadUser: () => Promise<boolean>
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   loading: true,
   signOut: async () => {},
+  reloadUser: async () => false,
 })
 
 export function useAuth() {
@@ -34,19 +37,26 @@ function getCachedUser(): CachedUser | null {
   try {
     const raw = localStorage.getItem(CACHED_USER_KEY)
     if (!raw) return null
-    return JSON.parse(raw) as CachedUser
+    const parsed = JSON.parse(raw)
+    return {
+      uid: parsed.uid,
+      displayName: parsed.displayName ?? null,
+      email: parsed.email ?? null,
+      emailVerified: !!parsed.emailVerified,
+    }
   } catch {
     return null
   }
 }
 
-function setCachedUser(user: User | null) {
+function setCachedUser(user: User | CachedUser | null) {
   if (typeof window === "undefined") return
   if (user) {
     const cached: CachedUser = {
       uid: user.uid,
       displayName: user.displayName,
       email: user.email,
+      emailVerified: !!user.emailVerified,
     }
     localStorage.setItem(CACHED_USER_KEY, JSON.stringify(cached))
   } else {
@@ -54,12 +64,41 @@ function setCachedUser(user: User | null) {
   }
 }
 
+function publishToDirectory(firebaseUser: User) {
+  if (!firebaseUser.email || !firebaseUser.emailVerified) return
+  const emailBase64 = btoa(firebaseUser.email.toLowerCase())
+  import("firebase/firestore").then(({ doc, setDoc, getFirestore }) => {
+    const fsDb = auth.app.options ? getFirestore(auth.app) : firestoreDb
+    const ref = doc(fsDb, `directory_by_email/${emailBase64}`)
+    setDoc(ref, { uid: firebaseUser.uid }).catch(err => console.error("Failed to publish to directory", err))
+  })
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | CachedUser | null>(() => getCachedUser())
   const [loading, setLoading] = useState(() => !getCachedUser())
   const authResolved = useRef(false)
 
-
+  async function reloadUser(): Promise<boolean> {
+    if (!auth.currentUser) return false
+    try {
+      await auth.currentUser.reload()
+      const refreshed = auth.currentUser
+      if (refreshed) {
+        // Clone with prototype so React detects state reference change and retains User methods
+        const cloned = Object.assign(Object.create(Object.getPrototypeOf(refreshed)), refreshed)
+        setUser(cloned)
+        setCachedUser(refreshed)
+        if (refreshed.emailVerified) {
+          publishToDirectory(refreshed)
+        }
+        return refreshed.emailVerified
+      }
+    } catch (err) {
+      console.warn("Failed to reload user", err)
+    }
+    return false
+  }
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -67,31 +106,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         setUser(firebaseUser)
         setCachedUser(firebaseUser)
-        // Publish email to directory for linking
-        if (firebaseUser.email) {
-          const emailBase64 = btoa(firebaseUser.email.toLowerCase())
-          import("firebase/firestore").then(({ doc, setDoc, getFirestore }) => {
-            const fsDb = auth.app.options ? getFirestore(auth.app) : firestoreDb
-            const ref = doc(fsDb, `directory_by_email/${emailBase64}`)
-            setDoc(ref, { uid: firebaseUser.uid }).catch(err => console.error("Failed to publish to directory", err))
-            
-            // Dynamically re-bind push subscription to the current user if already subscribed
-            if ("serviceWorker" in navigator) {
-              navigator.serviceWorker.ready.then(async (registration) => {
-                const subscription = await registration.pushManager.getSubscription()
-                if (subscription) {
-                  localStorage.setItem("notifications_enabled", "true")
-                  const subJson = subscription.toJSON()
-                  const subId = btoa(subJson.endpoint || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 40)
-                  setDoc(doc(fsDb, `users/${firebaseUser.uid}/push_subscriptions/${subId}`), {
-                    ...subJson,
-                    createdAt: new Date().toISOString(),
-                    userAgent: navigator.userAgent,
-                  }).catch(e => console.warn("Failed to auto-bind push sub", e))
-                } else {
-                  localStorage.setItem("notifications_enabled", "false")
-                }
+        // Publish email to directory for linking ONLY IF verified
+        if (firebaseUser.email && firebaseUser.emailVerified) {
+          publishToDirectory(firebaseUser)
+        }
+
+        // Dynamically re-bind push subscription to the current user if verified
+        if (firebaseUser.emailVerified && "serviceWorker" in navigator) {
+          navigator.serviceWorker.ready.then(async (registration) => {
+            const subscription = await registration.pushManager.getSubscription()
+            if (subscription) {
+              localStorage.setItem("notifications_enabled", "true")
+              const subJson = subscription.toJSON()
+              const subId = btoa(subJson.endpoint || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 40)
+              import("firebase/firestore").then(({ doc, setDoc, getFirestore }) => {
+                const fsDb = auth.app.options ? getFirestore(auth.app) : firestoreDb
+                setDoc(doc(fsDb, `users/${firebaseUser.uid}/push_subscriptions/${subId}`), {
+                  ...subJson,
+                  createdAt: new Date().toISOString(),
+                  userAgent: navigator.userAgent,
+                }).catch(e => console.warn("Failed to auto-bind push sub", e))
               })
+            } else {
+              localStorage.setItem("notifications_enabled", "false")
             }
           })
         }
@@ -132,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOut: handleSignOut }}>
+    <AuthContext.Provider value={{ user, loading, signOut: handleSignOut, reloadUser }}>
       {children}
     </AuthContext.Provider>
   )

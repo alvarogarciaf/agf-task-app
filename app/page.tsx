@@ -5,6 +5,7 @@ import dynamic from "next/dynamic"
 import { useAuth } from "@/components/auth-provider"
 import { DbProvider } from "@/components/db-provider"
 import { SignIn } from "@/components/sign-in"
+import { VerifyEmail } from "@/components/verify-email"
 import { AppContent } from "@/components/app-content"
 import { GoogleCalendarProvider } from "@/components/google-calendar-provider"
 import { MessageSyncProvider } from "@/components/message-sync-provider"
@@ -29,7 +30,12 @@ function PageContent() {
     return <SignIn />
   }
 
-  // Authenticated — render app with user-isolated database
+  // Email not verified — show verification gate
+  if (!user.emailVerified) {
+    return <VerifyEmail user={user} onSignOut={signOut} />
+  }
+
+  // Authenticated and verified — render app with user-isolated database
   return (
     <DbProvider userUid={user.uid}>
       <MessageSyncProvider>

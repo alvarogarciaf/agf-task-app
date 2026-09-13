@@ -5,19 +5,50 @@ import {
   signInWithPopup, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
-  sendPasswordResetEmail 
+  sendPasswordResetEmail,
+  sendEmailVerification
 } from "firebase/auth"
 import { auth, googleProvider } from "@/lib/firebase/config"
 import { toast } from "sonner"
 
 type AuthMode = "signin" | "signup" | "forgot"
 
+function validateEmail(emailStr: string): string | null {
+  const trimmed = emailStr.trim()
+  if (!trimmed) return "Email is required."
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+  if (!emailRegex.test(trimmed)) {
+    return "Please enter a valid email address (e.g. name@example.com)."
+  }
+  const domain = trimmed.split("@")[1]?.toLowerCase()
+  const commonTypos: Record<string, string> = {
+    "gmial.com": "gmail.com",
+    "gmaill.com": "gmail.com",
+    "gamil.com": "gmail.com",
+    "hotmial.com": "hotmail.com",
+    "outloo.com": "outlook.com",
+    "yaho.com": "yahoo.com",
+  }
+  if (domain && commonTypos[domain]) {
+    return `Did you mean @${commonTypos[domain]}? Please verify your email domain.`
+  }
+  return null
+}
+
 export function SignIn() {
   const [mode, setMode] = useState<AuthMode>("signin")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  function switchMode(newMode: AuthMode) {
+    setMode(newMode)
+    setError(null)
+    setPassword("")
+    setConfirmPassword("")
+  }
 
   async function handleGoogleSignIn() {
     setError(null)
@@ -39,14 +70,16 @@ export function SignIn() {
 
   async function handleEmailAuth(e: React.FormEvent) {
     e.preventDefault()
-    if (!email) return setError("Email is required.")
+    const cleanEmail = email.trim().toLowerCase()
+    const emailError = validateEmail(cleanEmail)
+    if (emailError) return setError(emailError)
     
     if (mode === "forgot") {
       setLoading(true)
       try {
-        await sendPasswordResetEmail(auth, email)
+        await sendPasswordResetEmail(auth, cleanEmail)
         toast.success("Password reset email sent. Check your inbox.")
-        setMode("signin")
+        switchMode("signin")
       } catch (err: any) {
         setError(err.message || "Failed to send reset email.")
       } finally {
@@ -56,23 +89,38 @@ export function SignIn() {
     }
 
     if (!password) return setError("Password is required.")
+
+    if (mode === "signup") {
+      if (password.length < 8) {
+        return setError("Password must be at least 8 characters long.")
+      }
+      if (password !== confirmPassword) {
+        return setError("Passwords do not match. Please re-enter your password.")
+      }
+    }
     
     setLoading(true)
     setError(null)
     try {
       if (mode === "signup") {
-        await createUserWithEmailAndPassword(auth, email, password)
+        const userCred = await createUserWithEmailAndPassword(auth, cleanEmail, password)
+        try {
+          await sendEmailVerification(userCred.user)
+          toast.success("Account created! Verification link sent to your email.")
+        } catch (verifyErr) {
+          console.warn("Failed to send initial verification email:", verifyErr)
+        }
       } else {
-        await signInWithEmailAndPassword(auth, email, password)
+        await signInWithEmailAndPassword(auth, cleanEmail, password)
       }
     } catch (err: any) {
       console.error("Email auth failed:", err)
       if (err.code === "auth/invalid-credential") {
         setError("Incorrect email or password.")
       } else if (err.code === "auth/email-already-in-use") {
-        setError("An account with this email already exists.")
+        setError("An account with this email already exists. Please sign in instead.")
       } else if (err.code === "auth/weak-password") {
-        setError("Password should be at least 6 characters.")
+        setError("Password should be at least 8 characters.")
       } else {
         setError(err.message || "Authentication failed.")
       }
@@ -105,14 +153,26 @@ export function SignIn() {
               className="flex h-12 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:h-11 md:text-sm"
             />
             {mode !== "forgot" && (
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-                className="flex h-12 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:h-11 md:text-sm"
-              />
+              <>
+                <input
+                  type="password"
+                  placeholder={mode === "signup" ? "Create a password (min. 8 characters)" : "Password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  className="flex h-12 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:h-11 md:text-sm"
+                />
+                {mode === "signup" && (
+                  <input
+                    type="password"
+                    placeholder="Confirm password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={loading}
+                    className="flex h-12 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:h-11 md:text-sm"
+                  />
+                )}
+              </>
             )}
           </div>
 
@@ -138,15 +198,15 @@ export function SignIn() {
         <div className="flex flex-col space-y-2 text-center text-sm text-muted-foreground">
           {mode === "signin" && (
             <>
-              <button type="button" onClick={() => { setMode("forgot"); setError(null); }} className="hover:text-primary transition-colors">Forgot your password?</button>
-              <button type="button" onClick={() => { setMode("signup"); setError(null); }} className="hover:text-primary transition-colors">Don't have an account? Sign up</button>
+              <button type="button" onClick={() => switchMode("forgot")} className="hover:text-primary transition-colors">Forgot your password?</button>
+              <button type="button" onClick={() => switchMode("signup")} className="hover:text-primary transition-colors">Don't have an account? Sign up</button>
             </>
           )}
           {mode === "signup" && (
-            <button type="button" onClick={() => { setMode("signin"); setError(null); }} className="hover:text-primary transition-colors">Already have an account? Sign in</button>
+            <button type="button" onClick={() => switchMode("signin")} className="hover:text-primary transition-colors">Already have an account? Sign in</button>
           )}
           {mode === "forgot" && (
-            <button type="button" onClick={() => { setMode("signin"); setError(null); }} className="hover:text-primary transition-colors">Back to sign in</button>
+            <button type="button" onClick={() => switchMode("signin")} className="hover:text-primary transition-colors">Back to sign in</button>
           )}
         </div>
 
