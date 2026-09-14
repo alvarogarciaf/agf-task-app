@@ -13,10 +13,12 @@ import { firestoreDb, functions } from "@/lib/firebase/config"
 import type { Person, UrgencyLevel } from "@/lib/types"
 import type { SyncStatus } from "@/components/db-provider"
 import { useDatabase } from "@/components/db-provider"
+import { useSubscription } from "@/hooks/use-subscription"
 import { useTodaySectionFilter, setTodaySectionFilter } from "@/lib/today-filter"
 import { useDefaultFilterMatchMode, setDefaultFilterMatchMode } from "@/lib/filter-match-mode"
+import { CreditCard, Loader2 } from "lucide-react"
 
-export type TabKey = "view" | "contexts" | "tags" | "calendar" | "data" | "notifications" | "troubleshoot"
+export type TabKey = "view" | "contexts" | "tags" | "calendar" | "billing" | "data" | "notifications" | "troubleshoot"
 
 interface SettingsViewProps {
   activeTab?: TabKey
@@ -127,8 +129,40 @@ export function SettingsView({
 
   const db = useDatabase()
   const { signOut } = useAuth()
+  const { subscription, isPro, loading: subLoading } = useSubscription(userUid)
   const [isDeletingAccount, setIsDeletingAccount] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
+  const [billingLoading, setBillingLoading] = useState(false)
+
+  const handleUpgrade = async () => {
+    setBillingLoading(true)
+    try {
+      const createCheckoutSession = httpsCallable(functions, "createCheckoutSession")
+      const result = await createCheckoutSession()
+      const data = result.data as { url: string }
+      if (data.url) window.location.href = data.url
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err.message || "Failed to start checkout.")
+    } finally {
+      setBillingLoading(false)
+    }
+  }
+
+  const handleManageBilling = async () => {
+    setBillingLoading(true)
+    try {
+      const createPortalSession = httpsCallable(functions, "createPortalSession")
+      const result = await createPortalSession()
+      const data = result.data as { url: string }
+      if (data.url) window.location.href = data.url
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err.message || "Failed to open billing portal.")
+    } finally {
+      setBillingLoading(false)
+    }
+  }
 
   const handleExportData = async () => {
     setIsExporting(true)
@@ -221,6 +255,9 @@ export function SettingsView({
         <TabButton ref={tab === "calendar" ? activeTabRef : null} active={tab === "calendar"} onClick={() => setTab("calendar")} icon={Calendar}>
           Calendar
         </TabButton>
+        <TabButton ref={tab === "billing" ? activeTabRef : null} active={tab === "billing"} onClick={() => setTab("billing")} icon={CreditCard}>
+          Billing
+        </TabButton>
         <TabButton ref={tab === "data" ? activeTabRef : null} active={tab === "data"} onClick={() => setTab("data")} icon={Trash2}>
           Data
         </TabButton>
@@ -275,7 +312,15 @@ export function SettingsView({
                 </p>
 
                 <div className="flex gap-3">
-                  {isConnected ? (
+                  {!isPro ? (
+                    <button
+                      type="button"
+                      onClick={() => setTab("billing")}
+                      className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                    >
+                      Upgrade to Pro to Connect
+                    </button>
+                  ) : isConnected ? (
                     <>
                       <button
                         type="button"
@@ -343,7 +388,47 @@ export function SettingsView({
             </div>
           </div>
         )}
-
+        {tab === "billing" && (
+          <div className="p-8">
+            <h3 className="text-lg font-semibold mb-2">Billing & Subscription</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Manage your subscription and billing details.
+            </p>
+            
+            <div className="space-y-6">
+              <div className="p-6 border border-border rounded-lg bg-card flex flex-col items-center text-center">
+                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                  <CreditCard className="h-6 w-6 text-primary" />
+                </div>
+                <h4 className="font-semibold text-lg mb-2">
+                  {subLoading ? "Loading..." : isPro ? "Tasker Pro" : "Tasker Free"}
+                </h4>
+                <p className="text-sm text-muted-foreground max-w-md mb-6">
+                  {isPro 
+                    ? `You are currently on the Pro plan. Thank you for supporting Tasker AGF! Status: ${subscription.status}.`
+                    : "Upgrade to Pro to unlock unlimited tasks, projects, Google Calendar sync, and collaboration."}
+                </p>
+                {isPro ? (
+                  <button
+                    onClick={handleManageBilling}
+                    disabled={billingLoading}
+                    className="px-4 py-2 bg-secondary text-secondary-foreground text-sm font-medium rounded-md hover:bg-secondary/80 transition-colors disabled:opacity-50"
+                  >
+                    {billingLoading ? "Loading..." : "Manage Subscription"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleUpgrade}
+                    disabled={billingLoading}
+                    className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {billingLoading ? "Loading..." : "Upgrade to Pro"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {tab === "data" && (
           <div className="p-8">
             <h3 className="text-lg font-semibold mb-2">Data Management</h3>

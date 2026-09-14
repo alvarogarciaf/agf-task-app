@@ -15,6 +15,7 @@ service cloud.firestore {
     match /users/{userId}/{document=**} {
       allow read: if isOwner(userId);
       allow write: if isOwner(userId)
+        && document != 'subscription'
         && request.resource.size() < 500000;  // 500KB max document
     }
 

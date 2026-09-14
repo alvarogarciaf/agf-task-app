@@ -40,6 +40,8 @@ import { SaveViewDialog } from "./save-view-dialog"
 import { TaskDetailDialog } from "@/components/task-detail-dialog"
 import { usePreloadProjectImages } from "@/lib/image-cache"
 import { holdBackTask } from "@/lib/sync-coordinator"
+import { useSubscription } from "@/hooks/use-subscription"
+import { PaywallDialog } from "@/components/paywall-dialog"
 
 const CACHE_PREFIX = "tasker_cache_"
 function getCachedData<T>(key: string, defaultVal: T): T {
@@ -77,6 +79,19 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const syncStatus = useSyncStatus()
   const searchParams = useSearchParams()
   const router = useRouter()
+  
+  const { isPro } = useSubscription(user.uid)
+  const [paywallOpen, setPaywallOpen] = useState(false)
+  const [paywallFeature, setPaywallFeature] = useState("")
+  
+  const checkLimit = (feature: string, current: number, limit: number) => {
+    if (!isPro && current >= limit) {
+      setPaywallFeature(feature)
+      setPaywallOpen(true)
+      return false
+    }
+    return true
+  }
 
   const [activeView, setActiveView] = useState<ViewKey>(() => {
     if (typeof window === "undefined") return "home"
@@ -290,6 +305,13 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     tagIds?: string[]
     holdBackSync?: boolean
   }) => {
+    if (input.type !== "note") {
+      const activeTaskCount = inboxTasks.length + activeTasks.length;
+      if (!checkLimit("Unlimited Tasks", activeTaskCount, 50)) {
+        return "";
+      }
+    }
+
     const byOrder = [...urgencies].sort((a, b) => a.order - b.order)
     const defaultUrgency = byOrder[0]?.id ?? "u_low"
     
@@ -488,6 +510,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   }
 
   const handleAddProject = async (p: Omit<Project, "id">) => {
+    if (!checkLimit("Unlimited Projects", projects.length, 3)) {
+      return;
+    }
+    
     await db.projects.insert({
       id: crypto.randomUUID(),
       name: p.name,
@@ -2058,6 +2084,11 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           mode="edit"
         />
       )}
+      <PaywallDialog
+        open={paywallOpen}
+        onOpenChange={setPaywallOpen}
+        featureName={paywallFeature}
+      />
     </div>
   )
 }
