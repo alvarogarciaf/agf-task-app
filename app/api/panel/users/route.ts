@@ -7,12 +7,14 @@ async function handler() {
     const users = [];
     let pageToken: string | undefined;
 
-    const subscriptionsSnap = await adminDb.collectionGroup('subscription').get();
+    const settingsSnap = await adminDb.collectionGroup('settings').get();
     const userSubscriptions = new Map<string, any>();
 
-    subscriptionsSnap.forEach((doc: any) => {
-      const uid = doc.ref.parent.parent?.id;
-      if (uid) userSubscriptions.set(uid, doc.data());
+    settingsSnap.forEach((doc: any) => {
+      if (doc.id === 'subscription') {
+        const uid = doc.ref.parent.parent?.id;
+        if (uid) userSubscriptions.set(uid, doc.data());
+      }
     });
 
     do {

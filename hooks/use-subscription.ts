@@ -24,7 +24,7 @@ export function useSubscription(uid: string | undefined, creationTime?: string) 
       return;
     }
 
-    const unsub = onSnapshot(doc(firestoreDb, `users/${uid}/subscription`), (docSnap) => {
+    const unsub = onSnapshot(doc(firestoreDb, `users/${uid}/settings/subscription`), (docSnap) => {
       if (docSnap.exists()) {
         setSubscription(docSnap.data() as UserSubscription);
       } else {

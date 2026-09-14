@@ -11,7 +11,7 @@ export const GET = async (req: NextRequest, { params }: { params: Promise<{ uid:
       const creationTime = new Date(userRecord.metadata.creationTime!).getTime();
       const isLegacy = creationTime < new Date("2026-09-15T00:00:00Z").getTime();
       
-      const subDoc = await adminDb.doc(`users/${uid}/subscription`).get();
+      const subDoc = await adminDb.doc(`users/${uid}/settings/subscription`).get();
       const sub = subDoc.exists ? subDoc.data() : { plan: 'free', status: 'canceled' };
       const isPro = isLegacy || (sub?.plan === 'pro' && (sub?.status === 'active' || sub?.status === 'trialing'));
 

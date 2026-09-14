@@ -12,7 +12,7 @@ export const PATCH = async (req: NextRequest, { params }: { params: Promise<{ ui
         return NextResponse.json({ error: "Missing plan or status" }, { status: 400 });
       }
 
-      const ref = adminDb.doc(`users/${uid}/subscription`);
+      const ref = adminDb.doc(`users/${uid}/settings/subscription`);
       await ref.set({
         plan: updates.plan,
         status: updates.status,

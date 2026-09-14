@@ -18,17 +18,16 @@ export const createCheckoutSession = onCall(
     const stripe = new Stripe(stripeSecretKey.value());
 
     const db = getFirestore();
-    const subDoc = await db.doc(`users/${uid}/subscription`).get();
+    const subDoc = await db.doc(`users/${uid}/settings/subscription`).get();
     let customerId = subDoc.data()?.stripeCustomerId;
 
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: email,
         metadata: { firebaseUID: uid },
       });
       customerId = customer.id;
-      // Pre-create the subscription document to store the customer ID
-      await db.doc(`users/${uid}/subscription`).set({ stripeCustomerId: customerId, plan: 'free' }, { merge: true });
+      // Save customer ID so we don't recreate it later
+      await db.doc(`users/${uid}/settings/subscription`).set({ stripeCustomerId: customerId, plan: 'free' }, { merge: true });
     }
 
     const origin = request.rawRequest.headers.origin || "http://localhost:3000";

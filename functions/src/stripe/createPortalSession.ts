@@ -14,7 +14,7 @@ export const createPortalSession = onCall(
     }
 
     const db = getFirestore();
-    const subDoc = await db.doc(`users/${uid}/subscription`).get();
+    const subDoc = await db.doc(`users/${uid}/settings/subscription`).get();
     const customerId = subDoc.data()?.stripeCustomerId;
 
     if (!customerId) {
