@@ -80,7 +80,7 @@ async function handler() {
 
     // Compute pro/legacy based on first pass
     for (const [uid, meta] of userMetadataMap.entries()) {
-      const isLegacy = meta.creationTime < new Date("2026-09-15T00:00:00Z").getTime();
+      const isLegacy = meta.creationTime < new Date("2026-09-13T00:00:00Z").getTime();
       const sub = userSubscriptions.get(uid) || { plan: 'free', status: 'canceled' };
       const isPro = isLegacy || (sub.plan === 'pro' && (sub.status === 'active' || sub.status === 'trialing'));
       

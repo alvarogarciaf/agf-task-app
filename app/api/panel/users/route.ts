@@ -19,10 +19,58 @@ async function handler() {
 
     do {
       const listUsersResult = await adminAuth.listUsers(100, pageToken);
-      
-      for (const userRecord of listUsersResult.users) {
+      const userList = listUsersResult.users;
+
+      // Fetch task, note, and project counts for each user concurrently
+      const usagePromises = userList.map(async (u) => {
+        try {
+          const [tasksSnap, projectsSnap] = await Promise.all([
+            adminDb.collection(`users/${u.uid}/tasks`).select('type', '_deleted').get(),
+            adminDb.collection(`users/${u.uid}/projects`).select('_deleted').get()
+          ]);
+
+          let taskCount = 0;
+          let noteCount = 0;
+          tasksSnap.forEach((doc: any) => {
+            const data = doc.data();
+            if (data._deleted) return;
+            if (data.type === 'note') {
+              noteCount++;
+            } else {
+              taskCount++;
+            }
+          });
+
+          let projectCount = 0;
+          projectsSnap.forEach((doc: any) => {
+            const data = doc.data();
+            if (data._deleted) return;
+            projectCount++;
+          });
+
+          return {
+            uid: u.uid,
+            taskCount,
+            noteCount,
+            projectCount
+          };
+        } catch (e) {
+          console.error(`Error fetching usage for user ${u.uid}:`, e);
+          return {
+            uid: u.uid,
+            taskCount: 0,
+            noteCount: 0,
+            projectCount: 0
+          };
+        }
+      });
+
+      const usageResults = await Promise.all(usagePromises);
+      const usageMap = new Map(usageResults.map((r) => [r.uid, r]));
+
+      for (const userRecord of userList) {
         const creationTime = new Date(userRecord.metadata.creationTime!).getTime();
-        const isLegacy = creationTime < new Date("2026-09-15T00:00:00Z").getTime();
+        const isLegacy = creationTime < new Date("2026-09-13T00:00:00Z").getTime();
         const sub = userSubscriptions.get(userRecord.uid) || { plan: 'free', status: 'canceled' };
         const isPro = isLegacy || (sub.plan === 'pro' && (sub.status === 'active' || sub.status === 'trialing'));
         
@@ -31,6 +79,8 @@ async function handler() {
         const hasEmail = userRecord.providerData.some((p: any) => p.providerId === 'password');
         if (hasGoogle && hasEmail) authProvider = 'both';
         else if (hasGoogle) authProvider = 'google';
+
+        const userUsage = usageMap.get(userRecord.uid) || { taskCount: 0, noteCount: 0, projectCount: 0 };
 
         users.push({
           uid: userRecord.uid,
@@ -44,6 +94,7 @@ async function handler() {
           subscription: sub,
           isLegacy,
           isPro,
+          usage: userUsage,
         });
       }
       pageToken = listUsersResult.pageToken;

@@ -39,8 +39,8 @@ export function useSubscription(uid: string | undefined, creationTime?: string) 
     return () => unsub();
   }, [uid]);
 
-  // Grandfather in users created before Sept 15, 2026
-  const isLegacy = creationTime ? new Date(creationTime).getTime() < new Date("2026-09-15T00:00:00Z").getTime() : false;
+  // Grandfather in users created before Sept 13, 2026
+  const isLegacy = creationTime ? new Date(creationTime).getTime() < new Date("2026-09-13T00:00:00Z").getTime() : false;
   const isPro = isLegacy || (subscription.plan === 'pro' && (subscription.status === 'active' || subscription.status === 'trialing'));
 
   return { subscription, isPro, isLegacy, loading };
