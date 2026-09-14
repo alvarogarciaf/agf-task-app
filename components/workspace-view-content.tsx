@@ -42,6 +42,7 @@ interface WorkspaceViewContentProps {
   savedViews: SavedView[]
   syncStatus: SyncStatus
   userUid: string
+  userCreationTime?: string
   hideDesktopAdd?: boolean
   onSyncCalendar: (token: string) => Promise<void>
   onCreateTask: (input: {
@@ -108,6 +109,7 @@ export function WorkspaceViewContent({
   savedViews,
   syncStatus,
   userUid,
+  userCreationTime,
   hideDesktopAdd,
   onSyncCalendar,
   onCreateTask,
@@ -315,6 +317,7 @@ export function WorkspaceViewContent({
           onResetDatabase={onResetDatabase}
           syncStatus={syncStatus}
           userUid={userUid}
+          userCreationTime={userCreationTime}
           onSyncCalendar={onSyncCalendar}
         />
       )

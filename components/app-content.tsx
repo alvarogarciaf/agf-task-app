@@ -67,6 +67,7 @@ interface AppUser {
   uid: string
   displayName: string | null
   email: string | null
+  metadata?: { creationTime?: string }
 }
 
 interface AppContentProps {
@@ -80,7 +81,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
   
-  const { isPro } = useSubscription(user.uid)
+  const { isPro, isLegacy } = useSubscription(user.uid, user.metadata?.creationTime)
   const [paywallOpen, setPaywallOpen] = useState(false)
   const [paywallFeature, setPaywallFeature] = useState("")
   
@@ -1410,6 +1411,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     savedViews,
     syncStatus,
     userUid: user.uid,
+    userCreationTime: user.metadata?.creationTime,
     onSyncCalendar: handleSyncCalendar,
     onCreateTask: handleCreateTask,
     onCreateNote: handleCreateNote,

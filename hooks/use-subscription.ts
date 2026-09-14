@@ -10,7 +10,7 @@ export interface UserSubscription {
   currentPeriodEnd?: any;
 }
 
-export function useSubscription(uid: string | undefined) {
+export function useSubscription(uid: string | undefined, creationTime?: string) {
   const [subscription, setSubscription] = useState<UserSubscription>({
     plan: 'free',
     status: 'canceled',
@@ -39,7 +39,9 @@ export function useSubscription(uid: string | undefined) {
     return () => unsub();
   }, [uid]);
 
-  const isPro = subscription.plan === 'pro' && (subscription.status === 'active' || subscription.status === 'trialing');
+  // Grandfather in users created before Sept 15, 2026
+  const isLegacy = creationTime ? new Date(creationTime).getTime() < new Date("2026-09-15T00:00:00Z").getTime() : false;
+  const isPro = isLegacy || (subscription.plan === 'pro' && (subscription.status === 'active' || subscription.status === 'trialing'));
 
-  return { subscription, isPro, loading };
+  return { subscription, isPro, isLegacy, loading };
 }

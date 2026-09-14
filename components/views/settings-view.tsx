@@ -34,6 +34,7 @@ interface SettingsViewProps {
   onDeleteAllTasks?: () => void
   onResetDatabase?: () => void
   userUid?: string
+  userCreationTime?: string
   onSyncCalendar?: (accessToken: string) => Promise<void>
   syncStatus?: SyncStatus
 }
@@ -53,6 +54,7 @@ export function SettingsView({
   onResetDatabase,
   syncStatus,
   userUid,
+  userCreationTime,
   onSyncCalendar,
 }: SettingsViewProps) {
   const [internalTab, setInternalTab] = useState<TabKey>("view")
@@ -129,7 +131,7 @@ export function SettingsView({
 
   const db = useDatabase()
   const { signOut } = useAuth()
-  const { subscription, isPro, loading: subLoading } = useSubscription(userUid)
+  const { subscription, isPro, isLegacy, loading: subLoading } = useSubscription(userUid, userCreationTime)
   const [isDeletingAccount, setIsDeletingAccount] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [billingLoading, setBillingLoading] = useState(false)
@@ -405,17 +407,21 @@ export function SettingsView({
                 </h4>
                 <p className="text-sm text-muted-foreground max-w-md mb-6">
                   {isPro 
-                    ? `You are currently on the Pro plan. Thank you for supporting Tasker AGF! Status: ${subscription.status}.`
+                    ? isLegacy 
+                      ? "You are a legacy user! As a thank you for being an early adopter, you have lifetime Pro access for free."
+                      : `You are currently on the Pro plan. Thank you for supporting Tasker AGF! Status: ${subscription.status}.`
                     : "Upgrade to Pro to unlock unlimited tasks, projects, Google Calendar sync, and collaboration."}
                 </p>
                 {isPro ? (
-                  <button
-                    onClick={handleManageBilling}
-                    disabled={billingLoading}
-                    className="px-4 py-2 bg-secondary text-secondary-foreground text-sm font-medium rounded-md hover:bg-secondary/80 transition-colors disabled:opacity-50"
-                  >
-                    {billingLoading ? "Loading..." : "Manage Subscription"}
-                  </button>
+                  !isLegacy && (
+                    <button
+                      onClick={handleManageBilling}
+                      disabled={billingLoading}
+                      className="px-4 py-2 bg-secondary text-secondary-foreground text-sm font-medium rounded-md hover:bg-secondary/80 transition-colors disabled:opacity-50"
+                    >
+                      {billingLoading ? "Loading..." : "Manage Subscription"}
+                    </button>
+                  )
                 ) : (
                   <button
                     onClick={handleUpgrade}
