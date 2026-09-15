@@ -137,6 +137,11 @@ export function SettingsView({
   const [billingLoading, setBillingLoading] = useState(false)
 
   const handleUpgrade = async () => {
+    if (process.env.NEXT_PUBLIC_STRIPE_ENABLED !== "true") {
+      toast.info("Stripe billing is currently disconnected in this environment.");
+      return;
+    }
+
     setBillingLoading(true)
     try {
       const createCheckoutSession = httpsCallable(functions, "createCheckoutSession")
@@ -152,6 +157,11 @@ export function SettingsView({
   }
 
   const handleManageBilling = async () => {
+    if (process.env.NEXT_PUBLIC_STRIPE_ENABLED !== "true") {
+      toast.info("Stripe billing is currently disconnected in this environment.");
+      return;
+    }
+
     setBillingLoading(true)
     try {
       const createPortalSession = httpsCallable(functions, "createPortalSession")

@@ -17,6 +17,11 @@ export function PaywallDialog({ open, onOpenChange, featureName }: PaywallDialog
   const [loading, setLoading] = useState(false)
 
   const handleUpgrade = async () => {
+    if (process.env.NEXT_PUBLIC_STRIPE_ENABLED !== "true") {
+      toast.info("Stripe billing is currently disconnected in this environment.");
+      return;
+    }
+
     setLoading(true)
     try {
       const createCheckoutSession = httpsCallable(functions, "createCheckoutSession")
