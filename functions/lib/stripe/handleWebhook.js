@@ -67,11 +67,18 @@ exports.handleWebhook = (0, https_1.onRequest)({ secrets: [stripeSecretKey, stri
                 const session = event.data.object;
                 // In some cases metadata might be inside subscription_details or directly on session
                 const uid = session.metadata?.firebaseUID;
+                const customer = session.customer;
                 if (uid && session.subscription) {
-                    await db.doc(`users/${uid}/subscription`).set({
+                    await db.doc(`users/${uid}/settings/subscription`).set({
                         stripeSubscriptionId: session.subscription,
                         plan: "pro",
                         status: "active",
+                    }, { merge: true });
+                }
+                if (uid && customer) {
+                    // Save customer ID if missing
+                    await db.doc(`users/${uid}/settings/subscription`).set({
+                        stripeCustomerId: customer
                     }, { merge: true });
                 }
                 break;
@@ -83,7 +90,7 @@ exports.handleWebhook = (0, https_1.onRequest)({ secrets: [stripeSecretKey, stri
                 if (uid) {
                     const status = subscription.status;
                     const plan = status === "active" || status === "trialing" ? "pro" : "free";
-                    await db.doc(`users/${uid}/subscription`).set({
+                    await db.doc(`users/${uid}/settings/subscription`).set({
                         stripeSubscriptionId: subscription.id,
                         status: status,
                         plan: plan,

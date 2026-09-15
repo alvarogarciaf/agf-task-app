@@ -5,6 +5,7 @@ import { useAdmin } from "@/components/admin/admin-provider";
 import Link from "next/link";
 import { Search, Plus } from "lucide-react";
 import { CreateUserDialog } from "@/components/admin/create-user-dialog";
+import { formatDateDDMMMYYYY, formatLastSignIn } from "@/lib/admin-date-utils";
 
 export default function UsersListPage() {
   const { fetchApi } = useAdmin();
@@ -68,21 +69,24 @@ export default function UsersListPage() {
             <thead className="bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 border-b border-zinc-200 dark:border-zinc-800">
               <tr>
                 <th className="px-6 py-3 font-medium">User</th>
-                <th className="px-6 py-3 font-medium">Status</th>
-                <th className="px-6 py-3 font-medium">Plan</th>
-                <th className="px-6 py-3 font-medium">Joined</th>
-                <th className="px-6 py-3 font-medium">Last Sign In</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Plan</th>
+                <th className="px-4 py-3 font-medium text-center">Tasks</th>
+                <th className="px-4 py-3 font-medium text-center">Notes</th>
+                <th className="px-4 py-3 font-medium text-center">Projects</th>
+                <th className="px-4 py-3 font-medium">Joined</th>
+                <th className="px-4 py-3 font-medium">Last Sign In</th>
                 <th className="px-6 py-3 font-medium text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-zinc-500">Loading users...</td>
+                  <td colSpan={9} className="px-6 py-12 text-center text-zinc-500">Loading users...</td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-zinc-500">No users found</td>
+                  <td colSpan={9} className="px-6 py-12 text-center text-zinc-500">No users found</td>
                 </tr>
               ) : (
                 filteredUsers.map(u => (
@@ -91,27 +95,36 @@ export default function UsersListPage() {
                       <div className="font-medium">{u.displayName || 'No name'}</div>
                       <div className="text-zinc-500 text-xs">{u.email}</div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4">
                       {u.disabled ? (
                         <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">Disabled</span>
                       ) : (
                         <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full">Active</span>
                       )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4">
                       {u.isPro ? (
                         <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">Pro</span>
                       ) : (
                         <span className="px-2 py-1 text-xs font-medium bg-zinc-100 text-zinc-700 rounded-full">Free</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-zinc-500">
-                      {new Date(u.creationTime).toLocaleDateString()}
+                    <td className="px-4 py-4 text-center font-medium text-zinc-700 dark:text-zinc-300">
+                      {u.usage?.taskCount ?? 0}
                     </td>
-                    <td className="px-6 py-4 text-zinc-500">
-                      {u.lastSignInTime ? new Date(u.lastSignInTime).toLocaleDateString() : 'Never'}
+                    <td className="px-4 py-4 text-center font-medium text-zinc-700 dark:text-zinc-300">
+                      {u.usage?.noteCount ?? 0}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-4 py-4 text-center font-medium text-zinc-700 dark:text-zinc-300">
+                      {u.usage?.projectCount ?? 0}
+                    </td>
+                    <td className="px-4 py-4 text-zinc-500 whitespace-nowrap">
+                      {formatDateDDMMMYYYY(u.creationTime)}
+                    </td>
+                    <td className="px-4 py-4 text-zinc-500 whitespace-nowrap" title={u.lastSignInTime ? formatDateDDMMMYYYY(u.lastSignInTime) : undefined}>
+                      {formatLastSignIn(u.lastSignInTime)}
+                    </td>
+                    <td className="px-6 py-4 text-right whitespace-nowrap">
                       <Link 
                         href={`/panel/users/${u.uid}`}
                         className="text-blue-600 hover:underline text-sm font-medium"

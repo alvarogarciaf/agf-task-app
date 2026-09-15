@@ -28,6 +28,7 @@ export const GET = async (req: NextRequest, { params }: { params: Promise<{ uid:
       let noteCount = 0;
       tasksSnap.forEach((doc: any) => {
         const data = doc.data();
+        if (data._deleted) return;
         if (data.type === 'note') noteCount++;
         else {
           taskCount++;
@@ -35,8 +36,11 @@ export const GET = async (req: NextRequest, { params }: { params: Promise<{ uid:
         }
       });
 
-      const projectsSnap = await adminDb.collection(`users/${uid}/projects`).count().get();
-      const projectCount = projectsSnap.data().count;
+      const projectsSnap = await adminDb.collection(`users/${uid}/projects`).get();
+      let projectCount = 0;
+      projectsSnap.forEach((doc: any) => {
+        if (!doc.data()._deleted) projectCount++;
+      });
 
       // Features
       const calendarDoc = await adminDb.doc(`users/${uid}/settings/calendar`).get();

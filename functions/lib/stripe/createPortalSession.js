@@ -15,7 +15,7 @@ exports.createPortalSession = (0, https_1.onCall)({ secrets: [stripeSecretKey] }
         throw new https_1.HttpsError("unauthenticated", "User must be authenticated.");
     }
     const db = (0, firestore_1.getFirestore)();
-    const subDoc = await db.doc(`users/${uid}/subscription`).get();
+    const subDoc = await db.doc(`users/${uid}/settings/subscription`).get();
     const customerId = subDoc.data()?.stripeCustomerId;
     if (!customerId) {
         throw new https_1.HttpsError("failed-precondition", "No Stripe customer found.");

@@ -6,6 +6,7 @@ import {
   Users, UserCheck, Star, Clock, 
   Calendar, Mail, MonitorSmartphone 
 } from "lucide-react";
+import { formatDateDDMMMYYYY, formatLastSignIn } from "@/lib/admin-date-utils";
 
 export default function AdminDashboard() {
   const { fetchApi } = useAdmin();
@@ -109,8 +110,8 @@ export default function AdminDashboard() {
                       <div className="font-medium">{u.displayName || 'No name'}</div>
                       <div className="text-zinc-500 text-xs">{u.email}</div>
                     </td>
-                    <td className="px-4 py-3 text-zinc-500">
-                      {new Date(u.creationTime).toLocaleDateString()}
+                    <td className="px-4 py-3 text-zinc-500 whitespace-nowrap">
+                      {formatDateDDMMMYYYY(u.creationTime)}
                     </td>
                   </tr>
                 ))}
@@ -141,8 +142,8 @@ export default function AdminDashboard() {
                       <div className="font-medium">{u.displayName || 'No name'}</div>
                       <div className="text-zinc-500 text-xs">{u.email}</div>
                     </td>
-                    <td className="px-4 py-3 text-zinc-500">
-                      {new Date(u.lastSignInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <td className="px-4 py-3 text-zinc-500 whitespace-nowrap" title={u.lastSignInTime ? formatDateDDMMMYYYY(u.lastSignInTime) : undefined}>
+                      {formatLastSignIn(u.lastSignInTime)}
                     </td>
                   </tr>
                 ))}

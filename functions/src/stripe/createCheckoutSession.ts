@@ -23,6 +23,7 @@ export const createCheckoutSession = onCall(
 
     if (!customerId) {
       const customer = await stripe.customers.create({
+        email: email,
         metadata: { firebaseUID: uid },
       });
       customerId = customer.id;

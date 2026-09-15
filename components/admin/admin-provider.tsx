@@ -1,8 +1,8 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/auth-provider";
+import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
 
 interface AdminContextValue {
@@ -22,42 +22,61 @@ export function useAdmin() {
 }
 
 export function AdminProvider({ children }: { children: ReactNode }) {
-  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (authLoading) return;
+    // Listen directly to Firebase Auth state to ensure the real Firebase user is loaded
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (!currentUser) {
+        setIsAdmin(false);
+        setLoading(false);
+        router.push("/");
+        return;
+      }
 
-    if (!user) {
-      router.push("/");
-      return;
+      const adminUid = process.env.NEXT_PUBLIC_ADMIN_UID;
+      if (currentUser.uid === adminUid) {
+        setIsAdmin(true);
+        setLoading(false);
+      } else {
+        setIsAdmin(false);
+        setLoading(false);
+        router.push("/");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
+  const fetchApi = useCallback(async (url: string, options?: RequestInit): Promise<Response> => {
+    if (typeof auth.authStateReady === "function") {
+      await auth.authStateReady();
     }
 
-    const adminUid = process.env.NEXT_PUBLIC_ADMIN_UID;
-    if (user.uid === adminUid) {
-      setIsAdmin(true);
-      setLoading(false);
-    } else {
-      router.push("/");
+    let currentUser: User | null = auth.currentUser;
+    if (!currentUser) {
+      for (let i = 0; i < 10 && !currentUser; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        currentUser = auth.currentUser;
+      }
     }
-  }, [user, authLoading, router]);
 
-  const fetchApi = async (url: string, options?: RequestInit) => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) throw new Error("Not authenticated");
-    
+    if (!currentUser) {
+      throw new Error("Not authenticated");
+    }
+
     const token = await currentUser.getIdToken();
-    
+
     const headers = new Headers(options?.headers);
     headers.set("Authorization", `Bearer ${token}`);
-    
+
     return fetch(url, {
       ...options,
       headers,
     });
-  };
+  }, []);
 
   if (loading || !isAdmin) {
     return (

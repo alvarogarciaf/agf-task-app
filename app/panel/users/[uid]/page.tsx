@@ -5,6 +5,7 @@ import { useAdmin } from "@/components/admin/admin-provider";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, HardDrive, ShieldAlert, KeyRound, Mail, Calendar, Trash2, Ban, CheckCircle, Star } from "lucide-react";
+import { formatDateDDMMMYYYY, formatLastSignIn } from "@/lib/admin-date-utils";
 
 export default function UserDetailPage() {
   const { uid } = useParams();
@@ -20,17 +21,24 @@ export default function UserDetailPage() {
     
     // Load user detail
     fetchApi(`/api/panel/users/${uid}`)
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         if (data.user) setUser(data.user);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to load user:", err);
         setLoading(false);
       });
       
     // Load storage separately (might be slow)
     fetchApi(`/api/panel/users/${uid}/storage`)
-      .then(res => res.json())
-      .then(data => {
-        if (!data.error) setStorage(data);
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && !data.error) setStorage(data);
+      })
+      .catch((err) => {
+        console.warn("Storage fetch skipped or failed:", err);
       });
   }, [uid, fetchApi]);
 
@@ -176,11 +184,16 @@ export default function UserDetailPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
               <p className="text-sm text-zinc-500 mb-1">Created</p>
-              <p className="font-medium">{new Date(user.creationTime).toLocaleString()}</p>
+              <p className="font-medium">{formatDateDDMMMYYYY(user.creationTime)}</p>
             </div>
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
               <p className="text-sm text-zinc-500 mb-1">Last Sign In</p>
-              <p className="font-medium">{user.lastSignInTime ? new Date(user.lastSignInTime).toLocaleString() : 'Never'}</p>
+              <p className="font-medium" title={user.lastSignInTime ? formatDateDDMMMYYYY(user.lastSignInTime) : undefined}>
+                {formatLastSignIn(user.lastSignInTime)}
+                {user.lastSignInTime && formatLastSignIn(user.lastSignInTime) !== "Never" && formatLastSignIn(user.lastSignInTime) !== formatDateDDMMMYYYY(user.lastSignInTime) && (
+                  <span className="text-xs text-zinc-400 block font-normal mt-0.5">{formatDateDDMMMYYYY(user.lastSignInTime)}</span>
+                )}
+              </p>
             </div>
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
               <p className="text-sm text-zinc-500 mb-1">Auth Provider</p>
