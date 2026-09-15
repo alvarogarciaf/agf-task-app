@@ -33,15 +33,13 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.handleWebhook = exports.createPortalSession = exports.createCheckoutSession = exports.deleteUserAccount = void 0;
+exports.deleteUserAccount = void 0;
 const admin = __importStar(require("firebase-admin"));
 admin.initializeApp();
 var deleteUserAccount_1 = require("./deleteUserAccount");
 Object.defineProperty(exports, "deleteUserAccount", { enumerable: true, get: function () { return deleteUserAccount_1.deleteUserAccount; } });
-var createCheckoutSession_1 = require("./stripe/createCheckoutSession");
-Object.defineProperty(exports, "createCheckoutSession", { enumerable: true, get: function () { return createCheckoutSession_1.createCheckoutSession; } });
-var createPortalSession_1 = require("./stripe/createPortalSession");
-Object.defineProperty(exports, "createPortalSession", { enumerable: true, get: function () { return createPortalSession_1.createPortalSession; } });
-var handleWebhook_1 = require("./stripe/handleWebhook");
-Object.defineProperty(exports, "handleWebhook", { enumerable: true, get: function () { return handleWebhook_1.handleWebhook; } });
+// Temporarily disable Stripe functions until secrets are configured
+// export { createCheckoutSession } from "./stripe/createCheckoutSession";
+// export { createPortalSession } from "./stripe/createPortalSession";
+// export { handleWebhook } from "./stripe/handleWebhook";
 //# sourceMappingURL=index.js.map
