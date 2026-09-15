@@ -7,3 +7,4 @@ export { deleteUserAccount } from "./deleteUserAccount";
 // export { createCheckoutSession } from "./stripe/createCheckoutSession";
 // export { createPortalSession } from "./stripe/createPortalSession";
 // export { handleWebhook } from "./stripe/handleWebhook";
+export { scheduledBackup } from "./scheduledBackup";
