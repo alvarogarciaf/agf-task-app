@@ -74,7 +74,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setIsAdmin(false);
         setLoading(false);
         setErrorStatus("SERVER_CONFIG");
-        setErrorMessage(body.error || "Server configuration error in Vercel. Please check your environment variables.");
+        setErrorMessage(body.error || "Server configuration error: ADMIN_UID is not set in environment variables.");
       } else {
         setIsAdmin(false);
         setLoading(false);
@@ -164,12 +164,12 @@ export function AdminProvider({ children }: { children: ReactNode }) {
                 <AlertTriangle className="w-6 h-6" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-bold">Vercel Configuration Needed</h2>
+                <h2 className="text-xl font-bold">Server Configuration Needed</h2>
                 <p className="text-sm text-zinc-500 text-left bg-zinc-50 dark:bg-zinc-800/60 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700">
                   {errorMessage}
                 </p>
                 <p className="text-xs text-zinc-400 text-left pt-1">
-                  Make sure you have added <b>ADMIN_UID</b> and <b>FIREBASE_ADMIN_SERVICE_ACCOUNT</b> in your Vercel Project Settings &gt; Environment Variables.
+                  Make sure <b>ADMIN_UID</b> and <b>FIREBASE_ADMIN_SERVICE_ACCOUNT</b> are configured in your GitHub Repository Secrets and that the GitHub Actions deployment has finished.
                 </p>
               </div>
               <div className="flex gap-3">
