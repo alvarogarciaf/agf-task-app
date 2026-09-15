@@ -243,9 +243,9 @@ export const getDatabase = async (userUid: string) => {
       
       if (needsUrgencies) seeds.push(db.urgencies.bulkInsert(mockData.urgencies));
       if (needsInitialSeed) {
-        if (projectCount === 0) seeds.push(db.projects.bulkInsert(mockData.projects));
-        if (personCount === 0) seeds.push(db.persons.bulkInsert(mockData.persons));
-        if (contextCount === 0) seeds.push(db.contexts.bulkInsert(mockData.contexts));
+        if (projectCount === 0 && mockData.projects.length > 0) seeds.push(db.projects.bulkInsert(mockData.projects));
+        if (personCount === 0 && mockData.persons.length > 0) seeds.push(db.persons.bulkInsert(mockData.persons));
+        if (contextCount === 0 && mockData.contexts.length > 0) seeds.push(db.contexts.bulkInsert(mockData.contexts));
         
         if (typeof window !== 'undefined') {
           localStorage.setItem('tasker_has_seeded', 'true');
