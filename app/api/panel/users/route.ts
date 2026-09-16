@@ -7,52 +7,50 @@ async function handler() {
     const users = [];
     let pageToken: string | undefined;
 
-    const settingsSnap = await adminDb.collectionGroup('settings').get();
-    const userSubscriptions = new Map<string, any>();
-
-    settingsSnap.forEach((doc: any) => {
-      if (doc.id === 'subscription') {
-        const uid = doc.ref.parent.parent?.id;
-        if (uid) userSubscriptions.set(uid, doc.data());
-      }
-    });
-
     do {
       const listUsersResult = await adminAuth.listUsers(100, pageToken);
       const userList = listUsersResult.users;
 
-      // Fetch task, note, and project counts for each user concurrently
+      // Fetch task, note, project counts and subscription for each user concurrently
       const usagePromises = userList.map(async (u) => {
         try {
-          const [tasksSnap, projectsSnap] = await Promise.all([
-            adminDb.collection(`users/${u.uid}/tasks`).select('type', '_deleted').get(),
-            adminDb.collection(`users/${u.uid}/projects`).select('_deleted').get()
+          const [tasksSnap, projectsSnap, subDoc] = await Promise.all([
+            adminDb.collection(`users/${u.uid}/tasks`).select('type', '_deleted').get().catch(() => null),
+            adminDb.collection(`users/${u.uid}/projects`).select('_deleted').get().catch(() => null),
+            adminDb.doc(`users/${u.uid}/settings/subscription`).get().catch(() => null)
           ]);
 
           let taskCount = 0;
           let noteCount = 0;
-          tasksSnap.forEach((doc: any) => {
-            const data = doc.data();
-            if (data._deleted) return;
-            if (data.type === 'note') {
-              noteCount++;
-            } else {
-              taskCount++;
-            }
-          });
+          if (tasksSnap) {
+            tasksSnap.forEach((doc: any) => {
+              const data = doc.data();
+              if (data._deleted) return;
+              if (data.type === 'note') {
+                noteCount++;
+              } else {
+                taskCount++;
+              }
+            });
+          }
 
           let projectCount = 0;
-          projectsSnap.forEach((doc: any) => {
-            const data = doc.data();
-            if (data._deleted) return;
-            projectCount++;
-          });
+          if (projectsSnap) {
+            projectsSnap.forEach((doc: any) => {
+              const data = doc.data();
+              if (data._deleted) return;
+              projectCount++;
+            });
+          }
+
+          const subscription = subDoc && subDoc.exists ? subDoc.data() : { plan: 'free', status: 'canceled' };
 
           return {
             uid: u.uid,
             taskCount,
             noteCount,
-            projectCount
+            projectCount,
+            subscription,
           };
         } catch (e) {
           console.error(`Error fetching usage for user ${u.uid}:`, e);
@@ -60,7 +58,8 @@ async function handler() {
             uid: u.uid,
             taskCount: 0,
             noteCount: 0,
-            projectCount: 0
+            projectCount: 0,
+            subscription: { plan: 'free', status: 'canceled' },
           };
         }
       });
@@ -71,7 +70,8 @@ async function handler() {
       for (const userRecord of userList) {
         const creationTime = new Date(userRecord.metadata.creationTime!).getTime();
         const isLegacy = creationTime < new Date("2026-09-13T00:00:00Z").getTime();
-        const sub = userSubscriptions.get(userRecord.uid) || { plan: 'free', status: 'canceled' };
+        const userUsage = usageMap.get(userRecord.uid) || { taskCount: 0, noteCount: 0, projectCount: 0, subscription: { plan: 'free', status: 'canceled' } };
+        const sub = userUsage.subscription || { plan: 'free', status: 'canceled' };
         const isPro = isLegacy || (sub.plan === 'pro' && (sub.status === 'active' || sub.status === 'trialing'));
         
         let authProvider = 'email';
@@ -79,8 +79,6 @@ async function handler() {
         const hasEmail = userRecord.providerData.some((p: any) => p.providerId === 'password');
         if (hasGoogle && hasEmail) authProvider = 'both';
         else if (hasGoogle) authProvider = 'google';
-
-        const userUsage = usageMap.get(userRecord.uid) || { taskCount: 0, noteCount: 0, projectCount: 0 };
 
         users.push({
           uid: userRecord.uid,

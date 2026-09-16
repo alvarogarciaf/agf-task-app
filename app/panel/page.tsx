@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAdmin } from "@/components/admin/admin-provider";
 import { 
   Users, UserCheck, Star, Clock, 
-  Calendar, Mail, MonitorSmartphone 
+  Calendar, Mail, MonitorSmartphone, AlertTriangle, RefreshCw
 } from "lucide-react";
 import { formatDateDDMMMYYYY, formatLastSignIn } from "@/lib/admin-date-utils";
 
@@ -12,17 +12,29 @@ export default function AdminDashboard() {
   const { fetchApi } = useAdmin();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadStats = () => {
+    setLoading(true);
+    setError(null);
     fetchApi("/api/panel/stats")
       .then(res => res.json())
       .then(data => {
         if (data && !data.error) {
           setStats(data);
+        } else if (data?.error) {
+          setError(data.error);
         }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        setError(err.message || "Failed to fetch stats");
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    loadStats();
   }, [fetchApi]);
 
   if (loading) {
@@ -30,7 +42,23 @@ export default function AdminDashboard() {
   }
 
   if (!stats) {
-    return <div className="p-8 text-red-500">Failed to load statistics</div>;
+    return (
+      <div className="p-8 max-w-xl mx-auto mt-12 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-8 text-center space-y-4 shadow-sm">
+        <div className="w-12 h-12 bg-red-100 dark:bg-red-950/50 text-red-600 rounded-full flex items-center justify-center mx-auto">
+          <AlertTriangle className="w-6 h-6" />
+        </div>
+        <h3 className="font-semibold text-lg">Unable to Load Statistics</h3>
+        <p className="text-sm text-zinc-500 bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 text-left font-mono">
+          {error || "Unknown server error"}
+        </p>
+        <button
+          onClick={loadStats}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg text-sm font-medium hover:bg-zinc-800"
+        >
+          <RefreshCw className="w-4 h-4" /> Try Again
+        </button>
+      </div>
+    );
   }
 
   return (
