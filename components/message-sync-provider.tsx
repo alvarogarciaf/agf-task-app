@@ -11,7 +11,6 @@ import objectHash from "object-hash";
 import {
   isHeldBack,
   isDiscarded,
-  isEditingTask,
   discardHeldBackTask,
   registerTaskSyncer,
   unregisterTaskSyncer,
@@ -383,7 +382,7 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
         for (const taskDoc of allTasks) {
           const taskData = taskDoc.toJSON() as Task;
 
-          if (isHeldBack(taskData.id) || isEditingTask(taskData.id)) {
+          if (isHeldBack(taskData.id)) {
             continue;
           }
 
@@ -494,8 +493,8 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
             return;
           }
  
-          // Suppress outgoing sync while the task is being created or actively edited in modal
-          if (isHeldBack(taskData.id) || isEditingTask(taskData.id)) {
+          // Suppress outgoing sync while the task is being created in modal
+          if (isHeldBack(taskData.id)) {
             return;
           }
 

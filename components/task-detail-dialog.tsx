@@ -34,8 +34,6 @@ import {
 } from "@/components/object-editor-shared"
 import { useOpenObjectFullScreen } from "@/components/tab-object-context"
 import {
-  startEditingTask,
-  finishEditingTask,
   discardHeldBackTask,
   commitHeldBackTask,
   isHeldBack,
@@ -106,17 +104,6 @@ export function TaskDetailDialog({
     }
   }, [open, task?.id])
 
-  // Track active editing for existing tasks so intermediate autosaves aren't pushed to partner
-  useEffect(() => {
-    if (open && task && !isActuallyCreating) {
-      startEditingTask(task.id)
-    }
-    return () => {
-      if (task && !isActuallyCreating) {
-        finishEditingTask(task.id)
-      }
-    }
-  }, [open, task?.id, isActuallyCreating])
 
   const {
     draft,
@@ -167,6 +154,10 @@ export function TaskDetailDialog({
     if (autoProcess) finalDraft.processed = true
     save()
     await commitHeldBackTask(finalDraft.id, finalDraft)
+  }
+
+  const handleClose = () => {
+    save()
   }
 
   // Keyboard shortcut listener for Undo (Ctrl+Z / Cmd+Z) and Redo (Ctrl+Shift+Z / Cmd+Shift+Z / Ctrl+Y)
@@ -285,10 +276,7 @@ export function TaskDetailDialog({
               handleDiscard()
             }
           } else {
-            if (task) {
-              finishEditingTask(task.id, draft ? { ...draft } : undefined)
-            }
-            cancel()
+            saveWithoutClose()
           }
           isSavedRef.current = false
           isDiscardingRef.current = false
@@ -412,7 +400,7 @@ export function TaskDetailDialog({
                 )}
                 <button
                   type="button"
-                  onClick={isActuallyCreating ? handleDiscard : cancel}
+                  onClick={isActuallyCreating ? handleDiscard : handleClose}
                   className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   aria-label={isActuallyCreating ? "Discard" : "Close"}
                   title={isActuallyCreating ? "Discard" : "Close"}
@@ -529,7 +517,7 @@ export function TaskDetailDialog({
                 )}
                 <button
                   type="button"
-                  onClick={isActuallyCreating ? handleDiscard : cancel}
+                  onClick={isActuallyCreating ? handleDiscard : handleClose}
                   className="rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs whitespace-nowrap"
                 >
                   {isActuallyCreating ? "Discard" : "Close"}
