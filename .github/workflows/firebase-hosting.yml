@@ -39,11 +39,11 @@ jobs:
         run: |
           cat << 'EOF' > .env.production
           NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
-          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-          NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
-          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
-          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
-          NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'agf-task-manager.firebaseapp.com' }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'agf-task-manager' }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'agf-task-manager.firebasestorage.app' }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '788861047654' }}
+          NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID || '1:788861047654:web:42b701aac84f3ead53aea7' }}
           NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
@@ -56,16 +56,38 @@ jobs:
           FIREBASE_ADMIN_SERVICE_ACCOUNT=${{ secrets.FIREBASE_ADMIN_SERVICE_ACCOUNT }}
           EOF
       - name: Deploy to Firebase Hosting and Functions
-        run: npx firebase-tools deploy --token ${{ secrets.FIREBASE_TOKEN }} --only hosting,functions --non-interactive --force
+        run: |
+          if [ -n "$FIREBASE_ADMIN_SERVICE_ACCOUNT" ]; then
+            echo "$FIREBASE_ADMIN_SERVICE_ACCOUNT" | base64 -d > "$RUNNER_TEMP/firebase-service-account.json"
+            export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-service-account.json"
+            echo "Authenticated via GOOGLE_APPLICATION_CREDENTIALS"
+          fi
+
+          DEPLOY_CMD="npx firebase-tools deploy --only hosting,functions --non-interactive --force"
+          if [ -z "$GOOGLE_APPLICATION_CREDENTIALS" ] && [ -n "${{ secrets.FIREBASE_TOKEN }}" ]; then
+            DEPLOY_CMD="$DEPLOY_CMD --token ${{ secrets.FIREBASE_TOKEN }}"
+          fi
+
+          echo "Executing deployment..."
+          $DEPLOY_CMD || {
+            echo "::warning::Initial deployment attempt encountered an error. Retrying in 10 seconds..."
+            sleep 10
+            if [ -n "${{ secrets.FIREBASE_TOKEN }}" ] && [[ "$DEPLOY_CMD" != *"--token"* ]]; then
+              echo "Retrying with FIREBASE_TOKEN..."
+              unset GOOGLE_APPLICATION_CREDENTIALS
+              DEPLOY_CMD="npx firebase-tools deploy --token ${{ secrets.FIREBASE_TOKEN }} --only hosting,functions --non-interactive --force"
+            fi
+            $DEPLOY_CMD --debug
+          }
         env:
           FIREBASE_CLI_EXPERIMENTS: webframeworks
           FIREBASE_CLI_PREVIEWS: webframeworks
           NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
-          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
-          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
-          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
-          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'agf-task-manager.firebaseapp.com' }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'agf-task-manager' }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'agf-task-manager.firebasestorage.app' }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '788861047654' }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID || '1:788861047654:web:42b701aac84f3ead53aea7' }}
           NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
@@ -76,3 +98,11 @@ jobs:
           ADMIN_UID: ${{ secrets.ADMIN_UID }}
           NEXT_PUBLIC_ADMIN_UID: ${{ secrets.NEXT_PUBLIC_ADMIN_UID }}
           FIREBASE_ADMIN_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_ADMIN_SERVICE_ACCOUNT }}
+      - name: Output Firebase Debug Log on Failure
+        if: failure()
+        run: |
+          if [ -f firebase-debug.log ]; then
+            echo "=== FIREBASE DEBUG LOG ==="
+            tail -n 120 firebase-debug.log
+          fi
+

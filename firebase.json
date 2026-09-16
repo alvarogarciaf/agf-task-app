@@ -6,6 +6,7 @@
     "rules": "firestore.rules"
   },
   "hosting": {
+    "site": "agf-task-manager",
     "source": ".",
     "ignore": [
       "firebase.json",
