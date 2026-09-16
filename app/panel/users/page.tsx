@@ -14,15 +14,25 @@ export default function UsersListPage() {
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
 
-  const loadUsers = () => {
+  const loadUsers = async () => {
     setLoading(true);
-    fetchApi("/api/panel/users")
-      .then(res => res.json())
-      .then(data => {
-        if (data.users) setUsers(data.users);
+    try {
+      const res = await fetchApi("/api/panel/users");
+      const text = await res.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.error("Failed to parse users response:", text);
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
+        return;
+      }
+      if (data && data.users) setUsers(data.users);
+    } catch (err) {
+      console.error("Error loading users:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

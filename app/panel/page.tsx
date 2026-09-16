@@ -14,23 +14,31 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadStats = () => {
+  const loadStats = async () => {
     setLoading(true);
     setError(null);
-    fetchApi("/api/panel/stats")
-      .then(res => res.json())
-      .then(data => {
-        if (data && !data.error) {
-          setStats(data);
-        } else if (data?.error) {
-          setError(data.error);
-        }
+    try {
+      const res = await fetchApi("/api/panel/stats");
+      const text = await res.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        setError(text || `Server returned error status ${res.status}`);
         setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message || "Failed to fetch stats");
-        setLoading(false);
-      });
+        return;
+      }
+
+      if (res.ok && data && !data.error) {
+        setStats(data);
+      } else {
+        setError(data?.error || `Server error (${res.status})`);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to fetch stats");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

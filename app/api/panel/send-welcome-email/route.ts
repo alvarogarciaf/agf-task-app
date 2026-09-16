@@ -3,6 +3,9 @@ import { withAdminAuth } from "@/lib/admin-middleware";
 import { renderWelcomeEmailHtml } from "@/lib/email-templates/welcome";
 import nodemailer from "nodemailer";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 async function handler(request: NextRequest) {
   try {
     const { email, displayName, passwordResetUrl } = await request.json();

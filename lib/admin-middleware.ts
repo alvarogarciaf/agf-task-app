@@ -30,9 +30,10 @@ export async function withAdminAuth(
       return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 });
     }
 
-    return handler(request, { uid: decodedToken.uid, email: decodedToken.email }, params);
+    return await handler(request, { uid: decodedToken.uid, email: decodedToken.email }, params);
   } catch (error: any) {
-    console.error("[AdminAuth] Error verifying token:", error);
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    console.error("[AdminAuth] Error:", error);
+    const status = error.status || (error.message?.includes("token") ? 401 : 500);
+    return NextResponse.json({ error: error.message || "Unauthorized" }, { status });
   }
 }

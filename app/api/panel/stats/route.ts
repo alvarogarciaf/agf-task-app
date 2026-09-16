@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 async function handler() {
   try {
     let totalUsers = 0;

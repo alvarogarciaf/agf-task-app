@@ -21,7 +21,14 @@ export default function UserDetailPage() {
     
     // Load user detail
     fetchApi(`/api/panel/users/${uid}`)
-      .then((res) => res.json())
+      .then(async (res) => {
+        const text = await res.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          throw new Error(text || `HTTP ${res.status}`);
+        }
+      })
       .then((data) => {
         if (data.user) setUser(data.user);
         setLoading(false);
@@ -33,7 +40,14 @@ export default function UserDetailPage() {
       
     // Load storage separately (might be slow)
     fetchApi(`/api/panel/users/${uid}/storage`)
-      .then((res) => res.json())
+      .then(async (res) => {
+        const text = await res.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          return null;
+        }
+      })
       .then((data) => {
         if (data && !data.error) setStorage(data);
       })
