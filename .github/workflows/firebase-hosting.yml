@@ -55,6 +55,16 @@ jobs:
           NEXT_PUBLIC_ADMIN_UID=${{ secrets.NEXT_PUBLIC_ADMIN_UID }}
           FIREBASE_ADMIN_SERVICE_ACCOUNT=${{ secrets.FIREBASE_ADMIN_SERVICE_ACCOUNT }}
           EOF
+
+          # Also decode service account into lib/firebase/service-account.json for server bundle compilation
+          if [ -n "${{ secrets.FIREBASE_ADMIN_SERVICE_ACCOUNT }}" ]; then
+            echo "${{ secrets.FIREBASE_ADMIN_SERVICE_ACCOUNT }}" | base64 -d > lib/firebase/service-account.json 2>/dev/null || true
+            if ! grep -q "private_key" lib/firebase/service-account.json 2>/dev/null; then
+              echo "${{ secrets.FIREBASE_ADMIN_SERVICE_ACCOUNT }}" > lib/firebase/service-account.json
+            fi
+            echo "Generated lib/firebase/service-account.json for build"
+          fi
+
       - name: Deploy to Firebase Hosting and Functions
         run: |
           if [ -n "$FIREBASE_ADMIN_SERVICE_ACCOUNT" ]; then

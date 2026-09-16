@@ -32,7 +32,8 @@ export default function AdminDashboard() {
       if (res.ok && data && !data.error) {
         setStats(data);
       } else {
-        setError(data?.error || `Server error (${res.status})`);
+        const errorMsg = data?.error || (typeof data === 'object' ? JSON.stringify(data) : text) || `Server error (${res.status})`;
+        setError(errorMsg);
       }
     } catch (err: any) {
       setError(err.message || "Failed to fetch stats");

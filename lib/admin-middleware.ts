@@ -20,7 +20,7 @@ export async function withAdminAuth(
     const idToken = authHeader.split("Bearer ")[1];
     const decodedToken = await adminAuth.verifyIdToken(idToken);
 
-    const adminUid = process.env.ADMIN_UID;
+    const adminUid = process.env.ADMIN_UID || process.env.NEXT_PUBLIC_ADMIN_UID;
     if (!adminUid) {
       console.error("ADMIN_UID environment variable is not set.");
       return NextResponse.json({ error: "Server configuration error: ADMIN_UID is not set in environment variables" }, { status: 500 });

@@ -21,3 +21,5 @@ tsconfig.tsbuildinfo
 # Environment variables
 .env.development
 .env.production
+lib/firebase/service-account.json
+*-service-account.json
