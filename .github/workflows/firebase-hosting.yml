@@ -36,6 +36,8 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
       - name: Generate production environment configuration
+        env:
+          FIREBASE_ADMIN_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_ADMIN_SERVICE_ACCOUNT }}
         run: |
           cat << 'EOF' > .env.production
           NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
@@ -56,14 +58,11 @@ jobs:
           FIREBASE_ADMIN_SERVICE_ACCOUNT=${{ secrets.FIREBASE_ADMIN_SERVICE_ACCOUNT }}
           EOF
 
-          # Populate lib/firebase/credentials.ts for Next.js server compilation
-          if [ -n "${{ secrets.FIREBASE_ADMIN_SERVICE_ACCOUNT }}" ]; then
-            cat << 'CREDS_EOF' > lib/firebase/credentials.ts
-// Auto-generated during CI build
-export const serviceAccountJson = `${{ secrets.FIREBASE_ADMIN_SERVICE_ACCOUNT }}`;
-CREDS_EOF
+          if [ -n "$FIREBASE_ADMIN_SERVICE_ACCOUNT" ]; then
+            node -e "require('fs').writeFileSync('lib/firebase/credentials.ts', 'export const serviceAccountJson = ' + JSON.stringify(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT) + ';\n')"
             echo "Generated lib/firebase/credentials.ts for build"
           fi
+
 
 
       - name: Deploy to Firebase Hosting and Functions
