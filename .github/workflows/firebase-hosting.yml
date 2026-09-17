@@ -56,14 +56,15 @@ jobs:
           FIREBASE_ADMIN_SERVICE_ACCOUNT=${{ secrets.FIREBASE_ADMIN_SERVICE_ACCOUNT }}
           EOF
 
-          # Also decode service account into lib/firebase/service-account.json for server bundle compilation
+          # Populate lib/firebase/credentials.ts for Next.js server compilation
           if [ -n "${{ secrets.FIREBASE_ADMIN_SERVICE_ACCOUNT }}" ]; then
-            echo "${{ secrets.FIREBASE_ADMIN_SERVICE_ACCOUNT }}" | base64 -d > lib/firebase/service-account.json 2>/dev/null || true
-            if ! grep -q "private_key" lib/firebase/service-account.json 2>/dev/null; then
-              echo "${{ secrets.FIREBASE_ADMIN_SERVICE_ACCOUNT }}" > lib/firebase/service-account.json
-            fi
-            echo "Generated lib/firebase/service-account.json for build"
+            cat << 'CREDS_EOF' > lib/firebase/credentials.ts
+// Auto-generated during CI build
+export const serviceAccountJson = `${{ secrets.FIREBASE_ADMIN_SERVICE_ACCOUNT }}`;
+CREDS_EOF
+            echo "Generated lib/firebase/credentials.ts for build"
           fi
+
 
       - name: Deploy to Firebase Hosting and Functions
         run: |
