@@ -3,11 +3,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  serverExternalPackages: [
-    'firebase-admin',
-    '@google-cloud/firestore',
-    '@google-cloud/storage',
-  ],
+
   async headers() {
     return [
       {
