@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
+import { listUsers } from "@/lib/firebase/admin-rest";
+import { serviceAccountJson } from "@/lib/firebase/credentials";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  // Completely isolated health check — no firebase imports
   const diag: Record<string, any> = {
     ok: true,
     timestamp: new Date().toISOString(),
@@ -16,27 +17,19 @@ export async function GET() {
         : "MISSING",
       NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "MISSING",
     },
+    credentialsModule: {
+      serviceAccountJson: serviceAccountJson
+        ? `SET (${serviceAccountJson.length} chars)`
+        : "NULL",
+    },
   };
 
-  // Try dynamic import of credentials.ts to see if it was replaced at build
+  // Test REST-based admin
   try {
-    const creds = await import("@/lib/firebase/credentials");
-    diag.credentialsModule = {
-      serviceAccountJson: creds.serviceAccountJson
-        ? `SET (${creds.serviceAccountJson.length} chars)`
-        : "NULL",
-    };
+    const users = await listUsers(1);
+    diag.restAdminAuth = { success: true, userCount: users.users.length };
   } catch (e: any) {
-    diag.credentialsModuleError = e.message;
-  }
-
-  // Try dynamic import of firebase-admin to see if it's available
-  try {
-    const fa = await import("firebase-admin/app");
-    diag.firebaseAdminAvailable = true;
-    diag.existingApps = fa.getApps().length;
-  } catch (e: any) {
-    diag.firebaseAdminError = e.message;
+    diag.restAdminAuth = { error: e.message };
   }
 
   return NextResponse.json(diag);

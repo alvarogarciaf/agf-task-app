@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
-import { adminStorage } from "@/lib/firebase/admin";
+import { storageListFiles } from "@/lib/firebase/admin-rest";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -10,13 +10,11 @@ export const GET = async (req: NextRequest, { params }: { params: Promise<{ uid:
     try {
       const { uid } = await params;
       
-      const bucket = adminStorage.bucket();
-      const [files] = await bucket.getFiles({ prefix: `users/${uid}/` });
+      const files = await storageListFiles(`users/${uid}/`);
       
       let totalBytes = 0;
-      files.forEach((file: any) => {
-        const size = parseInt(file.metadata.size as string || "0", 10);
-        totalBytes += size;
+      files.forEach((file) => {
+        totalBytes += file.size;
       });
 
       const totalMB = totalBytes / (1024 * 1024);

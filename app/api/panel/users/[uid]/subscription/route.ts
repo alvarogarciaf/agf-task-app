@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
-import { adminDb } from "@/lib/firebase/admin";
+import { firestoreSet, firestoreGet } from "@/lib/firebase/admin-rest";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -15,13 +15,18 @@ export const PATCH = async (req: NextRequest, { params }: { params: Promise<{ ui
         return NextResponse.json({ error: "Missing plan or status" }, { status: 400 });
       }
 
-      const ref = adminDb.doc(`users/${uid}/settings/subscription`);
-      await ref.set({
+      const docPath = `users/${uid}/settings/subscription`;
+      
+      // Read existing, merge, and write back
+      const existing = await firestoreGet(docPath).catch(() => null);
+      const merged = {
+        ...(existing?.exists ? existing.data() : {}),
         plan: updates.plan,
         status: updates.status,
-      }, { merge: true });
+      };
+      await firestoreSet(docPath, merged);
 
-      const updatedDoc = await ref.get();
+      const updatedDoc = await firestoreGet(docPath);
 
       return NextResponse.json({ subscription: updatedDoc.data() });
     } catch (error: any) {

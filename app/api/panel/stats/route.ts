@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
-import { adminAuth, adminDb } from "@/lib/firebase/admin";
+import { listUsers, firestoreGet } from "@/lib/firebase/admin-rest";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -22,14 +22,14 @@ async function handler() {
     let pageToken: string | undefined;
 
     do {
-      const listUsersResult = await adminAuth.listUsers(1000, pageToken);
+      const listUsersResult = await listUsers(1000, pageToken);
 
       for (const userRecord of listUsersResult.users) {
         totalUsers++;
         if (userRecord.emailVerified) verifiedUsers++;
 
-        const hasGoogle = userRecord.providerData.some((p: any) => p.providerId === "google.com");
-        const hasEmail = userRecord.providerData.some((p: any) => p.providerId === "password");
+        const hasGoogle = userRecord.providerData.some((p) => p.providerId === "google.com");
+        const hasEmail = userRecord.providerData.some((p) => p.providerId === "password");
         if (hasGoogle) googleSignInUsers++;
         if (hasEmail) emailSignInUsers++;
 
@@ -65,7 +65,7 @@ async function handler() {
     recentSignups.sort((a, b) => new Date(b.creationTime).getTime() - new Date(a.creationTime).getTime());
     recentLogins.sort((a, b) => new Date(b.lastSignInTime).getTime() - new Date(a.lastSignInTime).getTime());
 
-    // Compute subscription and calendar adoption safely per-user without collectionGroup
+    // Compute subscription and calendar adoption safely per-user
     let proUsers = 0;
     let legacyUsers = 0;
     let freeUsers = 0;
@@ -81,8 +81,8 @@ async function handler() {
 
         try {
           const [subSnap, calSnap] = await Promise.all([
-            !isLegacy ? adminDb.doc(`users/${u.uid}/settings/subscription`).get().catch(() => null) : null,
-            adminDb.doc(`users/${u.uid}/settings/calendar`).get().catch(() => null),
+            !isLegacy ? firestoreGet(`users/${u.uid}/settings/subscription`).catch(() => null) : null,
+            firestoreGet(`users/${u.uid}/settings/calendar`).catch(() => null),
           ]);
 
           if (!isLegacy) {

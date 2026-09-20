@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
-import { adminAuth, adminDb } from "@/lib/firebase/admin";
+import { listUsers, createUser, generatePasswordResetLink, firestoreGet, firestoreList } from "@/lib/firebase/admin-rest";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -11,59 +11,38 @@ async function handler() {
     let pageToken: string | undefined;
 
     do {
-      const listUsersResult = await adminAuth.listUsers(100, pageToken);
+      const listUsersResult = await listUsers(100, pageToken);
       const userList = listUsersResult.users;
 
       // Fetch task, note, project counts and subscription for each user concurrently
       const usagePromises = userList.map(async (u) => {
         try {
-          const [tasksSnap, projectsSnap, subDoc] = await Promise.all([
-            adminDb.collection(`users/${u.uid}/tasks`).select('type', '_deleted').get().catch(() => null),
-            adminDb.collection(`users/${u.uid}/projects`).select('_deleted').get().catch(() => null),
-            adminDb.doc(`users/${u.uid}/settings/subscription`).get().catch(() => null)
+          const [taskDocs, projectDocs, subDoc] = await Promise.all([
+            firestoreList(`users/${u.uid}/tasks`, { select: ['type', '_deleted'] }).catch(() => []),
+            firestoreList(`users/${u.uid}/projects`, { select: ['_deleted'] }).catch(() => []),
+            firestoreGet(`users/${u.uid}/settings/subscription`).catch(() => null)
           ]);
 
           let taskCount = 0;
           let noteCount = 0;
-          if (tasksSnap) {
-            tasksSnap.forEach((doc: any) => {
-              const data = doc.data();
-              if (data._deleted) return;
-              if (data.type === 'note') {
-                noteCount++;
-              } else {
-                taskCount++;
-              }
-            });
+          for (const doc of taskDocs) {
+            const data = doc.data();
+            if (data?._deleted) continue;
+            if (data?.type === 'note') noteCount++;
+            else taskCount++;
           }
 
           let projectCount = 0;
-          if (projectsSnap) {
-            projectsSnap.forEach((doc: any) => {
-              const data = doc.data();
-              if (data._deleted) return;
-              projectCount++;
-            });
+          for (const doc of projectDocs) {
+            if (!doc.data()?._deleted) projectCount++;
           }
 
           const subscription = subDoc && subDoc.exists ? subDoc.data() : { plan: 'free', status: 'canceled' };
 
-          return {
-            uid: u.uid,
-            taskCount,
-            noteCount,
-            projectCount,
-            subscription,
-          };
+          return { uid: u.uid, taskCount, noteCount, projectCount, subscription };
         } catch (e) {
           console.error(`Error fetching usage for user ${u.uid}:`, e);
-          return {
-            uid: u.uid,
-            taskCount: 0,
-            noteCount: 0,
-            projectCount: 0,
-            subscription: { plan: 'free', status: 'canceled' },
-          };
+          return { uid: u.uid, taskCount: 0, noteCount: 0, projectCount: 0, subscription: { plan: 'free', status: 'canceled' } };
         }
       });
 
@@ -78,8 +57,8 @@ async function handler() {
         const isPro = isLegacy || (sub.plan === 'pro' && (sub.status === 'active' || sub.status === 'trialing'));
         
         let authProvider = 'email';
-        const hasGoogle = userRecord.providerData.some((p: any) => p.providerId === 'google.com');
-        const hasEmail = userRecord.providerData.some((p: any) => p.providerId === 'password');
+        const hasGoogle = userRecord.providerData.some((p) => p.providerId === 'google.com');
+        const hasEmail = userRecord.providerData.some((p) => p.providerId === 'password');
         if (hasGoogle && hasEmail) authProvider = 'both';
         else if (hasGoogle) authProvider = 'google';
 
@@ -122,7 +101,7 @@ export const POST = async (req: NextRequest) => {
         return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
       }
 
-      const userRecord = await adminAuth.createUser({
+      const userRecord = await createUser({
         email,
         password: temporaryPassword,
         displayName: displayName || undefined,
@@ -131,7 +110,7 @@ export const POST = async (req: NextRequest) => {
 
       let welcomeEmailSent = false;
       try {
-        const passwordResetUrl = await adminAuth.generatePasswordResetLink(email);
+        const passwordResetUrl = await generatePasswordResetLink(email);
         
         const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
         
@@ -141,18 +120,11 @@ export const POST = async (req: NextRequest) => {
             'Content-Type': 'application/json',
             'Authorization': req.headers.get('authorization') || '',
           },
-          body: JSON.stringify({
-            email,
-            displayName,
-            passwordResetUrl,
-          })
+          body: JSON.stringify({ email, displayName, passwordResetUrl })
         });
         
-        if (res.ok) {
-          welcomeEmailSent = true;
-        } else {
-          console.error("Failed to send welcome email:", await res.text());
-        }
+        if (res.ok) welcomeEmailSent = true;
+        else console.error("Failed to send welcome email:", await res.text());
       } catch (err) {
         console.error("Error generating/sending welcome email:", err);
       }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
-import { adminAuth, adminDb } from "@/lib/firebase/admin";
+import { getUser, deleteUser, updateUser, generatePasswordResetLink, firestoreGet, firestoreList, firestoreDelete, firestoreBatchDelete, storageDeleteFiles } from "@/lib/firebase/admin-rest";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -9,48 +9,48 @@ export const GET = async (req: NextRequest, { params }: { params: Promise<{ uid:
   return withAdminAuth(req, async () => {
     try {
       const { uid } = await params;
-      const userRecord = await adminAuth.getUser(uid);
+      const userRecord = await getUser(uid);
       
       const creationTime = new Date(userRecord.metadata.creationTime!).getTime();
       const isLegacy = creationTime < new Date("2026-09-13T00:00:00Z").getTime();
       
-      const subDoc = await adminDb.doc(`users/${uid}/settings/subscription`).get();
+      const subDoc = await firestoreGet(`users/${uid}/settings/subscription`);
       const sub = subDoc.exists ? subDoc.data() : { plan: 'free', status: 'canceled' };
       const isPro = isLegacy || (sub?.plan === 'pro' && (sub?.status === 'active' || sub?.status === 'trialing'));
 
       let authProvider = 'email';
-      const hasGoogle = userRecord.providerData.some((p: any) => p.providerId === 'google.com');
-      const hasEmail = userRecord.providerData.some((p: any) => p.providerId === 'password');
+      const hasGoogle = userRecord.providerData.some((p) => p.providerId === 'google.com');
+      const hasEmail = userRecord.providerData.some((p) => p.providerId === 'password');
       if (hasGoogle && hasEmail) authProvider = 'both';
       else if (hasGoogle) authProvider = 'google';
 
       // Usage metrics
-      const tasksSnap = await adminDb.collection(`users/${uid}/tasks`).get();
+      const taskDocs = await firestoreList(`users/${uid}/tasks`).catch(() => []);
       let taskCount = 0;
       let openTaskCount = 0;
       let noteCount = 0;
-      tasksSnap.forEach((doc: any) => {
+      for (const doc of taskDocs) {
         const data = doc.data();
-        if (data._deleted) return;
-        if (data.type === 'note') noteCount++;
+        if (data?._deleted) continue;
+        if (data?.type === 'note') noteCount++;
         else {
           taskCount++;
-          if (data.status === 'Open') openTaskCount++;
+          if (data?.status === 'Open') openTaskCount++;
         }
-      });
+      }
 
-      const projectsSnap = await adminDb.collection(`users/${uid}/projects`).get();
+      const projectDocs = await firestoreList(`users/${uid}/projects`).catch(() => []);
       let projectCount = 0;
-      projectsSnap.forEach((doc: any) => {
-        if (!doc.data()._deleted) projectCount++;
-      });
+      for (const doc of projectDocs) {
+        if (!doc.data()?._deleted) projectCount++;
+      }
 
       // Features
-      const calendarDoc = await adminDb.doc(`users/${uid}/settings/calendar`).get();
+      const calendarDoc = await firestoreGet(`users/${uid}/settings/calendar`);
       const calendarData = calendarDoc.exists ? calendarDoc.data() : {};
       
-      const pushSnap = await adminDb.collection(`users/${uid}/push_subscriptions`).limit(1).get();
-      const pushNotificationsEnabled = !pushSnap.empty;
+      const pushDocs = await firestoreList(`users/${uid}/push_subscriptions`, { limit: 1 }).catch(() => []);
+      const pushNotificationsEnabled = pushDocs.length > 0;
 
       const user = {
         uid: userRecord.uid,
@@ -64,12 +64,7 @@ export const GET = async (req: NextRequest, { params }: { params: Promise<{ uid:
         subscription: sub,
         isLegacy,
         isPro,
-        usage: {
-          taskCount,
-          openTaskCount,
-          noteCount,
-          projectCount,
-        },
+        usage: { taskCount, openTaskCount, noteCount, projectCount },
         features: {
           googleCalendarConnected: !!calendarData?.connected,
           googleCalendarConnectedAt: calendarData?.connectedAt,
@@ -92,9 +87,9 @@ export const PATCH = async (req: NextRequest, { params }: { params: Promise<{ ui
       const updates = await req.json();
 
       if (updates.action === 'reset_password') {
-        const user = await adminAuth.getUser(uid);
+        const user = await getUser(uid);
         if (!user.email) return NextResponse.json({ error: "User has no email" }, { status: 400 });
-        const link = await adminAuth.generatePasswordResetLink(user.email);
+        const link = await generatePasswordResetLink(user.email);
         return NextResponse.json({ link });
       }
 
@@ -104,7 +99,7 @@ export const PATCH = async (req: NextRequest, { params }: { params: Promise<{ ui
       if (typeof updates.emailVerified === 'boolean') updateData.emailVerified = updates.emailVerified;
 
       if (Object.keys(updateData).length > 0) {
-        await adminAuth.updateUser(uid, updateData);
+        await updateUser(uid, updateData);
       }
 
       return NextResponse.json({ success: true });
@@ -120,52 +115,41 @@ export const DELETE = async (req: NextRequest, { params }: { params: Promise<{ u
     try {
       const { uid } = await params;
       
-      const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      
-      // In production, we could call the deleteUserAccount cloud function directly or duplicate its logic.
-      // We will duplicate logic here for self-contained admin panel.
-      
       const subcollections = [
         "tasks", "projects", "persons", "contexts", "tags",
         "urgencies", "saved_views", "push_subscriptions", "messages"
       ];
       
       for (const sub of subcollections) {
-        const snap = await adminDb.collection(`users/${uid}/${sub}`).get();
-        if (!snap.empty) {
-          const batch = adminDb.batch();
-          snap.docs.forEach((doc: any) => batch.delete(doc.ref));
-          await batch.commit();
+        const docs = await firestoreList(`users/${uid}/${sub}`).catch(() => []);
+        if (docs.length > 0) {
+          await firestoreBatchDelete(docs.map((d) => d.ref.path));
         }
       }
 
-      const settingsSnap = await adminDb.collection(`users/${uid}/settings`).get();
-      if (!settingsSnap.empty) {
-        const settingsBatch = adminDb.batch();
-        settingsSnap.docs.forEach((doc: any) => settingsBatch.delete(doc.ref));
-        await settingsBatch.commit();
+      const settingsDocs = await firestoreList(`users/${uid}/settings`).catch(() => []);
+      if (settingsDocs.length > 0) {
+        await firestoreBatchDelete(settingsDocs.map((d) => d.ref.path));
       }
 
-      await adminDb.doc(`users/${uid}`).delete();
+      await firestoreDelete(`users/${uid}`);
 
-      const dirSnap = await adminDb.collection("directory_by_email").where("uid", "==", uid).get();
-      if (!dirSnap.empty) {
-        const dirBatch = adminDb.batch();
-        dirSnap.docs.forEach((doc: any) => dirBatch.delete(doc.ref));
-        await dirBatch.commit();
+      // Delete directory entries
+      const dirDocs = await firestoreList("directory_by_email", {
+        where: { field: "uid", op: "EQUAL", value: uid }
+      }).catch(() => []);
+      if (dirDocs.length > 0) {
+        await firestoreBatchDelete(dirDocs.map((d) => d.ref.path));
       }
 
-      // We cannot import adminStorage easily here if it throws when no bucket is set,
-      // but assuming it is set:
+      // Delete storage files
       try {
-        const { adminStorage } = await import('@/lib/firebase/admin');
-        const bucket = adminStorage.bucket();
-        await bucket.deleteFiles({ prefix: `users/${uid}/` });
+        await storageDeleteFiles(`users/${uid}/`);
       } catch (e: any) {
         console.warn("Storage deletion skipped/failed:", e.message);
       }
 
-      await adminAuth.deleteUser(uid);
+      await deleteUser(uid);
 
       return NextResponse.json({ success: true });
     } catch (error: any) {

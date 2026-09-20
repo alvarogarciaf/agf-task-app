@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth } from "@/lib/firebase/admin";
+import { verifyIdToken } from "@/lib/firebase/admin-rest";
 
 export interface AdminContext {
   uid: string;
@@ -18,7 +18,7 @@ export async function withAdminAuth(
     }
 
     const idToken = authHeader.split("Bearer ")[1];
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const decodedToken = await verifyIdToken(idToken);
 
     const adminUid = process.env.ADMIN_UID || process.env.NEXT_PUBLIC_ADMIN_UID;
     if (!adminUid) {

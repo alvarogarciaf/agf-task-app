@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getAdminApp, adminAuth, adminDb } from "@/lib/firebase/admin";
+import { verifyIdToken, listUsers } from "@/lib/firebase/admin-rest";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const result: any = {
+  const result: Record<string, any> = {
     timestamp: new Date().toISOString(),
     node: process.version,
     adminUid: process.env.ADMIN_UID || process.env.NEXT_PUBLIC_ADMIN_UID || null,
@@ -12,19 +12,11 @@ export async function GET() {
   };
 
   try {
-    const app = getAdminApp();
-    result.appName = app.name;
-    result.projectId = app.options.projectId;
-  } catch (e: any) {
-    result.appError = { message: e.message, stack: e.stack };
-  }
-
-  try {
-    const users = await adminAuth.listUsers(1);
+    const users = await listUsers(1);
     result.listUsersSuccess = true;
     result.sampleUserCount = users.users.length;
   } catch (e: any) {
-    result.listUsersError = { message: e.message, code: e.code };
+    result.listUsersError = { message: e.message };
   }
 
   return NextResponse.json(result);
