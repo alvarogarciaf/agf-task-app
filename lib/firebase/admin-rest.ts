@@ -202,9 +202,18 @@ async function authPost(path: string, body: object) {
 }
 
 export async function listUsers(maxResults: number = 1000, pageToken?: string): Promise<ListUsersResult> {
-  const body: any = { maxResults };
-  if (pageToken) body.nextPageToken = pageToken;
-  const data = await authPost("/accounts:batchGet", body);
+  const token = await getAccessToken();
+  const params = new URLSearchParams({ maxResults: String(maxResults) });
+  if (pageToken) params.set("nextPageToken", pageToken);
+  const res = await fetch(`${itk("/accounts:batchGet")}?${params}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`listUsers failed: ${res.status} ${text}`);
+  }
+  const data = await res.json();
   return { users: (data.userInfo || []).map(mapUser), pageToken: data.nextPageToken };
 }
 
@@ -237,14 +246,11 @@ export async function updateUser(uid: string, updates: { disabled?: boolean; dis
 
 export async function generatePasswordResetLink(email: string): Promise<string> {
   const token = await getAccessToken();
-  const res = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ requestType: "PASSWORD_RESET", email, returnOobLink: true }),
-    }
-  );
+  const res = await fetch(itk("/accounts:sendOobCode"), {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ requestType: "PASSWORD_RESET", email, returnOobLink: true }),
+  });
   if (!res.ok) throw new Error(`generatePasswordResetLink failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
   return data.oobLink;
