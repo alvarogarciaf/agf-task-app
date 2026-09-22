@@ -305,6 +305,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     type?: "task" | "note"
     tagIds?: string[]
     holdBackSync?: boolean
+    bookmarked?: boolean
   }) => {
     if (input.type !== "note") {
       const activeTaskCount = inboxTasks.length + activeTasks.length;
@@ -352,7 +353,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       show_on: input.showOn ?? null,
       action_date: input.actionDate ?? null,
       google_event_id: null,
-      bookmarked: false,
+      bookmarked: input.bookmarked ?? false,
       order: 0,
     })
     return doc.id
@@ -365,6 +366,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     personId: string | null
     processed: boolean
     holdBackSync?: boolean
+    bookmarked?: boolean
   }) => {
     return handleCreateTask({
       description: input.description,
@@ -374,6 +376,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       type: "note",
       tagIds: [],
       holdBackSync: input.holdBackSync,
+      bookmarked: input.bookmarked,
     })
   }
 

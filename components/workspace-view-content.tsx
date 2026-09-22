@@ -266,6 +266,7 @@ export function WorkspaceViewContent({
           initialTagId={ui.initialTagId}
           fullWidthOnMobile={true}
           hideDesktopAdd={hideDesktopAdd}
+          defaultBookmarked={route.view === "bookmarks"}
         />
       )
     case "tags":

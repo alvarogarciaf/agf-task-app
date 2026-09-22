@@ -118,7 +118,7 @@ export function NotesMobileNav({
 }: NotesMobileNavProps) {
   const items = [
     { key: "notes", label: "Notes", icon: FileText, isSelector: false },
-    { key: "bookmarks", label: "Saved", icon: Bookmark, isSelector: false },
+    { key: "bookmarks", label: "Bookmarked", icon: Bookmark, isSelector: false },
     { key: "tags", label: "Tags", icon: Tags, isSelector: true },
     { key: "projects", label: "Projects", icon: FolderClosed, isSelector: false },
   ]

@@ -90,12 +90,14 @@ interface FilteredTasksProps {
     personId: string | null
     processed: boolean
     holdBackSync?: boolean
+    bookmarked?: boolean
   }) => Promise<string | void>
   hideFilterBar?: boolean
   fullWidthOnMobile?: boolean
   nestedOnMobile?: boolean
   allowUnprocessed?: boolean
   hideDesktopAdd?: boolean
+  defaultBookmarked?: boolean
 }
 
 export function FilteredTasks({
@@ -135,6 +137,7 @@ export function FilteredTasks({
   nestedOnMobile = false,
   allowUnprocessed = false,
   hideDesktopAdd = false,
+  defaultBookmarked = false,
 }: FilteredTasksProps) {
   const isTabActive = useIsTabActive()
   const defaultFilterMode = useDefaultFilterMatchMode()
@@ -437,6 +440,7 @@ export function FilteredTasks({
       personId: personId,
       processed: !inboxMode,
       holdBackSync: !willOpenFullScreen,
+      bookmarked: defaultBookmarked || undefined,
     })
     if (id) {
       setAutoFocusTaskId(id)

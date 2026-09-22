@@ -22,8 +22,10 @@ interface NotesViewProps {
     projectId: string | null
     personId: string | null
     processed: boolean
+    bookmarked?: boolean
   }) => Promise<string | void>
   hideDesktopAdd?: boolean
+  defaultBookmarked?: boolean
 }
 
 export function NotesView(props: NotesViewProps) {
@@ -40,6 +42,7 @@ export function NotesView(props: NotesViewProps) {
       initialSortDirection="desc"
       emptyTitle="No notes yet"
       emptyHint="Capture a thought to get started."
+      defaultBookmarked={props.defaultBookmarked}
     />
   )
 }
