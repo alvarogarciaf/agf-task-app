@@ -142,7 +142,7 @@ function SortableListRow({
 
       {item.category && showCategoryIcon && (
         <div 
-          className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border"
+          className="mt-0.5 flex h-5 w-5 md:h-6 md:w-6 shrink-0 items-center justify-center rounded-sm border"
           style={{
             color: categoryDef?.color || "var(--muted-foreground)",
             borderColor: categoryDef?.color || "var(--border)",
@@ -150,7 +150,7 @@ function SortableListRow({
           }}
           title={item.category}
         >
-          <CatIcon className="h-2.5 w-2.5" />
+          <CatIcon className="h-3 w-3 md:h-4 md:w-4" />
         </div>
       )}
 
@@ -787,8 +787,8 @@ export function ListEditor({
                       const catDef = categories.find((c) => c.id === group.id)
                       const CatIcon = catDef?.icon ? ICON_OPTIONS.find((o) => o.name === catDef.icon)?.icon : undefined
                       return (
-                        <span className="flex items-center justify-center shrink-0 h-5 w-5 rounded-sm" style={{ color: catDef?.color || "var(--primary)", backgroundColor: catDef?.color ? `color-mix(in oklch, ${catDef.color} 15%, transparent)` : undefined }}>
-                          {CatIcon ? <CatIcon className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+                        <span className="flex items-center justify-center shrink-0 h-5 w-5 md:h-6 md:w-6 rounded-sm" style={{ color: catDef?.color || "var(--primary)", backgroundColor: catDef?.color ? `color-mix(in oklch, ${catDef.color} 15%, transparent)` : undefined }}>
+                          {CatIcon ? <CatIcon className="h-3 w-3 md:h-4 md:w-4" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
                         </span>
                       )
                     })()}

@@ -1199,15 +1199,22 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
       }
       return (
         <div className="flex flex-wrap items-center gap-1">
-          {contexts.map((c) => (
-            <span
-              key={c.id}
-              className="inline-flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-xs text-muted-foreground"
-            >
-              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: c.color }} />
-              {c.name}
-            </span>
-          ))}
+          {contexts.map((c) => {
+            const IconComp = c.icon ? ICONS[c.icon] : null
+            return (
+              <span
+                key={c.id}
+                className="inline-flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-xs text-muted-foreground"
+              >
+                {IconComp ? (
+                  <IconComp className="h-3 w-3" style={{ color: c.color }} />
+                ) : (
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: c.color }} />
+                )}
+                {c.name}
+              </span>
+            )
+          })}
         </div>
       )
 
