@@ -24,7 +24,8 @@ import { FormDateField } from "@/components/form-date-field"
 import { ProjectSelect } from "@/components/project-select"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ICON_OPTIONS, ICONS } from "@/lib/constants"
+import { Drawer, DrawerContent, DrawerTrigger, DrawerTitle } from "@/components/ui/drawer"
+import { ICON_OPTIONS, ICONS, COLOR_PALETTE } from "@/lib/constants"
 import { Switch } from "@/components/ui/switch"
 import {
   Select,
@@ -179,6 +180,8 @@ function toPlain(t: Task | null) {
     processed: data.processed,
     status: data.status,
     bookmarked: data.bookmarked,
+    icon: data.icon,
+    color: data.color,
     context_ids: [...(data.context_ids || [])].sort(),
     tag_ids: [...(data.tag_ids || [])].sort(),
     is_list: data.is_list ?? null,
@@ -823,37 +826,88 @@ export function ObjectEditFields({
           const project = draft.project_id ? projects.find((p) => p.id === draft.project_id) : null
           const displayIconName = draft.icon || project?.icon || "FileText"
           const DisplayIcon = (displayIconName && ICONS[displayIconName]) || ICON_OPTIONS.find((o) => o.name === displayIconName)?.icon || FileText
+          const displayColor = draft.color || project?.color
           
-          return (
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  title="Change icon"
-                  className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
-                  style={project?.color ? { color: project.color } : {}}
-                >
-                  <DisplayIcon className="h-5 w-5" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-2" align="start">
-                {draft.icon && (
-                  <div className="mb-2 pb-2 border-b border-border flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Custom icon set</span>
-                    <button
-                      type="button"
-                      onClick={() => update("icon", null)}
-                      className="text-xs text-primary hover:underline"
-                    >
-                      {project?.icon ? "Revert to project icon" : "Reset to default"}
-                    </button>
-                  </div>
-                )}
+          const trigger = (
+            <button
+              type="button"
+              title="Change icon"
+              className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
+              style={displayColor ? { color: displayColor } : {}}
+            >
+              <DisplayIcon className="h-5 w-5" />
+            </button>
+          )
+
+          const pickerContent = (
+            <>
+              {(draft.icon || draft.color) && (
+                <div className="mb-2 pb-2 border-b border-border flex items-center justify-between px-2 pt-2 md:px-0 md:pt-0">
+                  <span className="text-xs text-muted-foreground">Custom style set</span>
+                  <button
+                    type="button"
+                    onClick={() => { update("icon", null); update("color", null); }}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Reset to default
+                  </button>
+                </div>
+              )}
+              <div className="px-2 md:px-0">
                 <IconPicker
                   inline
                   value={draft.icon || project?.icon || "FileText"}
                   onChange={(val) => update("icon", val)}
                 />
+                <div className="mt-4 mb-2">
+                  <label className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-muted-foreground mb-2">
+                    Color
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {COLOR_PALETTE.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => update("color", c)}
+                        className={cn(
+                          "h-8 w-8 rounded-full border-2 transition-all",
+                          displayColor === c
+                            ? "border-foreground scale-110"
+                            : "border-transparent hover:scale-110"
+                        )}
+                        style={{ backgroundColor: c }}
+                        aria-label={c}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )
+
+          if (isMobile) {
+            return (
+              <Drawer>
+                <DrawerTrigger asChild>
+                  {trigger}
+                </DrawerTrigger>
+                <DrawerContent>
+                  <DrawerTitle className="sr-only">Choose icon and color</DrawerTitle>
+                  <div className="p-4 pb-8 max-h-[80vh] overflow-y-auto">
+                    {pickerContent}
+                  </div>
+                </DrawerContent>
+              </Drawer>
+            )
+          }
+
+          return (
+            <Popover>
+              <PopoverTrigger asChild>
+                {trigger}
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-2" align="start">
+                {pickerContent}
               </PopoverContent>
             </Popover>
           )

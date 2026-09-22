@@ -142,6 +142,11 @@ export const getDatabase = async (userUid: string) => {
               }
             }
             return oldDoc;
+          },
+          // 15: Migrate from version 14 to 15 (add color to task/note)
+          15: (oldDoc: any) => {
+            oldDoc.color = oldDoc.color ?? null;
+            return oldDoc;
           }
         }
       },
