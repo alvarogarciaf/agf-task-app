@@ -120,6 +120,7 @@ export function HomeView({
 
   const inbox = tasks  // Already filtered to !processed && !archived by RxDB query
   const inboxHasShowOnVisible = inbox.some(isTaskVisibleByShowOnRule)
+  const visibleInboxCount = inbox.filter((t) => isTaskVisibleByShowOnRule(t) && t.status !== "Done").length
 
   function toggleContext(id: string) {
     setContextIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]))
@@ -313,9 +314,9 @@ export function HomeView({
             <InboxIcon className="h-3.5 w-3.5" />
           </div>
           <h2 className="text-sm font-semibold">Inbox</h2>
-          {inbox.length > 0 && (
+          {visibleInboxCount > 0 && (
             <span className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-xs text-primary font-medium">
-              {inbox.length}
+              {visibleInboxCount}
             </span>
           )}
         </div>

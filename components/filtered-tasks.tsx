@@ -299,8 +299,8 @@ export function FilteredTasks({
           // Inbox only shows UNPROCESSED and OPEN tasks
           if (t.processed || t.status !== "Open") return false
         } else {
-          // Everywhere else only shows PROCESSED tasks unless allowed
-          if (!allowUnprocessed && !t.processed) return false
+          // Everywhere else only shows PROCESSED tasks unless allowed (Done tasks are also visible in non-inbox views)
+          if (!allowUnprocessed && !t.processed && t.status !== "Done") return false
           
           // 2. Status Filter: Open vs Done (only applies to non-inbox views)
           if (showStatus === "all") return true

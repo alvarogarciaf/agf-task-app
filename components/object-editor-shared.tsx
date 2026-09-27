@@ -383,7 +383,10 @@ export function useObjectDraft({
   function update<K extends keyof Task>(key: K, value: Task[K]) {
     setDraft((prev) => {
       if (!prev) return prev
-      const next = { ...prev, [key]: value }
+      let next = { ...prev, [key]: value }
+      if (key === "status" && value === "Done" && !next.processed) {
+        next.processed = true
+      }
       const isText = key === "details" || key === "description"
       pushHistory(next, isText)
       

@@ -35,6 +35,7 @@ import {
 import { syncCalendarToStorage } from "@/lib/calendar-sync-client"
 import { createGoogleEvent, updateGoogleEvent, deleteGoogleEvent } from "@/lib/google-calendar"
 import { useTodaySectionFilter, isTaskForTodaySection } from "@/lib/today-filter"
+import { isTaskVisibleByShowOnRule } from "@/lib/show-on-filter"
 import { useGoogleCalendar } from "@/components/google-calendar-provider"
 import { SaveViewDialog } from "./save-view-dialog"
 import { TaskDetailDialog } from "@/components/task-detail-dialog"
@@ -221,10 +222,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     if (!db) return
     const isNote = (t: Task) => t.type === "note"
     const subs = [
-      // Inbox: only unprocessed, non-archived tasks (notes never appear in the inbox)
+      // Inbox: only unprocessed, non-archived open tasks (notes never appear in the inbox)
       db.tasks.find({ selector: { archived: false, processed: false } }).$.subscribe(
         docs => {
-          const data = docs.map(d => d.toJSON()).filter(t => !isNote(t))
+          const data = docs.map(d => d.toJSON()).filter(t => !isNote(t) && t.status !== "Done")
           setInboxTasks(data)
           setCachedData("inboxTasks", data)
         }
@@ -417,6 +418,14 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         hasChanges = true
       }
 
+      // If status is updated to Done and processed is false, ensure processed is true
+      const finalStatus = patchObj.status !== undefined ? patchObj.status : prevData.status
+      const finalProcessed = patchObj.processed !== undefined ? patchObj.processed : prevData.processed
+      if (finalStatus === "Done" && !finalProcessed) {
+        patchObj.processed = true
+        hasChanges = true
+      }
+
       if (hasChanges) {
         patchObj.updated_at = Date.now()
         await doc.incrementalPatch(patchObj)
@@ -456,13 +465,22 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     const doc = await db.tasks.findOne(id).exec()
     if (doc) {
       const current = doc.get("status")
+      const currentProcessed = doc.get("processed")
       const next = current === "Open" ? "Done" : "Open"
-      await doc.incrementalPatch({ status: next, updated_at: Date.now() })
+      const patchObj: any = { status: next, updated_at: Date.now() }
+      if (next === "Done" && !currentProcessed) {
+        patchObj.processed = true
+      }
+      await doc.incrementalPatch(patchObj)
       undoStackRef.current.push({
         label: "Undo toggle status",
         reverse: async () => {
           const d = await db.tasks.findOne(id).exec()
-          if (d) await d.incrementalPatch({ status: current, updated_at: Date.now() })
+          if (d) await d.incrementalPatch({ 
+            status: current, 
+            processed: currentProcessed, 
+            updated_at: Date.now() 
+          })
         },
       })
       toast(next === "Done" ? "Task marked as done" : "Task reopened", {
@@ -1417,7 +1435,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }
   }, [searchParams, savedViews.length, isMobile, navigateActiveTab])
 
-  const inboxCount = inboxTasks.length
+  const inboxCount = useMemo(() => {
+    return inboxTasks.filter(t => isTaskVisibleByShowOnRule(t) && t.status !== "Done").length
+  }, [inboxTasks])
   const totalCount = activeTasks.length
 
   const allTasks = useMemo(() => {
