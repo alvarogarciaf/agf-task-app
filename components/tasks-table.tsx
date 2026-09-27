@@ -564,27 +564,6 @@ export const TasksTable = memo(function TasksTable({
             "md:hidden flex w-full min-w-0 flex-col space-y-2",
             isNested ? "p-0 bg-transparent" : "px-3.5 py-3 bg-muted/10"
           )}>
-            {selectedIds.size > 0 && (
-              <div className="flex items-center justify-between px-4 py-2.5 bg-primary/10 border border-primary/20 rounded-xl animate-in slide-in-from-top duration-200">
-                <span className="text-sm font-semibold text-primary">
-                  {selectedIds.size} selected
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => onBulkDelete?.()}
-                    className="rounded-lg bg-destructive/10 px-3 py-1.5 text-xs font-semibold text-destructive active:bg-destructive/20 transition-colors cursor-pointer"
-                  >
-                    Delete
-                  </button>
-                  <button
-                    onClick={() => onToggleAll?.([])}
-                    className="rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary active:bg-primary/20 transition-colors cursor-pointer"
-                  >
-                    Deselect
-                  </button>
-                </div>
-              </div>
-            )}
             <SortableContext items={optimisticTasks.map(t => `m-${t.id}`)} strategy={verticalListSortingStrategy}>
               {tasks.map((task) => {
                 const urgency = urgencies?.find((u) => u.id === task.urgency_id)

@@ -17,6 +17,9 @@ interface InboxViewProps {
   onToggleProcessed: (id: string) => void
   onToggleStatus: (id: string) => void
   onUpdate: (task: Task) => void
+  onArchiveTask?: (id: string) => void
+  onDeleteTask?: (id: string) => void
+  onDeleteTasks?: (ids: string[]) => void
   onCreate?: (input: {
     description: string
     contextIds: string[]
@@ -36,6 +39,9 @@ export function InboxView({
   onToggleProcessed,
   onToggleStatus,
   onUpdate,
+  onArchiveTask,
+  onDeleteTask,
+  onDeleteTasks,
   onCreate,
   onAddPerson,
 }: InboxViewProps) {
@@ -185,6 +191,9 @@ export function InboxView({
           onToggleProcessed={onToggleProcessed}
           onToggleStatus={onToggleStatus}
           onUpdate={onUpdate}
+          onArchiveTask={onArchiveTask}
+          onDeleteTask={onDeleteTask}
+          onDeleteTasks={onDeleteTasks}
           itemNoun="item"
           emptyTitle="Inbox zero"
           emptyHint="Nothing to triage right now."

@@ -63,6 +63,7 @@ interface FilteredTasksProps {
   onUpdate: (task: Task) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
+  onDeleteTasks?: (ids: string[]) => Promise<void> | void
   initialContextId?: string | null
   initialContextIds?: string[]
   initialTagId?: string | null
@@ -112,6 +113,7 @@ export function FilteredTasks({
   onUpdate,
   onArchiveTask,
   onDeleteTask,
+  onDeleteTasks,
   initialContextId,
   initialContextIds,
   initialTagId,
@@ -531,34 +533,24 @@ export function FilteredTasks({
   }
 
   const handleBulkDelete = async () => {
-    if (selectedIds.size === 0 || !onDeleteTask) return
+    if (selectedIds.size === 0) return
+    const idsToDelete = Array.from(selectedIds)
+    setSelectedIds(new Set())
 
-    if (selectedIds.size === 1) {
-      if (window.confirm("Are you sure you want to delete this task?")) {
-        const id = Array.from(selectedIds)[0]
-        await onDeleteTask(id)
-        setSelectedIds(new Set())
-        toast.success("Task deleted")
-      }
+    if (onDeleteTasks) {
+      await onDeleteTasks(idsToDelete)
       return
     }
 
-    // For multiple tasks, use a toast with an action to confirm
-    toast.warning(`Delete ${selectedIds.size} tasks?`, {
-      action: {
-        label: "Confirm",
-        onClick: async () => {
-          const idsToDelete = Array.from(selectedIds)
-          const count = idsToDelete.length
-          for (const id of idsToDelete) {
-            await onDeleteTask(id)
-          }
-          setSelectedIds(new Set())
-          toast.success(`${count} tasks deleted`)
+    if (onDeleteTask) {
+      if (idsToDelete.length === 1) {
+        await onDeleteTask(idsToDelete[0])
+      } else {
+        for (const id of idsToDelete) {
+          await onDeleteTask(id)
         }
-      },
-      duration: 5000,
-    })
+      }
+    }
   }
 
   const handleSort = (key: string) => {
@@ -1078,6 +1070,30 @@ export function FilteredTasks({
             active={showHiddenByShowOn}
             onToggle={() => setShowHiddenByShowOn((v) => !v)}
           />
+        </div>
+      )}
+
+      {selectedIds.size > 0 && (
+        <div className="mb-2 flex items-center justify-between px-4 py-2 bg-primary/10 border border-primary/20 rounded-xl animate-in slide-in-from-top duration-200">
+          <span className="text-sm font-semibold text-primary">
+            {selectedIds.size} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              className="rounded-lg bg-destructive/10 px-3 py-1.5 text-xs font-semibold text-destructive active:bg-destructive/20 hover:bg-destructive/15 transition-colors cursor-pointer"
+            >
+              Delete
+            </button>
+            <button
+              type="button"
+              onClick={() => handleToggleAllSelection([])}
+              className="rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary active:bg-primary/20 hover:bg-primary/15 transition-colors cursor-pointer"
+            >
+              Deselect
+            </button>
+          </div>
         </div>
       )}
 

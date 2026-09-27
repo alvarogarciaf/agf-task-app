@@ -72,6 +72,7 @@ interface WorkspaceViewContentProps {
   onToggleStatus: (id: string) => Promise<void>
   onArchiveTask: (id: string) => Promise<void>
   onDeleteTask: (id: string) => Promise<void>
+  onDeleteTasks?: (ids: string[]) => Promise<void>
   onAddProject: (p: Omit<Project, "id">) => Promise<void>
   onUpdateProject: (p: Project) => Promise<void>
   onDeleteProject: (id: string) => Promise<void>
@@ -119,6 +120,7 @@ export function WorkspaceViewContent({
   onToggleStatus,
   onArchiveTask,
   onDeleteTask,
+  onDeleteTasks,
   onAddProject,
   onUpdateProject,
   onDeleteProject,
@@ -160,6 +162,7 @@ export function WorkspaceViewContent({
     onToggleStatus,
     onArchiveTask,
     onDeleteTask,
+    onDeleteTasks,
     onCreate: onCreateTask,
     onAddPerson: onInsertPerson,
     hideDesktopAdd,
@@ -262,6 +265,7 @@ export function WorkspaceViewContent({
           onToggleStatus={onToggleStatus}
           onArchiveTask={onArchiveTask}
           onDeleteTask={onDeleteTask}
+          onDeleteTasks={onDeleteTasks}
           onCreate={onCreateNote}
           initialTagId={ui.initialTagId}
           fullWidthOnMobile={true}

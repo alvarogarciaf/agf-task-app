@@ -28,6 +28,7 @@ interface HomeViewProps {
   onToggleStatus: (id: string) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
+  onDeleteTasks?: (ids: string[]) => void
   onAddPerson?: (person: Omit<Person, "id">) => Promise<void>
 }
 
@@ -43,6 +44,7 @@ export function HomeView({
   onToggleStatus,
   onArchiveTask,
   onDeleteTask,
+  onDeleteTasks,
   onAddPerson,
 }: HomeViewProps) {
   const { user } = useAuth()
@@ -341,6 +343,7 @@ export function HomeView({
               onUpdate={onUpdate}
               onArchiveTask={onArchiveTask}
               onDeleteTask={onDeleteTask}
+              onDeleteTasks={onDeleteTasks}
               itemNoun="item"
               emptyTitle={
                 inboxHasShowOnVisible

@@ -14,6 +14,7 @@ interface AllTasksViewProps {
   onUpdate: (task: Task) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
+  onDeleteTasks?: (ids: string[]) => void
   initialContextId?: string | null
   initialContextIds?: string[]
   initialPersonId?: string | null

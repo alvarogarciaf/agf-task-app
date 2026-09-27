@@ -78,6 +78,7 @@ interface ProjectsViewProps {
   onUpdate: (task: Task) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
+  onDeleteTasks?: (ids: string[]) => void
   onCreate?: (input: {
     description: string
     contextIds: string[]
@@ -149,6 +150,7 @@ export function ProjectsView({
   onUpdate,
   onArchiveTask,
   onDeleteTask,
+  onDeleteTasks,
   onCreate,
   onCreateNote,
   onAddProject,
@@ -278,6 +280,7 @@ export function ProjectsView({
               onUpdate={onUpdate}
               onArchiveTask={onArchiveTask}
               onDeleteTask={onDeleteTask}
+              onDeleteTasks={onDeleteTasks}
               urgencies={urgencies}
               onCreate={onCreate}
               onCreateNote={onCreateNote}
@@ -853,6 +856,7 @@ function ProjectDetail({
   onUpdate,
   onArchiveTask,
   onDeleteTask,
+  onDeleteTasks,
   urgencies,
   onUpdateProject,
   onDeleteProject,
@@ -875,6 +879,7 @@ function ProjectDetail({
   onUpdate: (task: Task) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
+  onDeleteTasks?: (ids: string[]) => void
   onCreate?: (input: {
     description: string
     contextIds: string[]
@@ -975,6 +980,7 @@ function ProjectDetail({
             onUpdate={onUpdate}
             onArchiveTask={onArchiveTask}
             onDeleteTask={onDeleteTask}
+            onDeleteTasks={onDeleteTasks}
             storageKey={`velocity:project-${project.id}:columns`}
             hideFilters={["project"]}
             emptyTitle={`No tasks for ${project.name}`}
@@ -1003,6 +1009,7 @@ function ProjectDetail({
             onUpdate={onUpdate}
             onArchiveTask={onArchiveTask}
             onDeleteTask={onDeleteTask}
+            onDeleteTasks={onDeleteTasks}
             hideFilters={["project"]}
             storageKey={`velocity:project-${project.id}:notes-columns`}
             initialSortKey="date_created"

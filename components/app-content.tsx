@@ -490,23 +490,52 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }
   }, [db, handleUndo])
 
-  const handleDeleteTask = useCallback(async (id: string) => {
+  const handleDeleteTask = useCallback(async (id: string, options?: { silent?: boolean }) => {
     if (!db) return
     const doc = await db.tasks.findOne(id).exec()
     if (doc) {
       const data = doc.toJSON()
       await doc.remove()
       undoStackRef.current.push({
-        label: "Undo delete task",
+        label: data.type === "note" ? "Undo delete note" : "Undo delete task",
         reverse: async () => {
           await db.tasks.insert(data)
         },
       })
-      toast("Task deleted", {
-        action: { label: "Undo", onClick: () => handleUndo() },
-      })
+      if (!options?.silent) {
+        toast(data.type === "note" ? "Note deleted" : "Task deleted", {
+          action: { label: "Undo", onClick: () => handleUndo() },
+        })
+      }
     }
   }, [db, handleUndo])
+
+  const handleDeleteTasks = useCallback(async (ids: string[]) => {
+    if (!db || ids.length === 0) return
+    if (ids.length === 1) {
+      return handleDeleteTask(ids[0])
+    }
+
+    const docs = await Promise.all(ids.map((id) => db.tasks.findOne(id).exec()))
+    const validDocs = docs.filter(Boolean) as any[]
+    if (validDocs.length === 0) return
+
+    const allData = validDocs.map((d) => d.toJSON())
+    await Promise.all(validDocs.map((d) => d.remove()))
+
+    undoStackRef.current.push({
+      label: `Undo delete ${allData.length} items`,
+      reverse: async () => {
+        await Promise.all(allData.map((data) => db.tasks.insert(data)))
+      },
+    })
+
+    const isNote = allData.every((d) => d.type === "note")
+    const noun = isNote ? "note" : "task"
+    toast(`${allData.length} ${noun}s deleted`, {
+      action: { label: "Undo", onClick: () => handleUndo() },
+    })
+  }, [db, handleDeleteTask, handleUndo])
 
   const handleDeleteAllTasks = async () => {
     const all = await db.tasks.find().exec()
@@ -1423,6 +1452,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     onToggleStatus: handleToggleStatus,
     onArchiveTask: handleArchiveTask,
     onDeleteTask: handleDeleteTask,
+    onDeleteTasks: handleDeleteTasks,
     onAddProject: handleAddProject,
     onUpdateProject: handleUpdateProject,
     onDeleteProject: handleDeleteProject,

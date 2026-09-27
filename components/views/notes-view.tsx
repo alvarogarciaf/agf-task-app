@@ -14,6 +14,7 @@ interface NotesViewProps {
   onUpdate: (task: Task) => void
   onArchiveTask?: (id: string) => void
   onDeleteTask?: (id: string) => void
+  onDeleteTasks?: (ids: string[]) => void
   initialTagId?: string | null
   fullWidthOnMobile?: boolean
   onCreate?: (input: {
