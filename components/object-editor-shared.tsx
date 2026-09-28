@@ -29,6 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Drawer, DrawerContent, DrawerTrigger, DrawerTitle } from "@/components/ui/drawer"
 import { ICON_OPTIONS, ICONS, COLOR_PALETTE } from "@/lib/constants"
 import { Switch } from "@/components/ui/switch"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Select,
   SelectContent,
@@ -771,34 +772,18 @@ export function ObjectEditFields({
         </div>
       )}
 
-      <div>
-        <Label icon={<FileText className="h-3.5 w-3.5" />}>Body Type</Label>
-        <div className="mt-2 flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => update("is_list", null)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
-              !draft.is_list
-                ? "bg-primary/15 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            Text
-          </button>
-          <button
-            type="button"
-            onClick={() => update("is_list", true)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors",
-              draft.is_list
-                ? "bg-primary/15 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            List
-          </button>
-        </div>
+      <div className="flex items-center gap-2 pt-1">
+        <Checkbox
+          id={`is-list-checkbox-${draft.id}`}
+          checked={!!draft.is_list}
+          onCheckedChange={(checked) => update("is_list", checked ? true : null)}
+        />
+        <label
+          htmlFor={`is-list-checkbox-${draft.id}`}
+          className="text-sm font-medium leading-none cursor-pointer select-none text-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          This is a list
+        </label>
       </div>
     </div>
   )
