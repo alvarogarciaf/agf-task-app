@@ -139,7 +139,7 @@ export function AppSidebar({
       label: "Projects", 
       icon: FolderKanban, 
       shortcut: "P",
-      subItems: projects.map(p => ({ id: p.id, name: p.name, color: p.color ?? undefined, iconKey: p.icon ?? undefined })) 
+      subItems: projects.filter(p => p.status !== "Closed").map(p => ({ id: p.id, name: p.name, color: p.color ?? undefined, iconKey: p.icon ?? undefined })) 
     },
     { 
       key: "persons", 

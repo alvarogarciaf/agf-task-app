@@ -272,7 +272,13 @@ export function FilteredTasks({
         return t.person_id === personId
       })
       .filter((t) => {
-        if (!projectId) return true
+        if (!projectId) {
+          if (t.project_id) {
+            const project = projects.find((p) => p.id === t.project_id)
+            if (project?.status === "Closed") return false
+          }
+          return true
+        }
         return t.project_id === projectId
       })
       .filter((t) => {
@@ -818,7 +824,7 @@ export function FilteredTasks({
               <ProjectSelect
                 variant="pill"
                 pillLabel="Project"
-                projects={projects}
+                projects={projects.filter((p) => p.status !== "Closed" || p.id === projectId)}
                 value={projectId}
                 noneLabel="All projects"
                 placeholder="All projects"
@@ -1350,7 +1356,7 @@ export function FilteredTasks({
                   Project
                 </label>
                 <ProjectSelect
-                  projects={projects}
+                  projects={projects.filter((p) => p.status !== "Closed" || p.id === projectId)}
                   value={projectId}
                   noneLabel="All projects"
                   placeholder="All projects"

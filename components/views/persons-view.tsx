@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { MoreVertical, Edit2, Check, X, Trash2, Plus, Link as LinkIcon, Send } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import type { Person, Task } from "@/lib/types"
+import type { Person, Project, Task } from "@/lib/types"
 import { auth, firestoreDb } from "@/lib/firebase/config"
 import { doc, getDoc, setDoc, deleteDoc, collection, serverTimestamp } from "firebase/firestore"
 
@@ -28,15 +28,20 @@ const COLOR_PALETTE = [
 interface PersonsViewProps {
   persons: Person[]
   tasks: Task[]
+  projects?: Project[]
   onSelect: (personId: string) => void
   onUpdatePerson?: (person: Person) => void
   onDeletePerson?: (id: string) => void
   onAddPerson?: (person: Omit<Person, "id">) => void
 }
 
-export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDeletePerson, onAddPerson }: PersonsViewProps) {
+export function PersonsView({ persons, tasks, projects = [], onSelect, onUpdatePerson, onDeletePerson, onAddPerson }: PersonsViewProps) {
   const [editing, setEditing] = useState<Person | null>(null)
   const [isAdding, setIsAdding] = useState(false)
+
+  const closedProjectIds = useMemo(() => {
+    return new Set(projects.filter((p) => p.status === "Closed").map((p) => p.id))
+  }, [projects])
 
   return (
     <div className="px-2 pt-2 pb-24 md:px-0 md:pt-0 md:pb-0">
@@ -53,7 +58,13 @@ export function PersonsView({ persons, tasks, onSelect, onUpdatePerson, onDelete
 
       <div className="space-y-1.5">
         {persons.map((p) => {
-          const open = tasks.filter((t) => t.person_id === p.id && t.processed && t.status === "Open").length
+          const open = tasks.filter(
+            (t) =>
+              t.person_id === p.id &&
+              t.processed &&
+              t.status === "Open" &&
+              !(t.project_id && closedProjectIds.has(t.project_id)),
+          ).length
           return (
             <div
               key={p.id}

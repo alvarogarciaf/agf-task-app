@@ -238,6 +238,7 @@ export function WorkspaceViewContent({
         <ContextsView
           tasks={activeTasks}
           contexts={contexts}
+          projects={projects}
           onSelect={(id) => {
             onUpdateUi({
               initialContextId: id,
@@ -292,6 +293,7 @@ export function WorkspaceViewContent({
         <PersonsView
           tasks={activeTasks}
           persons={persons}
+          projects={projects}
           onSelect={(id) => {
             onUpdateUi({
               initialPersonId: id,
@@ -339,8 +341,17 @@ function TodayViewInner({ activeTasks, activeViewProps, onCreateTask }: { active
   const isSelectedToday = isToday(selectedDate)
 
   const todayTasks = useMemo(() => {
-    return activeTasks.filter((t) => isTaskForTodaySection(t, todayFilter, dateStr))
-  }, [activeTasks, todayFilter, dateStr])
+    const closedProjectIds = new Set(
+      (activeViewProps.projects || [])
+        .filter((p: any) => p.status === "Closed")
+        .map((p: any) => p.id),
+    )
+    return activeTasks.filter(
+      (t) =>
+        isTaskForTodaySection(t, todayFilter, dateStr) &&
+        !(t.project_id && closedProjectIds.has(t.project_id)),
+    )
+  }, [activeTasks, todayFilter, dateStr, activeViewProps.projects])
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">

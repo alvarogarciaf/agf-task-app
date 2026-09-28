@@ -182,6 +182,10 @@ export function AppHeader({
       const matchingTasks = (tasks || []).filter((t) => {
         const isClosed = t.status === "Done" || t.archived
         if (!includeClosed && isClosed) return false
+        if (!includeClosed && t.project_id) {
+          const p = (projects || []).find((proj) => proj.id === t.project_id)
+          if (p?.status === "Closed") return false
+        }
         const desc = t.description?.toLowerCase() || ""
         const det = t.details?.toLowerCase() || ""
         return desc.includes(q) || det.includes(q)
@@ -193,6 +197,10 @@ export function AppHeader({
     if (searchScope === "notes" || searchScope === "all") {
       const matchingNotes = (notes || []).filter((t) => {
         if (!includeClosed && t.archived) return false
+        if (!includeClosed && t.project_id) {
+          const p = (projects || []).find((proj) => proj.id === t.project_id)
+          if (p?.status === "Closed") return false
+        }
         const desc = t.description?.toLowerCase() || ""
         const det = t.details?.toLowerCase() || ""
         return desc.includes(q) || det.includes(q)

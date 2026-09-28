@@ -1182,8 +1182,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         }
       };
 
-      // Sync only tasks with action dates that are open
-      const actionTasks = activeTasks.filter(t => t.action_date && t.status !== "Done");
+      // Sync only tasks with action dates that are open and not from closed projects
+      const closedProjectIds = new Set(projects.filter(p => p.status === "Closed").map(p => p.id));
+      const actionTasks = activeTasks.filter(t => t.action_date && t.status !== "Done" && !(t.project_id && closedProjectIds.has(t.project_id)));
       
       for (const task of actionTasks) {
         try {
@@ -1235,8 +1236,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         }
       }
 
-      // Cleanup: tasks with google_event_id but NO action_date or are Done
-      const staleTasks = activeTasks.filter(t => t.google_event_id && (!t.action_date || t.status === "Done"));
+      // Cleanup: tasks with google_event_id but NO action_date, are Done, or belong to a closed project
+      const staleTasks = activeTasks.filter(t => t.google_event_id && (!t.action_date || t.status === "Done" || (t.project_id && closedProjectIds.has(t.project_id))));
       for (const task of staleTasks) {
         try {
           // Add a small sleep to avoid rate limits
@@ -1257,8 +1258,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
 
   const handleSyncCalendar = useCallback(
     async (token: string) => {
+      const closedProjectIds = new Set(projects.filter((p) => p.status === "Closed").map((p) => p.id))
       const actionTasks = activeTasks.filter(
-        (t) => t.action_date && t.status !== "Done",
+        (t) => t.action_date && t.status !== "Done" && !(t.project_id && closedProjectIds.has(t.project_id)),
       )
       let successCount = 0
       let errorCount = 0
@@ -1322,7 +1324,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         )
       }
     },
-    [activeTasks, selectedCalendarId, db],
+    [activeTasks, projects, selectedCalendarId, db],
   )
 
   // Keyboard shortcuts
@@ -1435,10 +1437,24 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }
   }, [searchParams, savedViews.length, isMobile, navigateActiveTab])
 
+  const closedProjectIds = useMemo(() => {
+    return new Set(projects.filter((p) => p.status === "Closed").map((p) => p.id))
+  }, [projects])
+
   const inboxCount = useMemo(() => {
-    return inboxTasks.filter(t => isTaskVisibleByShowOnRule(t) && t.status !== "Done").length
-  }, [inboxTasks])
-  const totalCount = activeTasks.length
+    return inboxTasks.filter(
+      (t) =>
+        isTaskVisibleByShowOnRule(t) &&
+        t.status !== "Done" &&
+        !(t.project_id && closedProjectIds.has(t.project_id)),
+    ).length
+  }, [inboxTasks, closedProjectIds])
+
+  const totalCount = useMemo(() => {
+    return activeTasks.filter(
+      (t) => !(t.project_id && closedProjectIds.has(t.project_id)),
+    ).length
+  }, [activeTasks, closedProjectIds])
 
   const allTasks = useMemo(() => {
     const map = new Map<string, Task>()
@@ -1449,7 +1465,13 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
 
   const todayFilter = useTodaySectionFilter()
   const todayStr = new Date().toLocaleDateString("en-CA")
-  const todayCount = activeTasks.filter(t => isTaskForTodaySection(t, todayFilter, todayStr)).length
+  const todayCount = useMemo(() => {
+    return activeTasks.filter(
+      (t) =>
+        isTaskForTodaySection(t, todayFilter, todayStr) &&
+        !(t.project_id && closedProjectIds.has(t.project_id)),
+    ).length
+  }, [activeTasks, todayFilter, todayStr, closedProjectIds])
 
   const workspaceContentProps = {
     inboxTasks,

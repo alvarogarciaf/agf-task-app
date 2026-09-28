@@ -310,7 +310,7 @@ export function SaveViewDialog({
                   Project
                 </label>
                 <ProjectSelect
-                  projects={projects}
+                  projects={projects.filter((p) => p.status !== "Closed" || p.id === projectId)}
                   value={projectId}
                   noneLabel="All projects"
                   placeholder="All projects"

@@ -94,10 +94,11 @@ export function MobileSelector({
     }
 
     if (type === "projects") {
-      if (projects.length === 0) return <div className="p-8 text-center text-muted-foreground italic text-sm">No projects found</div>
+      const activeProjects = projects.filter(p => p.status !== "Closed")
+      if (activeProjects.length === 0) return <div className="p-8 text-center text-muted-foreground italic text-sm">No projects found</div>
       return (
         <div className="flex flex-col">
-          {projects.map(p => {
+          {activeProjects.map(p => {
             const Icon = ICONS[p.icon || ""] || FolderClosed
             return (
               <button key={p.id} onClick={() => { onSelectProject(p.id); onClose() }} className="flex items-center gap-3 p-4 border-b border-border hover:bg-accent transition-colors text-left">

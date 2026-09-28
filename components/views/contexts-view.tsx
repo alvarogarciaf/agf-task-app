@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import {
   type LucideIcon,
   Brain, Plus, Trash2, Edit2, Check, X, MoreVertical
@@ -19,22 +19,27 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import type { Context, Task } from "@/lib/types"
+import type { Context, Project, Task } from "@/lib/types"
 
 
 
 interface ContextsViewProps {
   contexts: Context[]
   tasks: Task[]
+  projects?: Project[]
   onSelect: (contextId: string) => void
   onUpdateContext?: (context: Context) => void
   onDeleteContext?: (id: string) => void
   onAddContext?: (context: Omit<Context, "id">) => void
 }
 
-export function ContextsView({ contexts, tasks, onSelect, onUpdateContext, onDeleteContext, onAddContext }: ContextsViewProps) {
+export function ContextsView({ contexts, tasks, projects = [], onSelect, onUpdateContext, onDeleteContext, onAddContext }: ContextsViewProps) {
   const [editing, setEditing] = useState<Context | null>(null)
   const [isAdding, setIsAdding] = useState(false)
+
+  const closedProjectIds = useMemo(() => {
+    return new Set(projects.filter((p) => p.status === "Closed").map((p) => p.id))
+  }, [projects])
 
   return (
     <div className="px-2 pt-2 pb-24 md:px-0 md:pt-0 md:pb-0">
@@ -52,7 +57,13 @@ export function ContextsView({ contexts, tasks, onSelect, onUpdateContext, onDel
       <div className="space-y-1.5">
         {contexts.map((c) => {
           const Icon = ICONS[c.icon] ?? Brain
-          const open = tasks.filter((t) => t.context_ids.includes(c.id) && t.processed && t.status === "Open").length
+          const open = tasks.filter(
+            (t) =>
+              t.context_ids.includes(c.id) &&
+              t.processed &&
+              t.status === "Open" &&
+              !(t.project_id && closedProjectIds.has(t.project_id)),
+          ).length
           return (
             <div
               key={c.id}

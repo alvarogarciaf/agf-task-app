@@ -689,7 +689,7 @@ export function ObjectEditFields({
         <div className="flex-1 min-w-[200px]">
           <Label icon={<FolderKanban className="h-3.5 w-3.5" />}>Project</Label>
           <ProjectSelect
-            projects={projects}
+            projects={projects.filter((p) => p.status !== "Closed" || p.id === draft.project_id)}
             value={draft.project_id ?? null}
             placeholder="No project"
             noneLabel="No project"

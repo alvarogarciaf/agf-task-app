@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, forwardRef } from "react"
+import { useEffect, useRef, useState, forwardRef, useMemo } from "react"
 import { ArrowRight, Sparkles, Tag, FolderKanban, User, Inbox as InboxIcon, Zap, UserPlus, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { FilteredTasks } from "@/components/filtered-tasks"
@@ -119,8 +119,16 @@ export function HomeView({
   const chipRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   const inbox = tasks  // Already filtered to !processed && !archived by RxDB query
-  const inboxHasShowOnVisible = inbox.some(isTaskVisibleByShowOnRule)
-  const visibleInboxCount = inbox.filter((t) => isTaskVisibleByShowOnRule(t) && t.status !== "Done").length
+  const visibleInboxCount = useMemo(() => {
+    const closedProjectIds = new Set(projects.filter((p) => p.status === "Closed").map((p) => p.id))
+    return inbox.filter(
+      (t) =>
+        isTaskVisibleByShowOnRule(t) &&
+        t.status !== "Done" &&
+        !(t.project_id && closedProjectIds.has(t.project_id)),
+    ).length
+  }, [inbox, projects])
+  const inboxHasShowOnVisible = visibleInboxCount > 0
 
   function toggleContext(id: string) {
     setContextIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]))
@@ -247,7 +255,7 @@ export function HomeView({
               icon={<FolderKanban className="h-3.5 w-3.5" />}
               label="Project"
               placeholder="Project"
-              options={projects.map((p) => ({ id: p.id, label: p.name }))}
+              options={projects.filter((p) => p.status !== "Closed").map((p) => ({ id: p.id, label: p.name }))}
               selectedIds={projectId ? [projectId] : []}
               onToggle={(id) => setProjectId((prev) => (prev === id ? null : id))}
               onSubmit={submit}
