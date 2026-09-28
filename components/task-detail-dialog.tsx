@@ -306,7 +306,7 @@ export function TaskDetailDialog({
         className={cn(
           "gap-0 overflow-hidden p-0",
           isMobile 
-            ? "fixed inset-0 z-50 flex h-full w-full max-w-none translate-x-0 translate-y-0 flex-col rounded-none border-none duration-200 shadow-none" 
+            ? "fixed inset-0 z-50 flex h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col rounded-none border-none duration-200 shadow-none" 
             : portalContainer
               ? "max-h-[calc(100%-2rem)] max-w-2xl sm:rounded-lg"
               : "max-w-2xl sm:rounded-lg"

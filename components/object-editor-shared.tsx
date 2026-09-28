@@ -23,6 +23,7 @@ import { toggleMarkdownTask } from "@/lib/markdown"
 import { FormMultiSelect } from "@/components/form-multi-select"
 import { FormDateField } from "@/components/form-date-field"
 import { ProjectSelect } from "@/components/project-select"
+import { PersonSelect } from "@/components/person-select"
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Drawer, DrawerContent, DrawerTrigger, DrawerTitle } from "@/components/ui/drawer"
@@ -726,43 +727,13 @@ export function ObjectEditFields({
               </span>
             )}
           </div>
-          <Select
+          <PersonSelect
             disabled={isProjectShared}
-            value={draft.person_id ?? "__none__"}
-            onValueChange={(v) =>
-              update("person_id", v === "__none__" ? null : v)
-            }
-          >
-            <SelectTrigger
-              className={cn(
-                "mt-1.5 w-full border-border bg-background h-11 md:h-9",
-                isProjectShared &&
-                  "opacity-80 cursor-not-allowed bg-muted/20",
-              )}
-            >
-              <SelectValue placeholder="No one" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__" className="py-3 md:py-1.5">
-                <span className="text-muted-foreground">No one</span>
-              </SelectItem>
-              {persons.map((p) => (
-                <SelectItem key={p.id} value={p.id} className="py-3 md:py-1.5">
-                  <span className="flex items-center gap-2">
-                    <span
-                      className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold shrink-0"
-                      style={{
-                        backgroundColor: `color-mix(in oklch, ${p.color} 30%, transparent)`,
-                      }}
-                    >
-                      {p.initials}
-                    </span>
-                    {p.name}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            value={draft.person_id ?? null}
+            onChange={(v) => update("person_id", v)}
+            persons={persons}
+            triggerClassName="mt-1.5"
+          />
         </div>
       </div>
 

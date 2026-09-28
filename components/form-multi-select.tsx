@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useLayoutEffect, useEffect, useCallback } from "react"
+import { useState, useRef, useLayoutEffect, useEffect, useCallback, useMemo } from "react"
 import { Check, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -10,6 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { useMobileDropdownAlign } from "@/hooks/use-mobile-dropdown-align"
 
 interface FormMultiSelectOption {
   id: string
@@ -23,6 +24,7 @@ interface FormMultiSelectProps {
   selectedIds: string[]
   onChange: (ids: string[]) => void
   placeholder?: string
+  searchPlaceholder?: string
 }
 
 /** A single context/tag chip rendered inside the trigger button on mobile. */
@@ -68,9 +70,26 @@ export function FormMultiSelect({
   selectedIds,
   onChange,
   placeholder = "Select…",
+  searchPlaceholder,
 }: FormMultiSelectProps) {
   const isMobile = useIsMobile()
   const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState("")
+
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useMobileDropdownAlign({
+    open,
+    triggerRef,
+    inputRef,
+  })
+
+  useEffect(() => {
+    if (open) {
+      setQuery("")
+    }
+  }, [open])
 
   // Ref for the visible chip row (to read available width)
   const containerRef = useRef<HTMLSpanElement>(null)
@@ -81,6 +100,12 @@ export function FormMultiSelect({
   const [visibleCount, setVisibleCount] = useState(99)
 
   const selected = options.filter((o) => selectedIds.includes(o.id))
+
+  const filteredOptions = useMemo(() => {
+    const trimmed = query.trim().toLowerCase()
+    if (!trimmed) return options
+    return options.filter((o) => o.label.toLowerCase().includes(trimmed))
+  }, [options, query])
 
   function toggle(id: string) {
     const next = selectedIds.includes(id)
@@ -183,6 +208,7 @@ export function FormMultiSelect({
       <Popover open={open} onOpenChange={setOpen} modal={false}>
         <PopoverTrigger asChild>
           <button
+            ref={triggerRef}
             type="button"
             className={cn(
               "mt-1.5 flex h-11 w-full items-center justify-between gap-2 rounded-md border border-border bg-background px-3 text-base transition-colors focus:outline-none focus:ring-2 focus:ring-ring/40 md:h-9 md:text-sm",
@@ -245,21 +271,40 @@ export function FormMultiSelect({
 
         <PopoverContent
           align="start"
-          side="bottom"
-          collisionPadding={16}
+          side={isMobile ? "top" : "bottom"}
+          sideOffset={6}
+          collisionPadding={12}
           className="z-[100] w-[var(--radix-popover-trigger-width)] overflow-hidden p-0"
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={
+              searchPlaceholder ||
+              (placeholder.toLowerCase().includes("select")
+                ? `Search ${placeholder.toLowerCase().replace(/select/i, "").trim()}…`
+                : `Search ${placeholder.toLowerCase()}…`)
+            }
+            className="w-full border-b border-border bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-0"
+          />
           <div
-            className="overflow-y-auto overscroll-contain touch-pan-y p-1 max-h-[60vh] md:max-h-80"
-            style={{ WebkitOverflowScrolling: "touch" }}
+            className="overflow-y-auto overscroll-contain touch-pan-y p-1"
+            style={{
+              maxHeight: "min(320px, calc(var(--radix-popover-content-available-height) - 50px))",
+              WebkitOverflowScrolling: "touch",
+            }}
             onTouchStart={(e) => e.stopPropagation()}
             onTouchMove={(e) => e.stopPropagation()}
             onWheel={(e) => e.stopPropagation()}
           >
-            {options.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-muted-foreground">No options</p>
+            {filteredOptions.length === 0 ? (
+              <p className="px-3 py-2 text-sm text-muted-foreground">
+                {query.trim() ? "No options found" : "No options"}
+              </p>
             ) : (
-              options.map((opt) => {
+              filteredOptions.map((opt) => {
                 const isSelected = selectedIds.includes(opt.id)
                 const Icon = opt.icon ? ICONS[opt.icon] : null
                 return (

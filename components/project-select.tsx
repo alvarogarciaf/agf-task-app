@@ -10,6 +10,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { useDatabase } from "@/components/db-provider"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { useMobileDropdownAlign } from "@/hooks/use-mobile-dropdown-align"
 import type { Project } from "@/lib/types"
 
 const DEFAULT_PROJECT_ICON = "Layers"
@@ -130,10 +132,18 @@ export function ProjectSelect({
   onCreateProject,
 }: ProjectSelectProps) {
   const db = useDatabase()
+  const isMobile = useIsMobile()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [highlightedIdx, setHighlightedIdx] = useState(0)
+  const triggerRef = useRef<HTMLButtonElement & HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useMobileDropdownAlign({
+    open,
+    triggerRef,
+    inputRef,
+  })
 
   const selected = projects.find((p) => p.id === value) ?? null
 
@@ -164,7 +174,6 @@ export function ProjectSelect({
     if (open) {
       setQuery("")
       setHighlightedIdx(0)
-      requestAnimationFrame(() => inputRef.current?.focus())
     }
   }, [open])
 
@@ -296,13 +305,13 @@ export function ProjectSelect({
     <Popover open={open} onOpenChange={setOpen} modal={false}>
       {isPill ? (
         <PopoverTrigger asChild>
-          <div role="button" tabIndex={0} className={triggerClass}>
+          <div ref={triggerRef as any} role="button" tabIndex={0} className={triggerClass}>
             {triggerContent}
           </div>
         </PopoverTrigger>
       ) : (
         <PopoverTrigger asChild>
-          <button type="button" className={triggerClass}>
+          <button ref={triggerRef as any} type="button" className={triggerClass}>
             {triggerContent}
           </button>
         </PopoverTrigger>
@@ -310,7 +319,8 @@ export function ProjectSelect({
 
       <PopoverContent
         align="start"
-        side="bottom"
+        side={isMobile ? "top" : "bottom"}
+        sideOffset={6}
         collisionPadding={12}
         className="z-[100] w-[var(--radix-popover-trigger-width)] overflow-hidden p-0"
         onOpenAutoFocus={(e) => e.preventDefault()}
