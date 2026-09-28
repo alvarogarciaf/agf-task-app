@@ -940,6 +940,13 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         savedViewId: finalSavedViewId ?? null,
         settingsTab,
       })
+      if (finalUiPatch.initialProjectId && typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search)
+        params.set("project", finalUiPatch.initialProjectId)
+        const qs = params.toString()
+        const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+        window.history.replaceState(window.history.state, "", newUrl)
+      }
     },
     [activeTabId, navigateTab, projects, activeTab],
   )
@@ -1022,6 +1029,25 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       window.removeEventListener("app-history-change", handleHistoryChange as EventListener)
     }
   }, [])
+
+  // Listen to navigate-to-project events from task/note details
+  useEffect(() => {
+    const handleNavigateProject = (e: CustomEvent<{ projectId: string }>) => {
+      const pid = e.detail?.projectId
+      if (!pid) return
+      setDirectOpenTask(null)
+      if (isMobile) {
+        handleNavigate("projects", undefined, undefined, undefined, { initialProjectId: pid })
+      } else {
+        navigateActiveTab("projects", undefined, undefined, undefined, { initialProjectId: pid })
+      }
+    }
+
+    window.addEventListener("navigate-to-project", handleNavigateProject as EventListener)
+    return () => {
+      window.removeEventListener("navigate-to-project", handleNavigateProject as EventListener)
+    }
+  }, [isMobile, handleNavigate, navigateActiveTab])
 
   const handleDesktopBack = useCallback(() => {
     if (typeof window !== "undefined") {

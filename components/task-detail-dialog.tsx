@@ -458,6 +458,25 @@ export function TaskDetailDialog({
                 isMobile={isMobile}
                 defaultPropertiesOpen={inboxMode}
                 onSubmit={isActuallyCreating ? handleSaveAndClose : save}
+                onNavigateProject={(projectId) => {
+                  if (isActuallyCreating) {
+                    if (draft.description.trim()) {
+                      isSavedRef.current = true
+                      save()
+                    } else {
+                      handleDiscard()
+                    }
+                  } else {
+                    isSavedRef.current = true
+                    save()
+                  }
+                  onOpenChange(false)
+                  window.dispatchEvent(
+                    new CustomEvent("navigate-to-project", {
+                      detail: { projectId },
+                    })
+                  )
+                }}
               />
 
               <div className="mt-5">

@@ -347,6 +347,14 @@ export function ObjectFullScreenView({
             isProjectShared={isProjectShared}
             descriptionRef={descriptionRef}
             detailsRef={detailsRef}
+            onNavigateProject={(projectId) => {
+              saveWithoutClose()
+              window.dispatchEvent(
+                new CustomEvent("navigate-to-project", {
+                  detail: { projectId },
+                })
+              )
+            }}
           />
         </div>
 
