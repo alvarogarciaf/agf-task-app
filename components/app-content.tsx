@@ -1629,6 +1629,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
 
   const [directOpenTask, setDirectOpenTask] = useState<Task | null>(null)
   const pendingOpenObjectIdRef = useRef<string | null>(null)
+  const isNavigatingProjectDirectRef = useRef(false)
 
   const openObjectById = useCallback(
     async (objectId: string) => {
@@ -2180,6 +2181,11 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           open={directOpenTask !== null}
           onOpenChange={(open) => {
             if (!open) {
+              if (isNavigatingProjectDirectRef.current) {
+                isNavigatingProjectDirectRef.current = false
+                setDirectOpenTask(null)
+                return
+              }
               setDirectOpenTask(null)
               if (isMobile && typeof window !== "undefined") {
                 const params = new URLSearchParams(window.location.search)
@@ -2190,6 +2196,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             }
           }}
           onNavigateProject={(projectId) => {
+            isNavigatingProjectDirectRef.current = true
             setDirectOpenTask(null)
             window.dispatchEvent(
               new CustomEvent("navigate-to-project", {

@@ -464,18 +464,27 @@ export function TaskDetailDialog({
                   if (isActuallyCreating) {
                     if (draft.description.trim()) {
                       isSavedRef.current = true
-                      save()
+                      saveWithoutClose()
+                      const finalDraft = { ...draft }
+                      if (autoProcess) finalDraft.processed = true
+                      if (task?.id) {
+                        void commitHeldBackTask(task.id, finalDraft)
+                      }
                     } else {
-                      handleDiscard()
+                      isDiscardingRef.current = true
+                      cancel()
+                      if (task?.id) {
+                        discardHeldBackTask(task.id)
+                        if (onDelete) onDelete(task.id)
+                      }
                     }
                   } else {
                     isSavedRef.current = true
-                    save()
+                    saveWithoutClose()
                   }
                   if (onNavigateProjectProp) {
                     onNavigateProjectProp(projectId)
                   } else {
-                    onOpenChange(false)
                     window.dispatchEvent(
                       new CustomEvent("navigate-to-project", {
                         detail: { projectId },
