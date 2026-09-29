@@ -131,8 +131,12 @@ export function PersonSelect({
         side={isMobile ? "top" : "bottom"}
         sideOffset={6}
         collisionPadding={12}
+        avoidCollisions={!isMobile}
         className="z-[100] w-[var(--radix-popover-trigger-width)] overflow-hidden p-0"
-        onOpenAutoFocus={(e) => e.preventDefault()}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault()
+          inputRef.current?.focus({ preventScroll: true })
+        }}
       >
         <input
           ref={inputRef}
@@ -148,7 +152,7 @@ export function PersonSelect({
         <div
           className="overflow-y-auto overscroll-contain touch-pan-y p-1"
           style={{
-            maxHeight: "min(320px, calc(var(--radix-popover-content-available-height) - 50px))",
+            maxHeight: isMobile ? "220px" : "320px",
             WebkitOverflowScrolling: "touch",
           }}
           onTouchStart={(e) => e.stopPropagation()}

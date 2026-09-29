@@ -5,35 +5,6 @@ import { cn } from "@/lib/utils"
 import type { ViewKey, SavedView } from "@/lib/types"
 import { useState, useEffect } from "react"
 
-function useKeyboardOpen() {
-  const [isOpen, setIsOpen] = useState(false)
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.visualViewport) return
-
-    let maxViewportHeight = window.visualViewport.height
-
-    const handleResize = () => {
-      if (!window.visualViewport) return
-      const currentHeight = window.visualViewport.height
-      if (currentHeight > maxViewportHeight) {
-        maxViewportHeight = currentHeight
-      }
-      
-      if (currentHeight < maxViewportHeight - 150) {
-        setIsOpen(true)
-      } else {
-        setIsOpen(false)
-      }
-    }
-
-    window.visualViewport.addEventListener("resize", handleResize)
-    
-    return () => window.visualViewport?.removeEventListener("resize", handleResize)
-  }, [])
-
-  return isOpen
-}
 
 interface TasksMobileNavProps {
   active: string
@@ -62,13 +33,9 @@ export function TasksMobileNav({
   ]
 
   const isSavedViewActive = active === "saved-view"
-  const isKeyboardOpen = useKeyboardOpen()
 
   return (
-    <nav className={cn(
-      "md:hidden absolute bottom-0 w-full z-10 flex bottom-nav-safe items-center justify-around border-t border-border bg-background/95 backdrop-blur-md px-1 pt-1 transition-transform duration-200",
-      isKeyboardOpen ? "translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
-    )}>
+    <nav className="md:hidden absolute bottom-0 w-full z-10 flex bottom-nav-safe items-center justify-around border-t border-border bg-background/95 backdrop-blur-md px-1 pt-1">
       {items.map((item) => {
         const Icon = item.icon
         const isActive = item.key === "views" ? isSavedViewActive : active === item.key
@@ -123,13 +90,8 @@ export function NotesMobileNav({
     { key: "projects", label: "Projects", icon: FolderClosed, isSelector: false },
   ]
 
-  const isKeyboardOpen = useKeyboardOpen()
-
   return (
-    <nav className={cn(
-      "md:hidden absolute bottom-0 w-full z-10 flex bottom-nav-safe items-center justify-around border-t border-border bg-background/95 backdrop-blur-md px-1 pt-1 transition-transform duration-200",
-      isKeyboardOpen ? "translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
-    )}>
+    <nav className="md:hidden absolute bottom-0 w-full z-10 flex bottom-nav-safe items-center justify-around border-t border-border bg-background/95 backdrop-blur-md px-1 pt-1">
       {items.map((item) => {
         const Icon = item.icon
         const isActive = active === item.key

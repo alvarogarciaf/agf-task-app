@@ -82,14 +82,12 @@ export function useMobileDropdownAlign({
       scrollContainer.style.paddingBottom = `${computePadding()}px`
     }
 
-    // Focus input with preventScroll to stop native uncontrolled page shift
+    // Focus input synchronously with preventScroll to stop native uncontrolled page shift
     if (inputRef?.current) {
-      requestAnimationFrame(() => {
-        inputRef.current?.focus({ preventScroll: true })
-      })
+      inputRef.current.focus({ preventScroll: true })
     }
 
-    const alignTriggerAboveKeyboard = (smooth = true) => {
+    const alignTriggerAboveKeyboard = (smooth = false) => {
       const curTrigger = triggerRef.current
       const curContainer = containerRef.current || getScrollContainer(curTrigger)
       if (!curTrigger || !curContainer) return
@@ -118,10 +116,13 @@ export function useMobileDropdownAlign({
       }
     }
 
-    // Run initial alignment
-    const rAF = requestAnimationFrame(() => alignTriggerAboveKeyboard(true))
-    const timer1 = setTimeout(() => alignTriggerAboveKeyboard(true), 60)
-    const timer2 = setTimeout(() => alignTriggerAboveKeyboard(false), 260)
+    // Run initial alignment immediately and during keyboard animation
+    alignTriggerAboveKeyboard(false)
+    const rAF = requestAnimationFrame(() => alignTriggerAboveKeyboard(false))
+    const timer1 = setTimeout(() => alignTriggerAboveKeyboard(false), 50)
+    const timer2 = setTimeout(() => alignTriggerAboveKeyboard(false), 150)
+    const timer3 = setTimeout(() => alignTriggerAboveKeyboard(false), 300)
+    const timer4 = setTimeout(() => alignTriggerAboveKeyboard(false), 450)
 
     // Listen to visualViewport resize (as keyboard animates in)
     const handleViewportChange = () => {
@@ -147,6 +148,8 @@ export function useMobileDropdownAlign({
       cancelAnimationFrame(rAF)
       clearTimeout(timer1)
       clearTimeout(timer2)
+      clearTimeout(timer3)
+      clearTimeout(timer4)
       window.removeEventListener("scroll", handleWindowScroll)
       if (window.visualViewport) {
         window.visualViewport.removeEventListener("resize", handleViewportChange)

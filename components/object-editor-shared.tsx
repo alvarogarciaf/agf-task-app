@@ -621,9 +621,6 @@ export function ObjectEditFields({
   const assignedProject = draft.project_id
     ? projects.find((p) => p.id === draft.project_id)
     : null
-  const AssignedProjectIcon = assignedProject?.icon
-    ? (ICONS[assignedProject.icon] ?? FolderKanban)
-    : FolderKanban
 
   useEffect(() => {
     if (defaultPropertiesOpen !== undefined) {
@@ -925,7 +922,7 @@ export function ObjectEditFields({
       </div>
 
       {assignedProject && (
-        <div className="mt-0.5 mb-2">
+        <div className="mt-1 mb-2">
           <button
             type="button"
             onClick={(e) => {
@@ -941,44 +938,18 @@ export function ObjectEditFields({
                 )
               }
             }}
-            className={cn(
-              "group inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 sm:px-3 text-xs sm:text-sm font-medium transition-all select-none",
-              "hover:shadow-sm active:scale-[0.98] cursor-pointer min-h-[34px] sm:min-h-[36px]",
-              !assignedProject.color && "border-border bg-card hover:bg-accent text-foreground"
-            )}
-            style={
-              assignedProject.color
-                ? {
-                    backgroundColor: `color-mix(in oklch, ${assignedProject.color} 8%, hsl(var(--card)))`,
-                    borderColor: `color-mix(in oklch, ${assignedProject.color} 25%, hsl(var(--border)))`,
-                  }
-                : undefined
-            }
+            className="group inline-flex items-center gap-1 text-xs sm:text-sm font-medium transition-opacity hover:opacity-80 active:opacity-60 cursor-pointer select-none py-0.5"
             title={`Open project: ${assignedProject.name}`}
             aria-label={`Open project: ${assignedProject.name}`}
           >
-            <div
-              className="flex h-5 w-5 sm:h-5.5 sm:w-5.5 shrink-0 items-center justify-center rounded transition-transform group-hover:scale-105"
-              style={
-                assignedProject.color
-                  ? {
-                      backgroundColor: `color-mix(in oklch, ${assignedProject.color} 18%, transparent)`,
-                      color: assignedProject.color,
-                      boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${assignedProject.color} 30%, transparent)`,
-                    }
-                  : undefined
-              }
-            >
-              <AssignedProjectIcon className={cn("h-3 w-3 sm:h-3.5 sm:w-3.5", !assignedProject.color && "text-muted-foreground")} />
-            </div>
             <span
-              className="truncate font-semibold tracking-tight max-w-[220px] sm:max-w-md text-foreground"
+              className="truncate max-w-[240px] sm:max-w-md font-medium hover:underline"
               style={assignedProject.color ? { color: assignedProject.color } : undefined}
             >
               {assignedProject.name}
             </span>
             <ChevronRight
-              className="h-3.5 w-3.5 shrink-0 opacity-40 transition-transform group-hover:translate-x-0.5 group-hover:opacity-80"
+              className="h-3.5 w-3.5 shrink-0 opacity-60 transition-transform group-hover:translate-x-0.5"
               style={assignedProject.color ? { color: assignedProject.color } : undefined}
             />
           </button>
