@@ -58,6 +58,7 @@ interface TaskDetailDialogProps {
   /** Desktop: expand into the active tab's full-screen editor (e.g. from search modal). */
   onExpandFullScreen?: (taskId: string, mode: "view" | "edit") => void
   isCreating?: boolean
+  onNavigateProject?: (projectId: string) => void
 }
 
 export function TaskDetailDialog({
@@ -77,6 +78,7 @@ export function TaskDetailDialog({
   portalContainer,
   onExpandFullScreen,
   isCreating = false,
+  onNavigateProject: onNavigateProjectProp,
 }: TaskDetailDialogProps) {
   const isMobile = useIsMobile()
   const tabObject = useOpenObjectFullScreen()
@@ -470,12 +472,16 @@ export function TaskDetailDialog({
                     isSavedRef.current = true
                     save()
                   }
-                  onOpenChange(false)
-                  window.dispatchEvent(
-                    new CustomEvent("navigate-to-project", {
-                      detail: { projectId },
-                    })
-                  )
+                  if (onNavigateProjectProp) {
+                    onNavigateProjectProp(projectId)
+                  } else {
+                    onOpenChange(false)
+                    window.dispatchEvent(
+                      new CustomEvent("navigate-to-project", {
+                        detail: { projectId },
+                      })
+                    )
+                  }
                 }}
               />
 

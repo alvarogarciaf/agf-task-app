@@ -341,25 +341,43 @@ export const TasksTable = memo(function TasksTable({
     }
   }
 
+  const isNavigatingProjectRef = useRef(false)
+
   // History management for back button on mobile
   useEffect(() => {
     if (!isMobile) return
 
-    const handlePopState = () => {
-      setActiveTaskId(null)
-    }
-
     if (activeTaskId) {
-      window.history.pushState({ type: "task-detail" }, "")
-      window.addEventListener("popstate", handlePopState)
-    }
+      isNavigatingProjectRef.current = false
+      const params = new URLSearchParams(window.location.search)
+      params.set("objectId", activeTaskId)
+      const newUrl = `${window.location.pathname}?${params.toString()}`
+      const currentIdx = typeof window.history.state?.idx === "number" ? window.history.state.idx : 0
+      const nextIdx = currentIdx + 1
+      window.history.pushState({ type: "task-detail", taskId: activeTaskId, idx: nextIdx }, "", newUrl)
 
-    return () => {
-      window.removeEventListener("popstate", handlePopState)
+      const handlePopState = () => {
+        const p = new URLSearchParams(window.location.search)
+        const currentObjId = p.get("objectId")
+        if (!currentObjId || currentObjId !== activeTaskId) {
+          setActiveTaskId(null)
+        }
+      }
+
+      window.addEventListener("popstate", handlePopState)
+      return () => {
+        window.removeEventListener("popstate", handlePopState)
+      }
     }
   }, [activeTaskId, isMobile])
 
   const handleCloseTask = useCallback(() => {
+    if (isNavigatingProjectRef.current) {
+      isNavigatingProjectRef.current = false
+      setActiveTaskId(null)
+      setDetailMode("view")
+      return
+    }
     if (isMobile && activeTaskId) {
       // On mobile, let popstate handle the state update
       window.history.back()
@@ -980,6 +998,17 @@ export const TasksTable = memo(function TasksTable({
             setConvertedTaskFallback(null)
             setIsCreatingTask(false)
           }
+        }}
+        onNavigateProject={(projectId) => {
+          isNavigatingProjectRef.current = true
+          setActiveTaskId(null)
+          setConvertedTaskFallback(null)
+          setIsCreatingTask(false)
+          window.dispatchEvent(
+            new CustomEvent("navigate-to-project", {
+              detail: { projectId },
+            })
+          )
         }}
         isCreating={isCreatingTask}
         projects={projects}

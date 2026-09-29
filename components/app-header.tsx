@@ -727,6 +727,14 @@ export function AppHeader({
         onModeChange={setDetailMode}
         portalContainer={tabPortalContainer}
         onExpandFullScreen={onExpandFullScreen}
+        onNavigateProject={(projectId) => {
+          setActiveTask(null)
+          window.dispatchEvent(
+            new CustomEvent("navigate-to-project", {
+              detail: { projectId },
+            })
+          )
+        }}
       />
     </>
   )

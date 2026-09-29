@@ -1659,17 +1659,27 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     [findObjectById, db, isMobile, emblaApi, updateTabUi],
   )
 
-  // Check URL on mount for ?objectId=... (e.g. opened from notification)
+  // Check URL on mount and on popstate for ?objectId=... (e.g. opened from notification or history back)
   useEffect(() => {
     if (typeof window === "undefined") return
-    const params = new URLSearchParams(window.location.search)
-    const objId = params.get("objectId")
-    if (objId) {
-      pendingOpenObjectIdRef.current = objId
-      openObjectById(objId).then((opened) => {
-        if (opened) pendingOpenObjectIdRef.current = null
-      })
+
+    const checkUrlForObject = () => {
+      const params = new URLSearchParams(window.location.search)
+      const objId = params.get("objectId")
+      if (objId) {
+        pendingOpenObjectIdRef.current = objId
+        openObjectById(objId).then((opened) => {
+          if (opened) pendingOpenObjectIdRef.current = null
+        })
+      } else {
+        setDirectOpenTask(null)
+      }
     }
+
+    checkUrlForObject()
+
+    window.addEventListener("popstate", checkUrlForObject)
+    return () => window.removeEventListener("popstate", checkUrlForObject)
   }, [openObjectById])
 
   // When tasks update via RxDB replication, check if there's a pending object to open
@@ -2169,7 +2179,23 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           task={directOpenTask}
           open={directOpenTask !== null}
           onOpenChange={(open) => {
-            if (!open) setDirectOpenTask(null)
+            if (!open) {
+              setDirectOpenTask(null)
+              if (isMobile && typeof window !== "undefined") {
+                const params = new URLSearchParams(window.location.search)
+                if (params.has("objectId")) {
+                  window.history.back()
+                }
+              }
+            }
+          }}
+          onNavigateProject={(projectId) => {
+            setDirectOpenTask(null)
+            window.dispatchEvent(
+              new CustomEvent("navigate-to-project", {
+                detail: { projectId },
+              })
+            )
           }}
           projects={projects}
           persons={persons}
