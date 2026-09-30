@@ -222,19 +222,13 @@ export const TasksTable = memo(function TasksTable({
   const { order, visibility, toggle, reorder, reset } = columnState || internalColumnState
   const [dragKey, setDragKey] = useState<TaskColumnKey | null>(null)
   const [dropTarget, setDropTarget] = useState<TaskColumnKey | null>(null)
-  const [activeTaskId, setActiveTaskId] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return sessionStorage.getItem("activeTaskId") || null
-    }
-    return null
-  })
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
   
   useEffect(() => {
     if (typeof window !== "undefined") {
-      if (activeTaskId) sessionStorage.setItem("activeTaskId", activeTaskId)
-      else sessionStorage.removeItem("activeTaskId")
+      sessionStorage.removeItem("activeTaskId")
     }
-  }, [activeTaskId])
+  }, [])
 
   // In the inbox, tapping a task should jump straight into editing (triage flow);
   // everywhere else the default open action shows the read-only view first.
@@ -1001,6 +995,9 @@ export const TasksTable = memo(function TasksTable({
         }}
         onNavigateProject={(projectId) => {
           isNavigatingProjectRef.current = true
+          if (typeof window !== "undefined") {
+            sessionStorage.removeItem("activeTaskId")
+          }
           setActiveTaskId(null)
           setConvertedTaskFallback(null)
           setIsCreatingTask(false)
