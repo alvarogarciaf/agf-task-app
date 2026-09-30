@@ -39,8 +39,8 @@ export function NotesView(props: NotesViewProps) {
       notesMode
       itemNoun="note"
       storageKey="velocity:notes:columns"
-      initialSortKey="date_created"
-      initialSortDirection="desc"
+      initialSortKey="order"
+      initialSortDirection="asc"
       emptyTitle="No notes yet"
       emptyHint="Capture a thought to get started."
       defaultBookmarked={props.defaultBookmarked}

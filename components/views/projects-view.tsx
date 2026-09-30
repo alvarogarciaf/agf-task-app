@@ -987,6 +987,8 @@ function ProjectDetail({
             emptyHint="Tasks linked to this project will appear here."
             onCreate={onCreate}
             initialProjectId={project.id}
+            initialSortKey={project.order_dependent ? "order" : undefined}
+            initialSortDirection={project.order_dependent ? "asc" : undefined}
             fullWidthOnMobile={true}
             nestedOnMobile={true}
           />
@@ -1012,8 +1014,8 @@ function ProjectDetail({
             onDeleteTasks={onDeleteTasks}
             hideFilters={["project"]}
             storageKey={`velocity:project-${project.id}:notes-columns`}
-            initialSortKey="date_created"
-            initialSortDirection="desc"
+            initialSortKey="order"
+            initialSortDirection="asc"
             emptyTitle={`No notes for ${project.name}`}
             emptyHint="Notes assigned to this project will appear here."
             onCreate={onCreateNote}

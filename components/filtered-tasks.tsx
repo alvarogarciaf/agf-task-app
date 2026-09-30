@@ -161,7 +161,7 @@ export function FilteredTasks({
   const [autoFocusTaskId, setAutoFocusTaskId] = useState<string | null>(null)
   const [prevTasksLength, setPrevTasksLength] = useState(tasks.length)
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" }>({
-    key: initialSortKey ?? "urgency",
+    key: initialSortKey ?? (notesMode ? "order" : "urgency"),
     direction: initialSortDirection ?? "asc",
   })
   /** When true, list only tasks hidden from the normal view because Show on is after today. */
@@ -224,10 +224,10 @@ export function FilteredTasks({
       setFilterMode(initialFilterMode)
     }
     setSortConfig({
-      key: initialSortKey ?? "urgency",
+      key: initialSortKey ?? (notesMode ? "order" : "urgency"),
       direction: initialSortDirection ?? "asc",
     })
-  }, [initialContextId, initialContextIds, initialTagId, initialTagIds, initialPersonId, initialProjectId, initialShowStatus, initialIsGroupedByProject, initialShowHiddenByShowOn, initialSortKey, initialSortDirection, initialFilterMode])
+  }, [initialContextId, initialContextIds, initialTagId, initialTagIds, initialPersonId, initialProjectId, initialShowStatus, initialIsGroupedByProject, initialShowHiddenByShowOn, initialSortKey, initialSortDirection, initialFilterMode, notesMode])
 
   const firstOpenTaskIds = useMemo(() => {
     const map = new Set<string>()
@@ -346,7 +346,14 @@ export function FilteredTasks({
         let valA: any = ""
         let valB: any = ""
 
-        if (key === "urgency") {
+        if (key === "order" || key === "manual") {
+          const orderA = a.order ?? 0
+          const orderB = b.order ?? 0
+          if (orderA !== orderB) return direction === "asc" ? (orderA - orderB) : (orderB - orderA)
+          const dateA = new Date(a.date_created).getTime()
+          const dateB = new Date(b.date_created).getTime()
+          return dateB - dateA
+        } else if (key === "urgency") {
           valA = urgencies.find((u) => u.id === a.urgency_id)?.order ?? 999
           valB = urgencies.find((u) => u.id === b.urgency_id)?.order ?? 999
           if (valA === valB) {
@@ -357,6 +364,11 @@ export function FilteredTasks({
         } else if (key === "date_created") {
           valA = new Date(a.date_created).getTime()
           valB = new Date(b.date_created).getTime()
+          if (valA === valB) {
+            const orderA = a.order ?? 0
+            const orderB = b.order ?? 0
+            if (orderA !== orderB) return direction === "asc" ? (orderA - orderB) : (orderB - orderA)
+          }
         } else if (key === "description") {
           valA = a.description.toLowerCase()
           valB = b.description.toLowerCase()
@@ -523,14 +535,16 @@ export function FilteredTasks({
     const [moved] = newItems.splice(oldIndex, 1)
     newItems.splice(newIndex, 0, moved)
 
+    setSortConfig({ key: "order", direction: "asc" })
+
+    const hasDuplicateOrders = new Set(newItems.map((i) => i.order)).size !== newItems.length
     try {
       const updates = newItems.map((item, index) => {
-        if (item.order !== index) {
-          return db.tasks.findOne(item.id).exec().then((doc) => {
-            if (doc) return doc.incrementalPatch({ order: index })
-          })
-        }
-        return Promise.resolve()
+        return db.tasks.findOne(item.id).exec().then((doc) => {
+          if (doc && (hasDuplicateOrders || doc.get("order") !== index)) {
+            return doc.incrementalPatch({ order: index, updated_at: Date.now() })
+          }
+        })
       })
       await Promise.all(updates)
     } catch (err) {
@@ -600,8 +614,8 @@ export function FilteredTasks({
     isGroupedByProject || 
     showHiddenByShowOn ||
     filterMode !== (initialFilterMode ?? defaultFilterMode) ||
-    sortConfig.key !== "date_created" ||
-    sortConfig.direction !== "desc"
+    sortConfig.key !== (initialSortKey ?? (notesMode ? "order" : "urgency")) ||
+    sortConfig.direction !== (initialSortDirection ?? "asc")
 
   // Keyboard shortcut: Ctrl+N for new task (handled globally, we just intercept it)
   useEffect(() => {
