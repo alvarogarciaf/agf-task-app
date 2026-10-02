@@ -1680,7 +1680,17 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     checkUrlForObject()
 
     window.addEventListener("popstate", checkUrlForObject)
-    return () => window.removeEventListener("popstate", checkUrlForObject)
+    
+    const handleOpenTaskEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<{ taskId: string }>
+      openObjectById(customEvent.detail.taskId)
+    }
+    window.addEventListener("open-task", handleOpenTaskEvent)
+
+    return () => {
+      window.removeEventListener("popstate", checkUrlForObject)
+      window.removeEventListener("open-task", handleOpenTaskEvent)
+    }
   }, [openObjectById])
 
   // When tasks update via RxDB replication, check if there's a pending object to open

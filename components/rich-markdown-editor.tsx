@@ -1,6 +1,8 @@
 "use client"
 
 import React, { useEffect, useRef, useState, useCallback } from "react"
+import { createPortal } from "react-dom"
+import { InlineTaskCard } from "@/components/inline-task-card"
 import {
   Bold,
   Heading,
@@ -257,6 +259,33 @@ function EditorSurface({
     handle: "right" | "bottom-right" | "bottom-left"
     currentWidth: number
   } | null>(null)
+
+  const [taskEmbeds, setTaskEmbeds] = useState<{ id: string, el: HTMLElement }[]>([])
+
+  useEffect(() => {
+    if (!editorRef.current) return
+    
+    const updateEmbeds = () => {
+      if (!editorRef.current) return
+      const embeds = Array.from(editorRef.current.querySelectorAll(".task-embed-wrapper")) as HTMLElement[]
+      const current = embeds.map(el => ({
+        id: el.getAttribute("data-task-id") || "",
+        el
+      })).filter(x => x.id)
+
+      setTaskEmbeds(prev => {
+        if (prev.length !== current.length) return current
+        const isSame = prev.every((p, i) => p.id === current[i].id && p.el === current[i].el)
+        return isSame ? prev : current
+      })
+    }
+    
+    const observer = new MutationObserver(updateEmbeds)
+    observer.observe(editorRef.current, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-task-id"] })
+    updateEmbeds()
+
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     if (!activeImageMenu) return
@@ -918,12 +947,32 @@ function EditorSurface({
     const lineBefore = getLineTextBeforeCursor(block, range)
     const lineAfter = getLineTextAfterCursor(block, range)
 
-    const slash = lineBefore.match(/^\/(h[123])$/i)
+    const slash = lineBefore.match(/^\/(h[123]|task)$/i)
     if (slash) {
-      const headingTag = slash[1].toLowerCase() as "h1" | "h2" | "h3"
-      applyHeadingShortcut(block, range, headingTag, lineBefore.length)
-      syncMarkdown()
-      return true
+      const command = slash[1].toLowerCase()
+      if (command.startsWith("h")) {
+        applyHeadingShortcut(block, range, command as "h1" | "h2" | "h3", lineBefore.length)
+        syncMarkdown()
+        return true
+      } else if (command === "task") {
+        let target = block
+        if (block.querySelector("input.md-task-box") || block.querySelector("br")) {
+          target = isolateLineToParagraph(block, range)
+        }
+        removeBlockPrefix(target, lineBefore.length)
+        
+        const taskId = crypto.randomUUID()
+        const placeholderHtml = `&#8203;<div class="task-embed-wrapper block my-2" data-task-id="${taskId}" contenteditable="false"></div>&#8203;`
+        
+        placeCaretAtStart(target)
+        document.execCommand("insertHTML", false, placeholderHtml)
+        
+        if (window.dispatchEvent) {
+          window.dispatchEvent(new CustomEvent("inline-task-create", { detail: { id: taskId, title: "New task" } }))
+        }
+        syncMarkdown()
+        return true
+      }
     }
 
     if (lineBefore === "[]" || lineBefore === "[ ]") {
@@ -1059,15 +1108,44 @@ function EditorSurface({
 
       if (block && range) {
         const lineBefore = getLineTextBeforeCursor(block, range)
-        const slash = lineBefore.match(/^\/(h[123])$/i)
+        const slash = lineBefore.match(/^\/(h[123]|task)$/i)
         if (slash) {
           e.preventDefault()
-          applyHeadingShortcut(
-            block,
-            range,
-            slash[1].toLowerCase() as "h1" | "h2" | "h3",
-            lineBefore.length
-          )
+          const command = slash[1].toLowerCase()
+          if (command.startsWith("h")) {
+            applyHeadingShortcut(
+              block,
+              range,
+              command as "h1" | "h2" | "h3",
+              lineBefore.length
+            )
+          } else if (command === "task") {
+            let target = block
+            if (block.querySelector("input.md-task-box") || block.querySelector("br")) {
+              target = isolateLineToParagraph(block, range)
+            }
+            removeBlockPrefix(target, lineBefore.length)
+            
+            const taskId = crypto.randomUUID()
+            const placeholderHtml = `&#8203;<div class="task-embed-wrapper block my-2" data-task-id="${taskId}" contenteditable="false"></div>&#8203;`
+            
+            placeCaretAtStart(target)
+            document.execCommand("insertHTML", false, placeholderHtml)
+            
+            // Insert a new empty line after the task
+            const p = document.createElement("p")
+            p.innerHTML = "<br>"
+            if (target.nextSibling) {
+              target.parentNode?.insertBefore(p, target.nextSibling)
+            } else {
+              target.parentNode?.appendChild(p)
+            }
+            placeCaretAtStart(p)
+
+            if (window.dispatchEvent) {
+              window.dispatchEvent(new CustomEvent("inline-task-create", { detail: { id: taskId, title: "New task" } }))
+            }
+          }
           syncMarkdown()
           return
         }
@@ -1889,6 +1967,19 @@ function EditorSurface({
           </div>
         </>
       )}
+      
+      {taskEmbeds.map(embed => createPortal(
+        <InlineTaskCard
+          key={embed.id}
+          taskId={embed.id}
+          onClick={(id) => {
+            if (window.dispatchEvent) {
+              window.dispatchEvent(new CustomEvent("open-task", { detail: { taskId: id } }))
+            }
+          }}
+        />,
+        embed.el
+      ))}
     </div>
   )
 }

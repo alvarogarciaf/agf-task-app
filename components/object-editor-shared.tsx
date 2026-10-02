@@ -1,5 +1,7 @@
 "use client"
 
+import { useRxDB } from "@/components/rxdb-provider"
+
 import React, { useEffect, useState, useRef, useCallback } from "react"
 import {
   Calendar,
@@ -1005,6 +1007,7 @@ export function ObjectDetailsEditor({
   listCategories,
   onListCategoriesChange,
   listId,
+  projectId,
 }: {
   value: string
   onChange: (val: string | undefined) => void
@@ -1018,7 +1021,38 @@ export function ObjectDetailsEditor({
   listCategories?: ListCategory[] | null
   onListCategoriesChange?: (categories: ListCategory[]) => void
   listId?: string
+  projectId?: string | null
 }) {
+  const { db } = useRxDB()
+
+  useEffect(() => {
+    const handleCreateInlineTask = async (e: Event) => {
+      const evt = e as CustomEvent<{ id: string; title: string }>
+      if (!db) return
+      
+      const { id, title } = evt.detail
+      
+      const isProcessed = !!projectId
+      const urgencies = await db.urgency_levels.find().sort({ order: "asc" }).exec()
+      const urgencyId = urgencies[0]?.id
+
+      await db.tasks.insert({
+        id,
+        type: "task",
+        description: title,
+        project_id: projectId ?? null,
+        processed: isProcessed,
+        status: "Open",
+        urgency_id: urgencyId,
+        date_created: new Date().toISOString(),
+        updated_at: Date.now(),
+        person_id: null,
+      })
+    }
+    window.addEventListener("inline-task-create", handleCreateInlineTask)
+    return () => window.removeEventListener("inline-task-create", handleCreateInlineTask)
+  }, [db, projectId])
+
   if (isListMode) {
     return (
       <div ref={containerRef} className={cn(fillHeight && "flex min-h-0 flex-1 flex-col", className)}>

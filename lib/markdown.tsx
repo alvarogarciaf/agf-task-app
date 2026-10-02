@@ -94,6 +94,9 @@ export function markdownToHtml(md: string): string {
       return `<span class="image-resizer relative max-w-full align-bottom select-none" style="${baseDisplay}${style}"${alignAttr}${widthAttr}><img src="${url}" data-original-src="${url}" alt="${alt}" class="w-full h-auto object-contain rounded-md block pointer-events-auto cursor-pointer" onerror="this.onerror=null; this.src='${fallbackSvg}';" /></span>`;
     });
 
+    // Tasks [task:id]
+    result = result.replace(/\[task:([a-zA-Z0-9-]+)\]/g, '&#8203;<div class="task-embed-wrapper block my-2" data-task-id="$1" contenteditable="false"></div>&#8203;');
+
     // Cards [card:Title|Domain|ImageURL](url)
     result = result.replace(/\[card:([^|\]]*)\|([^|\]]*)\|([^\]]*)\]\(([^)]+)\)/g, (match, title, domain, image, url) => {
       const imgHtml = image 
@@ -191,6 +194,7 @@ export function markdownToPlainText(md: string): string {
 
   const stripInline = (text: string) =>
     text
+      .replace(/\[task:[a-zA-Z0-9-]+\]/g, " [Task] ")
       .replace(/!\[([^|\]]*)(?:\|(\d+)(?:x(\d+))?)?\]\([^)]+\)/g, " [Image] ")
       .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
       .replace(/(\*\*|__)(.*?)\1/g, "$2")
@@ -254,6 +258,10 @@ function nodeToMarkdown(node: Node): string {
         return `${childContent}`; // `li` will prepend the "* " themselves
       case "p":
       case "div": {
+        if (el.classList.contains("task-embed-wrapper")) {
+          const taskId = el.getAttribute("data-task-id");
+          if (taskId) return `[task:${taskId}]\n`;
+        }
         // Handle link-card-wrapper div (now legacy, moved to span, but kept for old data just in case)
         if (el.classList.contains("link-card-wrapper")) {
           const linkEl = el.querySelector("a.link-card");
@@ -448,7 +456,31 @@ export function renderMarkdown(
       return parts;
     });
 
-    // 1. Parse Cards: [card:Title|Domain|ImageURL](URL)
+    // 1. Parse Tasks: [task:id]
+    segments = segments.flatMap(seg => {
+      if (seg.type !== "text") return [seg];
+      const parts: any[] = [];
+      const remaining = seg.content;
+      const taskRegex = /\[task:([a-zA-Z0-9-]+)\]/g;
+      let match;
+      let lastIndex = 0;
+
+      while ((match = taskRegex.exec(remaining)) !== null) {
+        const textBefore = remaining.substring(lastIndex, match.index);
+        if (textBefore) {
+          parts.push({ type: "text", content: textBefore });
+        }
+        parts.push({ type: "task", id: match[1] });
+        lastIndex = taskRegex.lastIndex;
+      }
+      const textAfter = remaining.substring(lastIndex);
+      if (textAfter) {
+        parts.push({ type: "text", content: textAfter });
+      }
+      return parts;
+    });
+
+    // 2. Parse Cards: [card:Title|Domain|ImageURL](URL)
     segments = segments.flatMap(seg => {
       if (seg.type !== "text") return [seg];
       const parts: any[] = [];
@@ -547,6 +579,14 @@ export function renderMarkdown(
     return segments.map((seg: any, idx) => {
       if (seg.type === "bold") {
         return <strong key={idx} className="font-bold text-foreground">{seg.content}</strong>;
+      }
+      if (seg.type === "task") {
+        return (
+          <div key={idx} className="my-2 p-3 bg-muted/20 border border-border/50 rounded-lg text-sm text-muted-foreground flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+            Embedded Task Placeholder (ID: {seg.id})
+          </div>
+        )
       }
       if (seg.type === "card") {
         return (

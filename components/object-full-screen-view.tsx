@@ -372,6 +372,7 @@ export function ObjectFullScreenView({
               listCategories={draft.list_categories}
               onListCategoriesChange={updateListCategories}
               listId={draft.id}
+              projectId={draft.project_id}
             />
           </div>
         </div>
