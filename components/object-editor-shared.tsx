@@ -1,6 +1,6 @@
 "use client"
 
-import { useRxDB } from "@/components/rxdb-provider"
+import { useDatabase } from "@/components/db-provider"
 
 import React, { useEffect, useState, useRef, useCallback } from "react"
 import {
@@ -1023,7 +1023,7 @@ export function ObjectDetailsEditor({
   listId?: string
   projectId?: string | null
 }) {
-  const { db } = useRxDB()
+  const db = useDatabase()
 
   useEffect(() => {
     const handleCreateInlineTask = async (e: Event) => {

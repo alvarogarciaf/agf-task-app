@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState, useMemo } from "react"
-import { useRxDB } from "@/components/rxdb-provider"
+import { useDatabase } from "@/components/db-provider"
 import { Task, Project, UrgencyLevel } from "@/lib/types"
 import { ProjectOptionIcon } from "@/components/project-select"
 import { ICONS } from "@/lib/constants"
@@ -14,7 +14,7 @@ interface InlineTaskCardProps {
 }
 
 export function InlineTaskCard({ taskId, onClick }: InlineTaskCardProps) {
-  const { db } = useRxDB()
+  const db = useDatabase()
   const [task, setTask] = useState<Task | null>(null)
   const [project, setProject] = useState<Project | null>(null)
   const [urgency, setUrgency] = useState<UrgencyLevel | null>(null)
