@@ -1047,6 +1047,8 @@ export function ObjectDetailsEditor({
         date_created: new Date().toISOString(),
         updated_at: Date.now(),
         person_id: null,
+        context_ids: [],
+        tag_ids: [],
       })
     }
     window.addEventListener("inline-task-create", handleCreateInlineTask)

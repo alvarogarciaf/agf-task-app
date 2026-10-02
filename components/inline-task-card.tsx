@@ -19,6 +19,25 @@ export function InlineTaskCard({ taskId, onClick }: InlineTaskCardProps) {
   const [project, setProject] = useState<Project | null>(null)
   const [urgency, setUrgency] = useState<UrgencyLevel | null>(null)
 
+  const [isEditing, setIsEditing] = useState(false)
+  const inputRef = React.useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [isEditing])
+
+  const saveTitle = async (newTitle: string) => {
+    setIsEditing(false)
+    if (!db || !task) return
+    const d = await db.tasks.findOne(task.id).exec()
+    if (d) {
+      await d.update({ $set: { description: newTitle.trim() || "New task" } })
+    }
+  }
+
   // Subscriptions
   useEffect(() => {
     if (!db || !taskId) return
@@ -27,8 +46,15 @@ export function InlineTaskCard({ taskId, onClick }: InlineTaskCardProps) {
       .findOne(taskId)
       .$
       .subscribe((t) => {
-        if (t) setTask(t.toJSON() as Task)
-        else setTask(null)
+        if (t) {
+          const data = t.toJSON() as Task
+          setTask(data)
+          if (data.description === "New task" && !isEditing) {
+            setIsEditing(true)
+          }
+        } else {
+          setTask(null)
+        }
       })
 
     return () => sub.unsubscribe()
@@ -79,7 +105,9 @@ export function InlineTaskCard({ taskId, onClick }: InlineTaskCardProps) {
         "border-border/80 bg-card hover:border-border cursor-pointer",
         task.status === "Done" ? "opacity-65 bg-muted/20" : ""
       )}
-      onClick={() => onClick(taskId)}
+      onClick={() => {
+        if (!isEditing) onClick(taskId)
+      }}
       contentEditable={false}
     >
       {/* Urgency Line Indicator */}
@@ -132,14 +160,30 @@ export function InlineTaskCard({ taskId, onClick }: InlineTaskCardProps) {
       )}
 
       {/* Description */}
-      <span
-        className={cn(
-          "flex-1 min-w-0 truncate text-sm font-medium leading-tight",
-          !isNote && task.status === "Done" ? "text-muted-foreground line-through" : "text-foreground"
-        )}
-      >
-        {task.description}
-      </span>
+      {isEditing ? (
+        <input
+          ref={inputRef}
+          type="text"
+          defaultValue={task.description === "New task" ? "" : task.description}
+          onBlur={(e) => saveTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") saveTitle(e.currentTarget.value)
+            if (e.key === "Escape") setIsEditing(false)
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground"
+          placeholder="New task"
+        />
+      ) : (
+        <span
+          className={cn(
+            "flex-1 min-w-0 truncate text-sm font-medium leading-tight",
+            !isNote && task.status === "Done" ? "text-muted-foreground line-through" : "text-foreground"
+          )}
+        >
+          {task.description}
+        </span>
+      )}
 
       {/* Right side: Urgency label */}
       <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
