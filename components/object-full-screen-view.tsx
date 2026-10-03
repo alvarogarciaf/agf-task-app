@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useDatabase } from "@/components/db-provider"
 import {
   ArrowLeft,
   ArrowLeftRight,
@@ -29,6 +30,7 @@ import type {
 
 interface ObjectFullScreenViewProps {
   task: Task | null
+  objectId?: string
   previousLabel: string
   onBack: () => void
   projects: Project[]
@@ -42,6 +44,7 @@ interface ObjectFullScreenViewProps {
 
 export function ObjectFullScreenView({
   task,
+  objectId,
   previousLabel,
   onBack,
   projects,
@@ -52,10 +55,46 @@ export function ObjectFullScreenView({
   onUpdate,
   onDeleteTask,
 }: ObjectFullScreenViewProps) {
-  // If the object disappears (deleted elsewhere), return to the previous screen.
+  const db = useDatabase()
+  const [dbTask, setDbTask] = useState<Task | null>(null)
+
   useEffect(() => {
-    if (!task) onBack()
-  }, [task, onBack])
+    if (task) {
+      setDbTask(null)
+      return
+    }
+    const id = objectId
+    if (!id || !db) return
+
+    let isMounted = true
+    db.tasks
+      .findOne(id)
+      .exec()
+      .then((doc) => {
+        if (isMounted && doc) setDbTask(doc.toJSON() as Task)
+      })
+
+    const sub = db.tasks.findOne(id).$.subscribe((doc) => {
+      if (isMounted) setDbTask(doc ? (doc.toJSON() as Task) : null)
+    })
+
+    return () => {
+      isMounted = false
+      sub?.unsubscribe()
+    }
+  }, [task, objectId, db])
+
+  const effectiveTask = task ?? dbTask
+
+  // If the object disappears (deleted elsewhere), return to the previous screen.
+  const hasLoadedTaskRef = useRef(false)
+  useEffect(() => {
+    if (effectiveTask) {
+      hasLoadedTaskRef.current = true
+    } else if (hasLoadedTaskRef.current) {
+      onBack()
+    }
+  }, [effectiveTask, onBack])
 
   const {
     draft,
@@ -77,7 +116,7 @@ export function ObjectFullScreenView({
     updateListItems,
     updateListCategories,
   } = useObjectDraft({
-    task,
+    task: effectiveTask,
     projects,
     urgencies,
     onUpdate,
@@ -124,6 +163,14 @@ export function ObjectFullScreenView({
   const descriptionRef = useRef<HTMLTextAreaElement>(null)
   const detailsRef = useRef<HTMLDivElement>(null)
 
+  const handleExit = () => {
+    if (dirty && (draft?.description || "").trim()) {
+      save()
+    } else {
+      cancel()
+    }
+  }
+
   useEffect(() => {
     if (draft?.description === "New note" || draft?.description === "New task") {
       setDraft((prev) => (prev ? { ...prev, description: "" } : prev))
@@ -136,7 +183,7 @@ export function ObjectFullScreenView({
       }
     }, 50)
     return () => clearTimeout(timer)
-  }, [task?.id])
+  }, [effectiveTask?.id])
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -144,7 +191,7 @@ export function ObjectFullScreenView({
       <div className="flex items-center gap-3 border-b border-border bg-card px-4 py-2.5">
         <button
           type="button"
-          onClick={cancel}
+          onClick={handleExit}
           className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           title={`Back to ${previousLabel}`}
         >
@@ -279,7 +326,7 @@ export function ObjectFullScreenView({
           </div>
           <button
             type="button"
-            onClick={cancel}
+            onClick={handleExit}
             className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             Close

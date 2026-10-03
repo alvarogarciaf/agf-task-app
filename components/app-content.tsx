@@ -959,6 +959,24 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     )
   }, [])
 
+  const openObjectFullScreenOnTab = useCallback(
+    (tabId: string, taskId: string, objectMode: "view" | "edit" = "edit") => {
+      setActiveTabId(tabId)
+      updateTabUi(tabId, { objectId: taskId, objectMode })
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search)
+        params.set("objectId", taskId)
+        const qs = params.toString()
+        const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+        const currentIdx = typeof window.history.state?.idx === "number" ? window.history.state.idx : 0
+        const nextIdx = currentIdx + 1
+        window.history.pushState({ idx: nextIdx }, "", newUrl)
+        window.dispatchEvent(new CustomEvent("app-history-change", { detail: { idx: nextIdx } }))
+      }
+    },
+    [updateTabUi],
+  )
+
   const addTab = useCallback(() => {
     const tab = createEmptyTab()
     setTabs((prev) => [...prev, tab])
@@ -1075,6 +1093,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     const handlePopState = (e: PopStateEvent) => {
       const search = window.location.search
       const params = new URLSearchParams(search)
+      const hasView = params.has("view")
       const view = (params.get("view") as ViewKey) || "home"
       const savedViewId = params.get("savedViewId")
       const tab = (params.get("tab") as TabKey) || undefined
@@ -1084,14 +1103,24 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       setTabs((prev) =>
         prev.map((t) => {
           if (t.id !== activeTabIdRef.current) return t
+          const route: TabRoute = hasView
+            ? {
+                kind: "view",
+                view,
+                savedViewId: savedViewId ?? null,
+                settingsTab: tab,
+              }
+            : t.route.kind === "empty"
+              ? { kind: "empty" }
+              : {
+                  kind: "view",
+                  view: "home",
+                  savedViewId: null,
+                  settingsTab: tab,
+                }
           return {
             ...t,
-            route: {
-              kind: "view",
-              view,
-              savedViewId: savedViewId ?? null,
-              settingsTab: tab,
-            },
+            route,
             ui: {
               ...t.ui,
               initialProjectId: project,
@@ -1364,6 +1393,38 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
 
       if (((e.ctrlKey || e.metaKey) || e.altKey) && e.key.toLowerCase() === "n") {
         e.preventDefault()
+        const currentTab = tabsRef.current.find((t) => t.id === activeTabIdRef.current) ?? tabsRef.current[0]
+        if (!isMobile && currentTab && currentTab.route.kind === "empty" && !currentTab.ui.objectId) {
+          if (e.shiftKey || e.altKey) { // Note
+            void (async () => {
+              const newNoteId = await handleCreateNote({
+                description: "New note",
+                contextIds: [],
+                projectId: null,
+                personId: null,
+                processed: true,
+              })
+              if (newNoteId) {
+                openObjectFullScreenOnTab(currentTab.id, newNoteId, "edit")
+              }
+            })()
+          } else { // Task
+            void (async () => {
+              const newTaskId = await handleCreateTask({
+                description: "New task",
+                contextIds: [],
+                projectId: null,
+                personId: null,
+                processed: false,
+              })
+              if (newTaskId) {
+                openObjectFullScreenOnTab(currentTab.id, newTaskId, "edit")
+              }
+            })()
+          }
+          return
+        }
+
         if (e.shiftKey || e.altKey) { // Alt+N or Ctrl+Shift+N -> Note
           const event = new CustomEvent('global-create-note', { cancelable: true })
           if (window.dispatchEvent(event)) {
@@ -1388,6 +1449,22 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       
       if (e.altKey && e.key.toLowerCase() === "t") {
         e.preventDefault()
+        const currentTab = tabsRef.current.find((t) => t.id === activeTabIdRef.current) ?? tabsRef.current[0]
+        if (!isMobile && currentTab && currentTab.route.kind === "empty" && !currentTab.ui.objectId) {
+          void (async () => {
+            const newTaskId = await handleCreateTask({
+              description: "New task",
+              contextIds: [],
+              projectId: null,
+              personId: null,
+              processed: false,
+            })
+            if (newTaskId) {
+              openObjectFullScreenOnTab(currentTab.id, newTaskId, "edit")
+            }
+          })()
+          return
+        }
         const event = new CustomEvent('global-create-task', { cancelable: true })
         if (window.dispatchEvent(event)) {
           const navigate = isMobile ? handleNavigate : navigateActiveTab
@@ -1762,7 +1839,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
 
   const routeLabel = useCallback(
     (route: TabRoute, task?: Task | null): string => {
-      if (route.kind !== "view") return "previous"
+      if (route.kind !== "view") return "New tab"
       if (route.view === "saved-view") {
         return savedViews.find((v) => v.id === route.savedViewId)?.name || "Saved View"
       }
@@ -1904,7 +1981,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
           onExpandFullScreen={
             !isMobile
               ? (taskId, objectMode) =>
-                  updateTabUi(activeTabId, { objectId: taskId, objectMode })
+                  openObjectFullScreenOnTab(activeTabId, taskId, objectMode)
               : undefined
           }
           mobileCenterContent={
@@ -2086,17 +2163,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                     <TabObjectProvider
                       value={{
                         openObjectFullScreen: (taskId, objectMode) => {
-                          updateTabUi(tab.id, { objectId: taskId, objectMode })
-                          if (typeof window !== "undefined") {
-                            const params = new URLSearchParams(window.location.search)
-                            params.set("objectId", taskId)
-                            const qs = params.toString()
-                            const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
-                            const currentIdx = typeof window.history.state?.idx === "number" ? window.history.state.idx : 0
-                            const nextIdx = currentIdx + 1
-                            window.history.pushState({ idx: nextIdx }, "", newUrl)
-                            window.dispatchEvent(new CustomEvent("app-history-change", { detail: { idx: nextIdx } }))
-                          }
+                          openObjectFullScreenOnTab(tab.id, taskId, objectMode)
                         },
                         openObjectInNewTab: (taskId, objectMode) => {
                           const newTab = createTabFromRoute(tab.route)
@@ -2109,6 +2176,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                       {tab.ui.objectId && (
                         <ObjectFullScreenView
                           task={findObjectById(tab.ui.objectId)}
+                          objectId={tab.ui.objectId}
                           previousLabel={routeLabel(tab.route, findObjectById(tab.ui.objectId))}
                           onBack={() => {
                             if (typeof window !== "undefined" && typeof window.history.state?.idx === "number" && window.history.state.idx > 0) {
