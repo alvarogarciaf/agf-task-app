@@ -771,11 +771,12 @@ export function ObjectEditFields({
         </div>
       )}
 
-      <div className="flex items-center gap-2 pt-1">
+      <div className="group flex items-center gap-2.5 pt-1">
         <Checkbox
           id={`is-list-checkbox-${draft.id}`}
           checked={!!draft.is_list}
           onCheckedChange={(checked) => update("is_list", checked ? true : null)}
+          className="group-hover:border-foreground/80 transition-colors"
         />
         <label
           htmlFor={`is-list-checkbox-${draft.id}`}
