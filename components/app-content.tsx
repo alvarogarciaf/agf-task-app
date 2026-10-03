@@ -1660,6 +1660,14 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     [findObjectById, db, isMobile, emblaApi, updateTabUi],
   )
 
+  // Always call the latest openObjectById from long-lived listeners without
+  // re-subscribing. Previously this effect depended on openObjectById (which
+  // changes on every task-list update) and re-read ?objectId= from the URL each
+  // time, so any autosave while a task dialog was open (the URL carries
+  // ?objectId= on mobile) re-opened a second dialog on top of the first.
+  const openObjectByIdRef = useRef(openObjectById)
+  openObjectByIdRef.current = openObjectById
+
   // Check URL on mount and on popstate for ?objectId=... (e.g. opened from notification or history back)
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -1669,7 +1677,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       const objId = params.get("objectId")
       if (objId) {
         pendingOpenObjectIdRef.current = objId
-        openObjectById(objId).then((opened) => {
+        openObjectByIdRef.current(objId).then((opened) => {
           if (opened) pendingOpenObjectIdRef.current = null
         })
       } else {
@@ -1683,7 +1691,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     
     const handleOpenTaskEvent = (e: Event) => {
       const customEvent = e as CustomEvent<{ taskId: string }>
-      openObjectById(customEvent.detail.taskId)
+      openObjectByIdRef.current(customEvent.detail.taskId)
     }
     window.addEventListener("open-task", handleOpenTaskEvent)
 
@@ -1691,7 +1699,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       window.removeEventListener("popstate", checkUrlForObject)
       window.removeEventListener("open-task", handleOpenTaskEvent)
     }
-  }, [openObjectById])
+  }, [])
 
   // When tasks update via RxDB replication, check if there's a pending object to open
   useEffect(() => {
