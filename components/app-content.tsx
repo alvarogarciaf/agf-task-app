@@ -1017,7 +1017,16 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       const tab = tabsRef.current.find((t) => t.id === tabId)
       setActiveTabId(tabId)
       resetToolbar()
-      if (tab) syncUrlToRoute(tab.route)
+      if (tab) {
+        syncUrlToRoute(tab.route)
+        if (tab.ui.objectId && typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search)
+          params.set("objectId", tab.ui.objectId)
+          const qs = params.toString()
+          const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+          window.history.replaceState(window.history.state, "", newUrl)
+        }
+      }
     },
     [resetToolbar],
   )
@@ -1391,6 +1400,27 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         return
       }
 
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === "Tab" || e.key === "PageDown" || e.key === "PageUp") &&
+        !isMobile
+      ) {
+        e.preventDefault()
+        const currentTabs = tabsRef.current
+        if (currentTabs.length > 1) {
+          const activeIdx = currentTabs.findIndex((t) => t.id === activeTabIdRef.current)
+          const currentIndex = activeIdx >= 0 ? activeIdx : 0
+          const isBackward = e.shiftKey || e.key === "PageUp"
+          const step = isBackward ? -1 : 1
+          const nextIndex = (currentIndex + step + currentTabs.length) % currentTabs.length
+          const nextTab = currentTabs[nextIndex]
+          if (nextTab) {
+            selectTab(nextTab.id)
+          }
+        }
+        return
+      }
+
       if (((e.ctrlKey || e.metaKey) || e.altKey) && e.key.toLowerCase() === "n") {
         e.preventDefault()
         const currentTab = tabsRef.current.find((t) => t.id === activeTabIdRef.current) ?? tabsRef.current[0]
@@ -1516,7 +1546,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     }
     window.addEventListener("keydown", handleKey)
     return () => window.removeEventListener("keydown", handleKey)
-  }, [isMobile, addTab, navigateActiveTab, handleNavigate, handleDesktopBack, handleDesktopForward])
+  }, [isMobile, addTab, selectTab, navigateActiveTab, handleNavigate, handleDesktopBack, handleDesktopForward])
 
   useEffect(() => {
     const viewParam = searchParams.get("view")

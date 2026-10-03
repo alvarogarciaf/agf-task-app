@@ -895,7 +895,7 @@ export function ObjectEditFields({
               } else {
                 if (onSubmit) onSubmit()
               }
-            } else if (e.key === "Tab") {
+            } else if (e.key === "Tab" && !e.ctrlKey && !e.metaKey) {
               e.preventDefault()
               focusDetails()
             }

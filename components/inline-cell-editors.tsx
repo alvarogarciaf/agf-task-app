@@ -46,7 +46,7 @@ export function InlineTextEditor({
             else commit()
           }
           if (e.key === "Escape") { e.preventDefault(); onCancel() }
-          if (e.key === "Tab") { e.preventDefault(); commit(); onTab(e.shiftKey) }
+          if (e.key === "Tab" && !e.ctrlKey && !e.metaKey) { e.preventDefault(); commit(); onTab(e.shiftKey) }
         }}
         className="w-full rounded border border-primary bg-card px-2 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
       />
@@ -170,7 +170,7 @@ export function InlineSelectEditor({
           placeholder="Search…"
           onKeyDown={(e) => {
             if (e.key === "Escape") { e.preventDefault(); onCancel() }
-            if (e.key === "Tab") { e.preventDefault(); onCommit(null, true); onTab(e.shiftKey) }
+            if (e.key === "Tab" && !e.ctrlKey && !e.metaKey) { e.preventDefault(); onCommit(null, true); onTab(e.shiftKey) }
             if (e.key === "ArrowDown") { e.preventDefault(); setHighlightedIdx((i) => Math.min(i + 1, filtered.length - 1)) }
             if (e.key === "ArrowUp") { e.preventDefault(); setHighlightedIdx((i) => Math.max(i - 1, 0)) }
             if (e.key === "Enter") {
@@ -297,7 +297,7 @@ export function InlineMultiSelectEditor({
           placeholder="Search…"
           onKeyDown={(e) => {
             if (e.key === "Escape") { e.preventDefault(); onCancel() }
-            if (e.key === "Tab") { e.preventDefault(); onCommit(selected, true); onTab(e.shiftKey) }
+            if (e.key === "Tab" && !e.ctrlKey && !e.metaKey) { e.preventDefault(); onCommit(selected, true); onTab(e.shiftKey) }
             if (e.key === "ArrowDown") { e.preventDefault(); setHighlightedIdx((i) => Math.min(i + 1, filtered.length - 1)) }
             if (e.key === "ArrowUp") { e.preventDefault(); setHighlightedIdx((i) => Math.max(i - 1, 0)) }
             if (e.key === "Enter") {
@@ -397,7 +397,7 @@ export function InlineDateEditor({
             commit(date)
           }
           if (e.key === "Escape") { e.preventDefault(); onCancel() }
-          if (e.key === "Tab") { e.preventDefault(); commit(date); onTab(e.shiftKey) }
+          if (e.key === "Tab" && !e.ctrlKey && !e.metaKey) { e.preventDefault(); commit(date); onTab(e.shiftKey) }
         }}
         className="w-full rounded border border-primary bg-card px-2 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary h-[28px]"
       />

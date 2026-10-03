@@ -766,7 +766,7 @@ export const TasksTable = memo(function TasksTable({
                               else if (e.key === "ArrowLeft") { e.preventDefault(); navigateCell(task.id, key, 0, -1) }
                               else if (e.key === "ArrowDown") { e.preventDefault(); navigateCell(task.id, key, 1, 0) }
                               else if (e.key === "ArrowUp") { e.preventDefault(); navigateCell(task.id, key, -1, 0) }
-                              else if (e.key === "Tab") { e.preventDefault(); navigateCell(task.id, key, 0, e.shiftKey ? -1 : 1) }
+                              else if (e.key === "Tab" && !e.ctrlKey && !e.metaKey) { e.preventDefault(); navigateCell(task.id, key, 0, e.shiftKey ? -1 : 1) }
                               else if (e.key === "Enter") { 
                                 e.preventDefault(); 
                                 if (key === "status") {

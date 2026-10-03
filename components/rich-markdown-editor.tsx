@@ -1195,7 +1195,7 @@ function EditorSurface({
       }
     }
 
-    if (e.key === "Tab") {
+    if (e.key === "Tab" && !e.ctrlKey && !e.metaKey) {
       const block = getCurrentBlock()
       if (block && block.tagName.toLowerCase() === "li") {
         e.preventDefault()
