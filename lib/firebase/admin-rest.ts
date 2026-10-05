@@ -214,7 +214,7 @@ export async function listUsers(maxResults: number = 1000, pageToken?: string): 
     throw new Error(`listUsers failed: ${res.status} ${text}`);
   }
   const data = await res.json();
-  return { users: (data.userInfo || []).map(mapUser), pageToken: data.nextPageToken };
+  return { users: (data.users || []).map(mapUser), pageToken: data.nextPageToken };
 }
 
 export async function getUser(uid: string): Promise<UserRecord> {
