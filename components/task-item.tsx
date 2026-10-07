@@ -1,6 +1,6 @@
 "use client"
 
-import { Circle, CircleCheck, FolderKanban, Calendar } from "lucide-react"
+import { Circle, CircleCheck, FolderKanban, Calendar, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Task, Project, Person, Context, UrgencyLevel } from "@/lib/types"
 

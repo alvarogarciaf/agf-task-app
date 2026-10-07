@@ -2295,6 +2295,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             setEditingProject(null)
           }}
           persons={persons}
+          contexts={contexts}
         />
       )}
       {directOpenTask && (
