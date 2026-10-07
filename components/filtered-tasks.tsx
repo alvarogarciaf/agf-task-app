@@ -155,7 +155,9 @@ export function FilteredTasks({
     return []
   })
   const [personId, setPersonId] = useState<string | null>(initialPersonId ?? null)
-  const [projectId, setProjectId] = useState<string | null>(initialProjectId ?? null)
+  const [projectIds, setProjectIds] = useState<string[]>(initialProjectId ? [initialProjectId] : [])
+  // Single project when exactly one is selected; used for defaults (new task, saved view, grouping).
+  const projectId = projectIds.length === 1 ? projectIds[0] : null
   const [showStatus, setShowStatus] = useState<"all" | "open" | "done">(initialShowStatus ?? "open")
   const [isCreating, setIsCreating] = useState(false)
   const [autoFocusTaskId, setAutoFocusTaskId] = useState<string | null>(null)
@@ -176,7 +178,7 @@ export function FilteredTasks({
     (!notesMode && showStatus !== "open" ? 1 : 0) +
     (!notesMode && contextIds.length > 0 ? 1 : 0) +
     (notesMode && tagIds.length > 0 ? 1 : 0) +
-    (projectId ? 1 : 0) +
+    (projectIds.length > 0 ? 1 : 0) +
     (personId ? 1 : 0) +
     (showHiddenByShowOn ? 1 : 0) +
     (isGroupedByProject ? 1 : 0) +
@@ -216,7 +218,7 @@ export function FilteredTasks({
       setTagIds(initialTagId ? [initialTagId] : [])
     }
     setPersonId(initialPersonId ?? null)
-    setProjectId(initialProjectId ?? null)
+    setProjectIds(initialProjectId ? [initialProjectId] : [])
     setShowStatus(initialShowStatus ?? "open")
     setIsGroupedByProject(initialIsGroupedByProject ?? false)
     setShowHiddenByShowOn(initialShowHiddenByShowOn ?? false)
@@ -253,33 +255,48 @@ export function FilteredTasks({
   const filtered = useMemo(() => {
     return tasks
       .filter((t) => {
-        if (contextIds.length === 0) return true
-        if (filterMode === "and") {
-          return contextIds.every(id => (t.context_ids || []).includes(id))
+        // Each active filter dimension is a predicate. Dimensions hidden from the
+        // filter bar are fixed scope (always required); the rest are combined with
+        // the selected AND / OR mode.
+        const fixed: ((t: Task) => boolean)[] = []
+        const combinable: ((t: Task) => boolean)[] = []
+        const add = (hidden: boolean, pred: (t: Task) => boolean) =>
+          (hidden ? fixed : combinable).push(pred)
+
+        if (!notesMode && contextIds.length > 0) {
+          add(hideFilters.includes("context"), (x) =>
+            filterMode === "and"
+              ? contextIds.every((id) => (x.context_ids || []).includes(id))
+              : contextIds.some((id) => (x.context_ids || []).includes(id)),
+          )
         }
-        return contextIds.some(id => (t.context_ids || []).includes(id))
+        if (notesMode && tagIds.length > 0) {
+          add(false, (x) =>
+            filterMode === "and"
+              ? tagIds.every((id) => (x.tag_ids || []).includes(id))
+              : tagIds.some((id) => (x.tag_ids || []).includes(id)),
+          )
+        }
+        if (projectIds.length > 0) {
+          add(hideFilters.includes("project"), (x) => !!x.project_id && projectIds.includes(x.project_id))
+        }
+        if (personId) {
+          add(hideFilters.includes("person"), (x) => x.person_id === personId)
+        }
+
+        if (!fixed.every((p) => p(t))) return false
+        if (combinable.length === 0) return true
+        return filterMode === "and"
+          ? combinable.every((p) => p(t))
+          : combinable.some((p) => p(t))
       })
       .filter((t) => {
-        // Tag filter only applies in notes mode
-        if (!notesMode || tagIds.length === 0) return true
-        if (filterMode === "and") {
-          return tagIds.every(id => (t.tag_ids || []).includes(id))
+        // Tasks in closed projects stay hidden unless that project is explicitly selected
+        if (t.project_id && !projectIds.includes(t.project_id)) {
+          const project = projects.find((p) => p.id === t.project_id)
+          if (project?.status === "Closed") return false
         }
-        return tagIds.some(id => (t.tag_ids || []).includes(id))
-      })
-      .filter((t) => {
-        if (!personId) return true
-        return t.person_id === personId
-      })
-      .filter((t) => {
-        if (!projectId) {
-          if (t.project_id) {
-            const project = projects.find((p) => p.id === t.project_id)
-            if (project?.status === "Closed") return false
-          }
-          return true
-        }
-        return t.project_id === projectId
+        return true
       })
       .filter((t) => {
         // Order-dependent project logic
@@ -288,7 +305,7 @@ export function FilteredTasks({
         if (!project?.order_dependent) return true
         
         // If explicitly filtering by this project, show all tasks
-        if (projectId === t.project_id) return true
+        if (projectIds.includes(t.project_id)) return true
         
         // Otherwise, if the task is Open, only show it if it's the first one
         if (t.status === "Open") {
@@ -402,7 +419,8 @@ export function FilteredTasks({
     contextIds,
     tagIds,
     personId,
-    projectId,
+    projectIds,
+    hideFilters.join(","),
     showStatus,
     inboxMode,
     notesMode,
@@ -609,7 +627,7 @@ export function FilteredTasks({
   const isViewModified = 
     contextIds.length > 0 || 
     personId || 
-    projectId || 
+    projectIds.length > 0 || 
     showStatus !== "open" || 
     isGroupedByProject || 
     showHiddenByShowOn ||
@@ -692,10 +710,10 @@ export function FilteredTasks({
       onRemove: () => setTagIds([]) 
     })
   }
-  if (projectId && !hideFilters.includes("project")) {
+  if (projectIds.length > 0 && !hideFilters.includes("project")) {
     activeChips.push({ 
-      label: `Project: ${projects.find(p => p.id === projectId)?.name}`, 
-      onRemove: () => setProjectId(null) 
+      label: `Project: ${projectIds.length === 1 ? projects.find(p => p.id === projectIds[0])?.name : `${projectIds.length} selected`}`, 
+      onRemove: () => setProjectIds([]) 
     })
   }
   if (personId && !hideFilters.includes("person")) {
@@ -835,14 +853,22 @@ export function FilteredTasks({
             )}
 
             {!hideFilters.includes("project") && (
-              <ProjectSelect
-                variant="pill"
-                pillLabel="Project"
-                projects={projects.filter((p) => p.status !== "Closed" || p.id === projectId)}
-                value={projectId}
-                noneLabel="All projects"
-                placeholder="All projects"
-                onChange={setProjectId}
+              <FilterPill
+                label="Project"
+                value={
+                  projectIds.length > 1
+                    ? `${projectIds.length} selected`
+                    : (projectIds.length === 1 ? projects.find((p) => p.id === projectIds[0])?.name : undefined)
+                }
+                options={projects
+                  .filter((p) => p.status !== "Closed" || projectIds.includes(p.id))
+                  .map((p) => ({ id: p.id, label: p.name, color: p.color ?? undefined }))}
+                selectedIds={projectIds}
+                onSelect={(id) => setProjectIds((prev) =>
+                  prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+                )}
+                onClear={() => setProjectIds([])}
+                multiSelect={true}
               />
             )}
 
@@ -850,7 +876,7 @@ export function FilteredTasks({
               <FilterPill
                 label="Person"
                 value={personId ? persons.find((p) => p.id === personId)?.name : undefined}
-                options={persons.map((p) => ({ id: p.id, label: p.name, color: p.color }))}
+                options={persons.map((p) => ({ id: p.id, label: p.name, color: p.color ?? undefined }))}
                 onSelect={(id) => setPersonId((p) => (p === id ? null : id))}
                 onClear={() => setPersonId(null)}
               />
@@ -1045,7 +1071,7 @@ export function FilteredTasks({
                           setContextIds([])
                           setTagIds([])
                           setPersonId(null)
-                          setProjectId(null)
+                          setProjectIds([])
                           setShowStatus("open")
                           setShowHiddenByShowOn(false)
                           setIsGroupedByProject(false)
@@ -1068,7 +1094,7 @@ export function FilteredTasks({
                   setContextIds([])
                   setTagIds([])
                   setPersonId(null)
-                  setProjectId(null)
+                  setProjectIds([])
                   setShowStatus("open")
                   setShowHiddenByShowOn(false)
                   setIsGroupedByProject(false)
@@ -1369,13 +1395,13 @@ export function FilteredTasks({
                 <label className="block text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
                   Project
                 </label>
-                <ProjectSelect
-                  projects={projects.filter((p) => p.status !== "Closed" || p.id === projectId)}
-                  value={projectId}
-                  noneLabel="All projects"
+                <FormMultiSelect
+                  options={projects
+                    .filter((p) => p.status !== "Closed" || projectIds.includes(p.id))
+                    .map((p) => ({ id: p.id, label: p.name, color: p.color ?? undefined }))}
+                  selectedIds={projectIds}
+                  onChange={setProjectIds}
                   placeholder="All projects"
-                  className="mt-0"
-                  onChange={setProjectId}
                 />
               </div>
             )}
@@ -1469,7 +1495,7 @@ export function FilteredTasks({
                   setShowStatus("all");
                   setContextIds([]);
                   setTagIds([]);
-                  setProjectId(null);
+                  setProjectIds([]);
                   setPersonId(null);
                 }}
                 className="flex-1 h-10 inline-flex items-center justify-center gap-1.5 rounded-md border border-destructive/20 bg-destructive/10 text-destructive text-sm font-semibold hover:bg-destructive/15 transition-colors cursor-pointer"
