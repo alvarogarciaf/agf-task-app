@@ -1069,14 +1069,14 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
         <button
           type="button"
           className={cn(
-            "mt-1 flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border transition-all md:h-4 md:w-4",
+            "mt-1 flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer md:h-4 md:w-4",
             inboxMode
               ? (task.processed
                   ? "border-primary bg-primary text-primary-foreground"
-                  : "border-muted-foreground/40 hover:border-primary/60")
+                  : "border-muted-foreground/60 bg-muted/20 hover:border-foreground/80 hover:bg-muted/40")
               : (task.status === "Done"
                   ? "border-primary bg-primary text-primary-foreground"
-                  : "border-muted-foreground/40 hover:border-primary/60")
+                  : "border-muted-foreground/60 bg-muted/20 hover:border-foreground/80 hover:bg-muted/40")
           )}
           onClick={(e) => {
             e.stopPropagation()
@@ -1089,9 +1089,9 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
           aria-label={inboxMode ? "Mark as processed" : "Mark as done"}
         >
           {inboxMode ? (
-            task.processed && <Check className="h-3 w-3 md:h-2.5 md:w-2.5" />
+            task.processed && <Check className="h-3 w-3 stroke-[3] md:h-2.5 md:w-2.5" />
           ) : (
-            task.status === "Done" && <Check className="h-3 w-3 md:h-2.5 md:w-2.5" />
+            task.status === "Done" && <Check className="h-3 w-3 stroke-[3] md:h-2.5 md:w-2.5" />
           )}
         </button>
       )
@@ -1499,21 +1499,22 @@ const MobileTaskRow = memo(function MobileTaskRow({
               onToggleStatus(task.id)
             }
           }}
-          className="shrink-0 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+          className={cn(
+            "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer",
+            inboxMode
+              ? (task.processed
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-muted-foreground/60 bg-muted/20 hover:border-foreground/80 hover:bg-muted/40")
+              : (task.status === "Done"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-muted-foreground/60 bg-muted/20 hover:border-foreground/80 hover:bg-muted/40")
+          )}
           aria-label={inboxMode ? (task.processed ? "Mark as inbox" : "Mark as processed") : (task.status === "Done" ? "Mark as open" : "Mark as done")}
         >
           {inboxMode ? (
-            task.processed ? (
-              <CircleCheck className="h-4.5 w-4.5 text-primary" />
-            ) : (
-              <Circle className="h-4.5 w-4.5" />
-            )
+            task.processed && <Check className="h-3.5 w-3.5 stroke-[3]" />
           ) : (
-            task.status === "Done" ? (
-              <CircleCheck className="h-4.5 w-4.5 text-primary" />
-            ) : (
-              <Circle className="h-4.5 w-4.5" />
-            )
+            task.status === "Done" && <Check className="h-3.5 w-3.5 stroke-[3]" />
           )}
         </button>
       )}

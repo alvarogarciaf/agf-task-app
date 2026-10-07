@@ -29,6 +29,7 @@ import { ArrowLeft, FolderKanban, FileText, ListChecks, Circle, Dot, Plus, Trash
 import { cn } from "@/lib/utils"
 import { useDatabase } from "@/components/db-provider"
 import { FilteredTasks } from "@/components/filtered-tasks"
+import { FormMultiSelect } from "@/components/form-multi-select"
 import { TaskDetailDialog } from "@/components/task-detail-dialog"
 import {
   Dialog,
@@ -257,6 +258,7 @@ export function ProjectsView({
         project={editingProject}
         onSave={handleSaveProject}
         persons={persons}
+        contexts={contexts}
       />
 
       {selected ? (
@@ -1073,12 +1075,14 @@ export function ProjectEditor({
   project,
   onSave,
   persons,
+  contexts,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   project: Project | null
   onSave: (p: Project | Omit<Project, "id">) => void
   persons: Person[]
+  contexts: Context[]
 }) {
   const [name, setName] = useState("")
   const [details, setDetails] = useState("")
@@ -1090,6 +1094,7 @@ export function ProjectEditor({
   const [isUploading, setIsUploading] = useState(false)
   const [orderDependent, setOrderDependent] = useState<boolean>(false)
   const [showMobileColorPicker, setShowMobileColorPicker] = useState(false)
+  const [defaultContextIds, setDefaultContextIds] = useState<string[]>([])
 
 
   useEffect(() => {
@@ -1102,6 +1107,7 @@ export function ProjectEditor({
       setColor(project?.color ?? COLOR_PALETTE[0])
       setBackgroundImage(project?.background_image ?? "")
       setOrderDependent(project?.order_dependent ?? false)
+      setDefaultContextIds(project?.default_context_ids ?? [])
       setShowMobileColorPicker(false)
     }
   }, [open, project])
@@ -1118,6 +1124,7 @@ export function ProjectEditor({
       color,
       background_image: backgroundImage.trim() || null,
       order_dependent: orderDependent,
+      default_context_ids: defaultContextIds,
     } as any)
   }
 
@@ -1168,6 +1175,17 @@ export function ProjectEditor({
               onChange={(e) => setDetails(e.target.value)}
               rows={4}
             />
+          </div>
+          <div className="grid gap-2">
+            <Label>Default Contexts</Label>
+            <FormMultiSelect
+              options={contexts.map(c => ({ id: c.id, label: c.name, color: c.color, icon: c.icon }))}
+              selectedIds={defaultContextIds}
+              onChange={setDefaultContextIds}
+            />
+            <p className="text-[11px] text-muted-foreground leading-tight">
+              Tasks created for this project will automatically inherit these contexts.
+            </p>
           </div>
           <div className="grid gap-2">
             <Label>Icon</Label>

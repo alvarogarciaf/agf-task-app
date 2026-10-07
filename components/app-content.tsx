@@ -318,12 +318,18 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     const byOrder = [...urgencies].sort((a, b) => a.order - b.order)
     const defaultUrgency = byOrder[0]?.id ?? "u_low"
     
-    // Resolve project shared status
+    // Resolve project defaults (shared status, contexts)
     let finalPersonId = input.personId
+    let finalContextIds = input.contextIds
     if (input.projectId) {
       const proj = projects.find(p => p.id === input.projectId)
-      if (proj && proj.linked_person_id) {
-        finalPersonId = proj.linked_person_id
+      if (proj) {
+        if (proj.linked_person_id) {
+          finalPersonId = proj.linked_person_id
+        }
+        if (proj.default_context_ids && proj.default_context_ids.length > 0) {
+          finalContextIds = Array.from(new Set([...finalContextIds, ...proj.default_context_ids]))
+        }
       }
     }
 
@@ -338,7 +344,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       type: input.type ?? "task",
       description: input.description,
       details: input.details ?? null,
-      context_ids: input.contextIds ?? [],
+      context_ids: finalContextIds ?? [],
       tag_ids: input.tagIds ?? [],
       project_id: input.projectId ?? null,
       person_id: finalPersonId ?? null,

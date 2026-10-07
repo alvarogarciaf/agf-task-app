@@ -180,6 +180,11 @@ export const getDatabase = async (userUid: string) => {
           5: (oldDoc: any) => {
             oldDoc.updated_at = oldDoc.updated_at ?? Date.now();
             return oldDoc;
+          },
+          // 6: Migrate from version 5 to 6 (add default_context_ids)
+          6: (oldDoc: any) => {
+            oldDoc.default_context_ids = oldDoc.default_context_ids ?? [];
+            return oldDoc;
           }
         }
       },

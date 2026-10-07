@@ -5,7 +5,7 @@ import { useDatabase } from "@/components/db-provider"
 import { Task, Project, UrgencyLevel } from "@/lib/types"
 import { ProjectOptionIcon } from "@/components/project-select"
 import { ICONS } from "@/lib/constants"
-import { Circle, CircleCheck, FileText } from "lucide-react"
+import { Circle, CircleCheck, FileText, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface InlineTaskCardProps {
@@ -149,13 +149,14 @@ export function InlineTaskCard({ taskId, onClick }: InlineTaskCardProps) {
               })
             }
           }}
-          className="shrink-0 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
-        >
-          {task.status === "Done" ? (
-            <CircleCheck className="h-4.5 w-4.5 text-primary" />
-          ) : (
-            <Circle className="h-4.5 w-4.5" />
+          className={cn(
+            "flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer",
+            task.status === "Done"
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-muted-foreground/60 bg-muted/20 hover:border-foreground/80 hover:bg-muted/40"
           )}
+        >
+          {task.status === "Done" && <Check className="h-3 w-3 stroke-[3]" />}
         </button>
       )}
 

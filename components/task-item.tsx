@@ -50,14 +50,15 @@ export function TaskItem({
           e.stopPropagation()
           onToggleProcessed?.(task.id)
         }}
-        className="mt-0.5 text-muted-foreground transition-colors hover:text-primary"
+        className={cn(
+          "flex h-[18px] w-[18px] mt-0.5 shrink-0 items-center justify-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer",
+          task.processed
+            ? "border-primary bg-primary text-primary-foreground"
+            : "border-muted-foreground/60 bg-muted/20 hover:border-foreground/80 hover:bg-muted/40"
+        )}
         aria-label={task.processed ? "Mark as inbox" : "Mark as processed"}
       >
-        {task.processed ? (
-          <CircleCheck className="h-4 w-4 text-primary" />
-        ) : (
-          <Circle className="h-4 w-4" />
-        )}
+        {task.processed && <Check className="h-3 w-3 stroke-[3]" />}
       </button>
 
       <div className="min-w-0">

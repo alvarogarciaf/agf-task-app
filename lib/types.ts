@@ -75,6 +75,7 @@ export interface Project {
   background_image?: string | null
   order_dependent?: boolean
   order?: number
+  default_context_ids?: string[]
 }
 
 export interface Person {
