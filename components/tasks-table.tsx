@@ -2,7 +2,8 @@
 
 import React, { useState, useRef, useCallback, useEffect, memo } from "react"
 import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock, Pencil, FileText, ArrowLeftRight, ArrowUpRight, GripVertical } from "lucide-react"
-import { ProjectChip, ProjectOptionIcon } from "@/components/project-select"
+import { ProjectChip } from "@/components/project-select"
+import { ObjectIcon } from "@/components/ui/object-icon"
 import { ICONS } from "@/lib/constants"
 import { toast } from "sonner"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
@@ -1054,7 +1055,7 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
         return (
           <span className="shrink-0 flex items-center justify-center">
             {project ? (
-              <ProjectOptionIcon
+              <ObjectIcon
                 icon={effectiveIconName}
                 color={project.color}
                 size="sm"
@@ -1117,7 +1118,7 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
           {isNote && !ctx.hasStatusColumn && (
             <span className="shrink-0 flex items-center">
               {project ? (
-                <ProjectOptionIcon
+                <ObjectIcon
                   icon={effectiveIconName}
                   color={project.color}
                   size="sm"
@@ -1475,7 +1476,7 @@ const MobileTaskRow = memo(function MobileTaskRow({
       {notesMode || task.type === "note" ? (
         <span className="shrink-0 flex items-center justify-center">
           {project ? (
-            <ProjectOptionIcon
+            <ObjectIcon
               icon={task.icon || project.icon || "FileText"}
               color={project.color}
               size="sm"

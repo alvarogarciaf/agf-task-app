@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react"
 import { createPortal } from "react-dom"
 import { Check, X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { ProjectOptionIcon } from "@/components/project-select"
+import { ObjectIcon } from "@/components/ui/object-icon"
 import { isoToDateInputValue, dateInputToIso } from "@/lib/date-field"
 
 interface EditorProps {
@@ -210,7 +210,7 @@ export function InlineSelectEditor({
               )}
             >
               {o.icon ? (
-                <ProjectOptionIcon icon={o.icon} color={o.color} size="sm" />
+                <ObjectIcon icon={o.icon} color={o.color} size="sm" />
               ) : o.color ? (
                 <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: o.color }} />
               ) : null}

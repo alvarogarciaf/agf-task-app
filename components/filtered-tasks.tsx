@@ -11,6 +11,7 @@ import { TasksTable, TASK_COLUMNS, COLUMN_MAP } from "@/components/tasks-table"
 import type { TaskColumnKey } from "@/components/tasks-table"
 import { useTableColumns } from "@/hooks/use-table-columns"
 import { FormMultiSelect } from "@/components/form-multi-select"
+import { DropdownListItem } from "@/components/ui/dropdown-list-item"
 import { ProjectSelect } from "@/components/project-select"
 import {
   Select,
@@ -43,7 +44,7 @@ import {
   isTaskHiddenOnlyByShowOn,
   isTaskVisibleByShowOnRule,
 } from "@/lib/show-on-filter"
-import { COLOR_PALETTE } from "@/lib/constants"
+import { COLOR_PALETTE, ICONS } from "@/lib/constants"
 import {
   getDefaultFilterMatchMode,
   useDefaultFilterMatchMode,
@@ -862,7 +863,7 @@ export function FilteredTasks({
                 }
                 options={projects
                   .filter((p) => p.status !== "Closed" || projectIds.includes(p.id))
-                  .map((p) => ({ id: p.id, label: p.name, color: p.color ?? undefined }))}
+                  .map((p) => ({ id: p.id, label: p.name, color: p.color ?? undefined, icon: p.icon ?? "Layers" }))}
                 selectedIds={projectIds}
                 onSelect={(id) => setProjectIds((prev) =>
                   prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -1398,7 +1399,7 @@ export function FilteredTasks({
                 <FormMultiSelect
                   options={projects
                     .filter((p) => p.status !== "Closed" || projectIds.includes(p.id))
-                    .map((p) => ({ id: p.id, label: p.name, color: p.color ?? undefined }))}
+                    .map((p) => ({ id: p.id, label: p.name, color: p.color ?? undefined, icon: p.icon ?? "Layers" }))}
                   selectedIds={projectIds}
                   onChange={setProjectIds}
                   placeholder="All projects"
@@ -1606,7 +1607,7 @@ function FilterPill({
 }: {
   label: string
   value?: string
-  options: { id: string; label: string; color?: string }[]
+  options: { id: string; label: string; color?: string; icon?: string | null }[]
   selectedIds?: string[]
   onSelect: (id: string) => void
   onClear: () => void
@@ -1650,26 +1651,19 @@ function FilterPill({
           {options.map((opt) => {
             const isSelected = selectedIds.includes(opt.id) || value === opt.label
             return (
-              <button
+              <DropdownListItem
                 key={opt.id}
-                type="button"
+                id={opt.id}
+                label={opt.label}
+                color={opt.color}
+                icon={opt.icon}
+                isSelected={isSelected}
                 onClick={() => {
                   onSelect(opt.id)
                   if (!multiSelect) setOpen(false)
                 }}
-                className="flex w-full items-center gap-3 rounded px-4 py-3.5 text-left text-lg hover:bg-muted md:px-2 md:py-1.5 md:text-sm"
-              >
-                {opt.color ? (
-                  <span
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: opt.color }}
-                  />
-                ) : (
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/40" />
-                )}
-                <span className="flex-1 truncate">{opt.label}</span>
-                {isSelected ? <Check className="h-3 w-3 text-primary" /> : null}
-              </button>
+                className="gap-3 px-4 py-3.5 md:px-2 md:py-1.5"
+              />
             )
           })}
         </div>

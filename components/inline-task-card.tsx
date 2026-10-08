@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from "react"
 import { useDatabase } from "@/components/db-provider"
 import { Task, Project, UrgencyLevel } from "@/lib/types"
-import { ProjectOptionIcon } from "@/components/project-select"
+import { ObjectIcon } from "@/components/ui/object-icon"
 import { ICONS } from "@/lib/constants"
 import { Circle, CircleCheck, FileText, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -122,7 +122,7 @@ export function InlineTaskCard({ taskId, onClick }: InlineTaskCardProps) {
       {isNote ? (
         <span className="shrink-0 flex items-center justify-center">
           {project ? (
-            <ProjectOptionIcon
+            <ObjectIcon
               icon={task.icon || project.icon || "FileText"}
               color={project.color}
               size="sm"

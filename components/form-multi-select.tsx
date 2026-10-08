@@ -3,6 +3,7 @@
 import { useState, useRef, useLayoutEffect, useEffect, useCallback, useMemo } from "react"
 import { Check, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { DropdownListItem } from "@/components/ui/dropdown-list-item"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { ICONS } from "@/lib/constants"
 import {
@@ -312,40 +313,16 @@ export function FormMultiSelect({
                 const isSelected = selectedIds.includes(opt.id)
                 const Icon = opt.icon ? ICONS[opt.icon] : null
                 return (
-                  <button
+                  <DropdownListItem
                     key={opt.id}
-                    type="button"
+                    id={opt.id}
+                    label={opt.label}
+                    color={opt.color}
+                    icon={opt.icon}
+                    isSelected={isSelected}
                     onClick={() => toggle(opt.id)}
-                    className="flex w-full items-center gap-3 rounded px-4 py-3.5 text-left text-base hover:bg-muted md:px-2 md:py-1.5 md:text-sm"
-                  >
-                    {Icon ? (
-                      <span
-                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
-                        style={
-                          opt.color
-                            ? {
-                                backgroundColor: `color-mix(in oklch, ${opt.color} 15%, transparent)`,
-                                color: opt.color,
-                                boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${opt.color} 30%, transparent)`,
-                              }
-                            : undefined
-                        }
-                      >
-                        <Icon className="h-3 w-3" />
-                      </span>
-                    ) : opt.color ? (
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: opt.color }}
-                      />
-                    ) : (
-                      <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/40" />
-                    )}
-                    <span className="flex-1 truncate">{opt.label}</span>
-                    {isSelected ? (
-                      <Check className="h-4 w-4 shrink-0 text-primary" />
-                    ) : null}
-                  </button>
+                    className="gap-3 px-4 py-3.5 md:px-2 md:py-1.5"
+                  />
                 )
               })
             )}

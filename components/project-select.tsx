@@ -16,42 +16,8 @@ import type { Project } from "@/lib/types"
 
 const DEFAULT_PROJECT_ICON = "Layers"
 
-export function ProjectOptionIcon({
-  icon,
-  color,
-  size = "sm",
-  plain = false,
-}: {
-  icon?: string | null
-  color?: string | null
-  size?: "sm" | "md"
-  plain?: boolean
-}) {
-  const Icon = icon ? ICONS[icon] ?? FolderKanban : FolderKanban
-  const box = size === "sm" ? "h-5 w-5 rounded" : "h-6 w-6 rounded-md"
-  const glyph = size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5"
-
-  if (plain) {
-    return <Icon className={cn("shrink-0", glyph)} />
-  }
-
-  return (
-    <div
-      className={cn("flex shrink-0 items-center justify-center", box)}
-      style={
-        color
-          ? {
-              backgroundColor: `color-mix(in oklch, ${color} 15%, transparent)`,
-              color: color,
-              boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${color} 30%, transparent)`,
-            }
-          : undefined
-      }
-    >
-      <Icon className={cn(glyph, !color && "text-primary")} />
-    </div>
-  )
-}
+import { ObjectIcon } from "@/components/ui/object-icon"
+import { DropdownListItem } from "@/components/ui/dropdown-list-item"
 
 export function ProjectChip({
   project,
@@ -77,7 +43,7 @@ export function ProjectChip({
           : undefined
       }
     >
-      <ProjectOptionIcon
+      <ObjectIcon
         icon={project.icon ?? DEFAULT_PROJECT_ICON}
         color={project.color}
         size="sm"
@@ -263,7 +229,7 @@ export function ProjectSelect({
           {selected ? (
             <>
               <span className="h-3 w-px bg-primary/30" />
-              <ProjectOptionIcon
+              <ObjectIcon
                 icon={selected.icon ?? DEFAULT_PROJECT_ICON}
                 color={selected.color}
               />
@@ -286,7 +252,7 @@ export function ProjectSelect({
         </>
       ) : selected ? (
         <span className="flex min-w-0 flex-1 items-center gap-2">
-          <ProjectOptionIcon
+          <ObjectIcon
             icon={selected.icon ?? DEFAULT_PROJECT_ICON}
             color={selected.color}
           />
@@ -351,36 +317,20 @@ export function ProjectSelect({
               const isSelected = value === item.id
               const isHighlighted = idx === highlightedIdx
               return (
-                <button
+                <DropdownListItem
                   key={item.id ?? "__none__"}
-                  type="button"
-                  onMouseEnter={() => setHighlightedIdx(idx)}
+                  id={item.id}
+                  label={item.label}
+                  color={item.project?.color}
+                  icon={item.project?.icon ?? (item.project ? DEFAULT_PROJECT_ICON : null)}
+                  isSelected={isSelected}
                   onClick={() => select(item)}
-                  className={cn(
-                    "flex w-full items-center gap-2.5 rounded-md px-2.5 py-3 text-left text-base md:py-2 md:text-sm transition-colors",
-                    isHighlighted && "bg-muted ring-1 ring-inset ring-primary/40",
-                    !isHighlighted && "hover:bg-muted",
-                    item.id === null && "text-muted-foreground",
-                  )}
-                >
-                  {item.isCreate ? (
-                    <ProjectOptionIcon
-                      icon="Folder"
-                      color="#64748b"
-                    />
-                  ) : item.project ? (
-                    <ProjectOptionIcon
-                      icon={item.project.icon ?? DEFAULT_PROJECT_ICON}
-                      color={item.project.color}
-                    />
-                  ) : (
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-dashed border-border" />
-                  )}
-                  <span className={cn("flex-1 truncate", item.isCreate && "text-primary font-medium")}>{item.label}</span>
-                  {isSelected ? (
-                    <Check className="h-4 w-4 shrink-0 text-primary" />
-                  ) : null}
-                </button>
+                  onMouseEnter={() => setHighlightedIdx(idx)}
+                  isHighlighted={isHighlighted}
+                  isCreate={item.isCreate}
+                  isNone={item.id === null}
+                  forceIcon={!!item.project}
+                />
               )
             })
           )}
