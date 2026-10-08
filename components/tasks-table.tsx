@@ -625,6 +625,7 @@ export const TasksTable = memo(function TasksTable({
                       checked={isAllSelected ? true : (isSomeSelected ? "indeterminate" : false)}
                       onCheckedChange={() => onToggleAll?.(allVisibleIds)}
                       aria-label="Select all"
+                      className="border-border/60 bg-transparent shadow-none"
                     />
                   </div>
                 </th>
@@ -708,7 +709,7 @@ export const TasksTable = memo(function TasksTable({
                       <Checkbox 
                         checked={selectedIds.has(task.id)}
                         onCheckedChange={() => {}} // Click handled by td for Shift support
-                        className="pointer-events-none" // Pass clicks to td
+                        className="pointer-events-none border-border/60 bg-transparent shadow-none" // Pass clicks to td
                         aria-label={`Select ${task.description}`}
                       />
                     </td>
