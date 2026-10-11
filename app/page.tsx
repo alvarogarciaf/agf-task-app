@@ -1,52 +1,38 @@
-"use client"
+import type { Metadata } from "next"
+import PageClient from "@/components/page-client"
 
-import { Suspense } from "react"
-import dynamic from "next/dynamic"
-import { useAuth } from "@/components/auth-provider"
-import { DbProvider } from "@/components/db-provider"
-import { SignIn } from "@/components/sign-in"
-import { VerifyEmail } from "@/components/verify-email"
-import { AppContent } from "@/components/app-content"
-import { GoogleCalendarProvider } from "@/components/google-calendar-provider"
-import { MessageSyncProvider } from "@/components/message-sync-provider"
-
-function PageContent() {
-  const { user, loading, signOut } = useAuth()
-
-  // Loading state while Firebase checks session
-  if (loading) {
-    return (
-      <div className="flex h-[100dvh] items-center justify-center text-muted-foreground">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <span className="text-sm">Loading…</span>
-        </div>
-      </div>
-    )
-  }
-
-  // Not authenticated — show sign-in
-  if (!user) {
-    return <SignIn />
-  }
-
-  // Email not verified — show verification gate
-  if (!user.emailVerified) {
-    return <VerifyEmail user={user} onSignOut={signOut} />
-  }
-
-  // Authenticated and verified — render app with user-isolated database
-  return (
-    <DbProvider userUid={user.uid}>
-      <MessageSyncProvider>
-        <GoogleCalendarProvider>
-          <Suspense fallback={null}>
-            <AppContent user={user} onSignOut={signOut} />
-          </Suspense>
-        </GoogleCalendarProvider>
-      </MessageSyncProvider>
-    </DbProvider>
-  )
+type PageProps = {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-export default dynamic(() => Promise.resolve(PageContent), { ssr: false })
+export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
+  const params = await searchParams
+  const titleParam = params.title || params.t
+  const title = typeof titleParam === "string" ? titleParam : Array.isArray(titleParam) ? titleParam[0] : null
+
+  if (title && title.trim()) {
+    const cleanTitle = title.trim()
+    return {
+      title: cleanTitle,
+      description: "",
+      openGraph: {
+        title: cleanTitle,
+        description: "",
+        siteName: "TASKER AGF",
+      },
+      twitter: {
+        card: "summary",
+        title: cleanTitle,
+        description: "",
+      },
+    }
+  }
+
+  return {
+    title: "TASKER AGF",
+  }
+}
+
+export default function Page() {
+  return <PageClient />
+}

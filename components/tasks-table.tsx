@@ -264,8 +264,11 @@ export const TasksTable = memo(function TasksTable({
 
   const handleShareTask = useCallback(async (t: Task) => {
     if (!t?.id) return
-    const url = `${window.location.origin}/?objectId=${encodeURIComponent(t.id)}`
     const title = (t.description || "").trim() || (t.type === "note" ? "Note" : "Task")
+    const params = new URLSearchParams()
+    params.set("objectId", t.id)
+    params.set("title", title)
+    const url = `${window.location.origin}/?${params.toString()}`
 
     if (isMobile && typeof navigator !== "undefined" && navigator.share) {
       try {

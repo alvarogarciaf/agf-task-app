@@ -166,8 +166,11 @@ export function TaskDetailDialog({
 
   const handleShare = async () => {
     if (!draft?.id) return
-    const url = `${window.location.origin}/?objectId=${encodeURIComponent(draft.id)}`
     const title = (draft.description || "").trim() || (isNote ? "Note" : "Task")
+    const params = new URLSearchParams()
+    params.set("objectId", draft.id)
+    params.set("title", title)
+    const url = `${window.location.origin}/?${params.toString()}`
 
     if (isMobile && typeof navigator !== "undefined" && navigator.share) {
       try {
