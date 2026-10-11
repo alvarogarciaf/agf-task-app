@@ -1052,18 +1052,14 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
     case "status": {
       if (task.type === "note" || ctx.notesMode) {
         const effectiveIconName = task.icon || project?.icon || "FileText"
-        const IconComponent = (effectiveIconName && ICONS[effectiveIconName]) || FileText
+        const effectiveColor = task.color || project?.color
         return (
           <span className="shrink-0 flex items-center justify-center">
-            {project ? (
-              <ObjectIcon
-                icon={effectiveIconName}
-                color={project.color}
-                size="sm"
-              />
-            ) : (
-              <IconComponent className="h-4 w-4 text-muted-foreground" />
-            )}
+            <ObjectIcon
+              icon={effectiveIconName}
+              color={effectiveColor}
+              size="sm"
+            />
           </span>
         )
       }
@@ -1112,21 +1108,17 @@ function renderCell(key: TaskColumnKey, ctx: CellContext) {
     case "description": {
       const isNote = task.type === "note" || ctx.notesMode
       const effectiveIconName = task.icon || project?.icon || "FileText"
-      const IconComponent = (effectiveIconName && ICONS[effectiveIconName]) || FileText
+      const effectiveColor = task.color || project?.color
 
       return (
         <div className="group/desc relative flex items-center gap-2 w-full min-w-0 h-full min-h-[1.5rem]">
           {isNote && !ctx.hasStatusColumn && (
             <span className="shrink-0 flex items-center">
-              {project ? (
-                <ObjectIcon
-                  icon={effectiveIconName}
-                  color={project.color}
-                  size="sm"
-                />
-              ) : (
-                <IconComponent className="h-4 w-4 text-muted-foreground" />
-              )}
+              <ObjectIcon
+                icon={effectiveIconName}
+                color={effectiveColor}
+                size="sm"
+              />
             </span>
           )}
           <span
@@ -1476,19 +1468,11 @@ const MobileTaskRow = memo(function MobileTaskRow({
       {/* Note icon or checkbox status toggle (Left) */}
       {notesMode || task.type === "note" ? (
         <span className="shrink-0 flex items-center justify-center">
-          {project ? (
-            <ObjectIcon
-              icon={task.icon || project.icon || "FileText"}
-              color={project.color}
-              size="sm"
-            />
-          ) : (
-            (() => {
-              const effectiveIcon = task.icon || "FileText"
-              const IconComp = (effectiveIcon && ICONS[effectiveIcon]) || FileText
-              return <IconComp className="h-4.5 w-4.5 text-muted-foreground" />
-            })()
-          )}
+          <ObjectIcon
+            icon={task.icon || project?.icon || "FileText"}
+            color={task.color || project?.color}
+            size="sm"
+          />
         </span>
       ) : (
         <button
@@ -1659,3 +1643,4 @@ const MobileTaskRow = memo(function MobileTaskRow({
     </div>
   )
 })
+

@@ -121,19 +121,11 @@ export function InlineTaskCard({ taskId, onClick }: InlineTaskCardProps) {
       {/* Icon or Checkbox */}
       {isNote ? (
         <span className="shrink-0 flex items-center justify-center">
-          {project ? (
-            <ObjectIcon
-              icon={task.icon || project.icon || "FileText"}
-              color={project.color}
-              size="sm"
-            />
-          ) : (
-            (() => {
-              const effectiveIcon = task.icon || "FileText"
-              const IconComp = (effectiveIcon && ICONS[effectiveIcon as keyof typeof ICONS]) || FileText
-              return <IconComp className="h-4.5 w-4.5 text-muted-foreground" />
-            })()
-          )}
+          <ObjectIcon
+            icon={task.icon || project?.icon || "FileText"}
+            color={task.color || project?.color}
+            size="sm"
+          />
         </span>
       ) : (
         <button
@@ -203,3 +195,4 @@ export function InlineTaskCard({ taskId, onClick }: InlineTaskCardProps) {
     </div>
   )
 }
+
