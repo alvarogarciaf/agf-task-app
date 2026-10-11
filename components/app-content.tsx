@@ -1809,6 +1809,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                   p.delete("noteId")
                   p.delete("title")
                   p.delete("t")
+                  p.delete("_t")
                   const qs = p.toString()
                   const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
                   window.history.replaceState(window.history.state, "", newUrl)
@@ -2256,6 +2257,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                                 params.delete("noteId")
                                 params.delete("title")
                                 params.delete("t")
+                                params.delete("_t")
                                 const qs = params.toString()
                                 const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
                                 window.history.replaceState(window.history.state, "", newUrl)
@@ -2356,6 +2358,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                   params.delete("noteId")
                   params.delete("title")
                   params.delete("t")
+                  params.delete("_t")
                   const qs = params.toString()
                   const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
                   window.history.replaceState(window.history.state, "", newUrl)

@@ -14,16 +14,21 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
     const cleanTitle = title.trim()
     return {
       title: cleanTitle,
-      description: "",
+      description: cleanTitle,
       openGraph: {
         title: cleanTitle,
-        description: "",
-        siteName: "TASKER AGF",
+        description: cleanTitle,
+        siteName: cleanTitle,
       },
       twitter: {
         card: "summary",
         title: cleanTitle,
-        description: "",
+        description: cleanTitle,
+      },
+      appleWebApp: {
+        capable: true,
+        statusBarStyle: "black-translucent",
+        title: cleanTitle,
       },
     }
   }

@@ -268,6 +268,7 @@ export const TasksTable = memo(function TasksTable({
     const params = new URLSearchParams()
     params.set("objectId", t.id)
     params.set("title", title)
+    params.set("_t", Date.now().toString(36))
     const url = `${window.location.origin}/?${params.toString()}`
 
     if (isMobile && typeof navigator !== "undefined" && navigator.share) {

@@ -197,6 +197,7 @@ export function ObjectFullScreenView({
     const params = new URLSearchParams()
     params.set("objectId", draft.id)
     params.set("title", title)
+    params.set("_t", Date.now().toString(36))
     const url = `${window.location.origin}/?${params.toString()}`
     try {
       if (navigator?.clipboard?.writeText) {
