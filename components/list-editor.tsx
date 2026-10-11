@@ -207,15 +207,17 @@ function ItemModal({
   onSave,
   categories,
   isEdit = false,
+  items = [],
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   initialDescription?: string
   initialDetails?: string | null
   initialCategory?: string | null
-  onSave: (description: string, categoryId: string | null, details: string | null, newCategoryName?: string | null) => void
+  onSave: (description: string, categoryId: string | null, details: string | null, newCategoryName?: string | null, existingItemId?: string) => void
   categories: ListCategory[]
   isEdit?: boolean
+  items?: ListItem[]
 }) {
   const [desc, setDesc] = useState(initialDescription)
   const [details, setDetails] = useState(initialDetails || "")
@@ -223,11 +225,15 @@ function ItemModal({
   const [newCatName, setNewCatName] = useState<string>("")
   const [catOpen, setCatOpen] = useState(false)
   const [catInput, setCatInput] = useState("")
+  const [existingItemId, setExistingItemId] = useState<string | undefined>(undefined)
+  const [showSuggestions, setShowSuggestions] = useState(false)
   
   useEffect(() => {
     if (open) {
       setDesc(initialDescription)
       setDetails(initialDetails || "")
+      setExistingItemId(undefined)
+      setShowSuggestions(false)
       if (initialCategory) {
         const found = categories.find((c) => c.id === initialCategory || c.name === initialCategory)
         if (found) {
@@ -247,11 +253,17 @@ function ItemModal({
 
   const handleSave = () => {
     if (!desc.trim()) return
-    onSave(desc.trim(), selectedCatId, details.trim() || null, newCatName.trim() || null)
+    onSave(desc.trim(), selectedCatId, details.trim() || null, newCatName.trim() || null, existingItemId)
     onOpenChange(false)
   }
 
   const selectedCat = categories.find((c) => c.id === selectedCatId) || (newCatName ? { id: "temp", name: newCatName, color: undefined, icon: undefined } : null)
+
+  const closedMatches = useMemo(() => {
+    if (isEdit || !desc.trim()) return []
+    const lower = desc.toLowerCase()
+    return items.filter(i => i.status === "Done" && i.description.toLowerCase().includes(lower))
+  }, [items, desc, isEdit])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -260,13 +272,19 @@ function ItemModal({
           <DialogTitle>{isEdit ? "Edit Item" : "Add Item"}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
+          <div className="grid gap-2 relative">
             <label className="text-sm font-medium">Item name</label>
             <input
               type="text"
               autoFocus
               value={desc}
-              onChange={(e) => setDesc(e.target.value)}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              onChange={(e) => {
+                setDesc(e.target.value)
+                setExistingItemId(undefined) // clear selection if typed manually
+                setShowSuggestions(true)
+              }}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               placeholder="What needs to be done?"
               onKeyDown={(e) => {
@@ -276,6 +294,38 @@ function ItemModal({
                 }
               }}
             />
+            {showSuggestions && closedMatches.length > 0 && (
+              <div className="absolute top-[100%] left-0 w-full z-50 mt-1 rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 max-h-48 overflow-y-auto overflow-x-hidden">
+                {closedMatches.map(item => (
+                   <button
+                     key={item.id}
+                     type="button"
+                     className="w-full flex flex-col text-left px-3 py-2 text-sm hover:bg-muted"
+                     onClick={() => {
+                        setDesc(item.description)
+                        setDetails(item.details || "")
+                        if (item.category_id) {
+                           setSelectedCatId(item.category_id)
+                           setNewCatName("")
+                        } else if (item.category) {
+                           setSelectedCatId(null)
+                           setNewCatName(item.category)
+                        } else {
+                           setSelectedCatId(null)
+                           setNewCatName("")
+                        }
+                        setExistingItemId(item.id)
+                        setShowSuggestions(false)
+                     }}
+                   >
+                     <span className="font-medium truncate block">{item.description}</span>
+                     {item.category && (
+                       <span className="text-xs text-muted-foreground truncate block mt-0.5">Category: {item.category}</span>
+                     )}
+                   </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="grid gap-2">
             <label className="text-sm font-medium">Description (optional)</label>
@@ -578,10 +628,24 @@ export function ListEditor({
       categoryId: string | null = null,
       details: string | null = null,
       newCategoryName?: string | null,
+      existingItemId?: string,
     ) => {
+      const { id: finalCatId, name: finalCatName } = resolveCategory(categoryId, newCategoryName)
+      
+      if (existingItemId) {
+        onChange(
+          items.map((item) =>
+            item.id === existingItemId
+              ? { ...item, status: "Open", description, category_id: finalCatId, category: finalCatName, details }
+              : item,
+          ),
+        )
+        setAddingToCategory(undefined)
+        return
+      }
+
       if (items.length >= MAX_ITEMS) return
       const now = new Date().toISOString()
-      const { id: finalCatId, name: finalCatName } = resolveCategory(categoryId, newCategoryName)
 
       const newItem: ListItem = {
         id: nanoid(),
@@ -1026,6 +1090,7 @@ export function ListEditor({
         }}
         initialCategory={addingToCategory || null}
         categories={categories}
+        items={items}
         onSave={handleAdd}
       />
       <ItemModal
@@ -1037,6 +1102,7 @@ export function ListEditor({
         initialDetails={editingItem?.details || ""}
         initialCategory={editingItem?.category_id || editingItem?.category || null}
         categories={categories}
+        items={items}
         isEdit
         onSave={(desc, catId, details, newCatName) => {
           if (editingItem) {
