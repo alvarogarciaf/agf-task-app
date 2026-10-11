@@ -1113,7 +1113,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       const savedViewId = params.get("savedViewId")
       const tab = (params.get("tab") as TabKey) || undefined
       const project = params.get("project") || undefined
-      const objectId = params.get("objectId") || undefined
+      const objectId = params.get("objectId") || params.get("taskId") || params.get("noteId") || undefined
 
       setTabs((prev) =>
         prev.map((t) => {
@@ -1785,13 +1785,37 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   useEffect(() => {
     if (typeof window === "undefined") return
 
+    let notFoundTimer: NodeJS.Timeout | null = null
+
     const checkUrlForObject = () => {
       const params = new URLSearchParams(window.location.search)
-      const objId = params.get("objectId")
+      const objId = params.get("objectId") || params.get("taskId") || params.get("noteId")
       if (objId) {
         pendingOpenObjectIdRef.current = objId
+        if (notFoundTimer) clearTimeout(notFoundTimer)
+
         openObjectByIdRef.current(objId).then((opened) => {
-          if (opened) pendingOpenObjectIdRef.current = null
+          if (opened) {
+            pendingOpenObjectIdRef.current = null
+          } else {
+            // Give 2.5s for initial RxDB replication / stream hydration
+            notFoundTimer = setTimeout(() => {
+              if (pendingOpenObjectIdRef.current === objId) {
+                pendingOpenObjectIdRef.current = null
+                if (typeof window !== "undefined") {
+                  const p = new URLSearchParams(window.location.search)
+                  p.delete("objectId")
+                  p.delete("taskId")
+                  p.delete("noteId")
+                  const qs = p.toString()
+                  const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+                  window.history.replaceState(window.history.state, "", newUrl)
+                }
+                updateTabUi(activeTabIdRef.current, { objectId: undefined, objectMode: undefined })
+                toast.error("This item doesn't exist or you don't have access to it.")
+              }
+            }, 2500)
+          }
         })
       } else {
         setDirectOpenTask(null)
@@ -1809,6 +1833,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     window.addEventListener("open-task", handleOpenTaskEvent)
 
     return () => {
+      if (notFoundTimer) clearTimeout(notFoundTimer)
       window.removeEventListener("popstate", checkUrlForObject)
       window.removeEventListener("open-task", handleOpenTaskEvent)
     }
@@ -2222,6 +2247,15 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                                 objectId: undefined,
                                 objectMode: undefined,
                               })
+                              if (typeof window !== "undefined") {
+                                const params = new URLSearchParams(window.location.search)
+                                params.delete("objectId")
+                                params.delete("taskId")
+                                params.delete("noteId")
+                                const qs = params.toString()
+                                const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+                                window.history.replaceState(window.history.state, "", newUrl)
+                              }
                             }
                           }}
                           projects={projects}
@@ -2310,10 +2344,15 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                 return
               }
               setDirectOpenTask(null)
-              if (isMobile && typeof window !== "undefined") {
+              if (typeof window !== "undefined") {
                 const params = new URLSearchParams(window.location.search)
-                if (params.has("objectId")) {
-                  window.history.back()
+                if (params.has("objectId") || params.has("taskId") || params.has("noteId")) {
+                  params.delete("objectId")
+                  params.delete("taskId")
+                  params.delete("noteId")
+                  const qs = params.toString()
+                  const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+                  window.history.replaceState(window.history.state, "", newUrl)
                 }
               }
             }

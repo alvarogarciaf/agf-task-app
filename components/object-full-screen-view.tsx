@@ -12,7 +12,9 @@ import {
   Trash2,
   Undo2,
   Redo2,
+  Share2,
 } from "lucide-react"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import {
   ObjectEditFields,
@@ -151,7 +153,25 @@ export function ObjectFullScreenView({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [undo, redo, canUndo, canRedo])
 
-  if (!draft) return null
+  if (!draft) {
+    return (
+      <div className="flex h-full min-h-0 flex-col items-center justify-center p-6 text-center">
+        <FileText className="h-10 w-10 text-muted-foreground/40 mb-3" />
+        <h3 className="text-base font-semibold text-foreground mb-1">Item Not Found</h3>
+        <p className="text-sm text-muted-foreground max-w-sm mb-4">
+          This note or task doesn&apos;t exist or you don&apos;t have access to it.
+        </p>
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to {previousLabel || "Inbox"}
+        </button>
+      </div>
+    )
+  }
 
   const isNote = draft.type === "note"
   const urgency = urgencies.find((u) => u.id === draft.urgency_id) || urgencies[0]
@@ -168,6 +188,30 @@ export function ObjectFullScreenView({
       save()
     } else {
       cancel()
+    }
+  }
+
+  const handleShare = async () => {
+    if (!draft?.id) return
+    const url = `${window.location.origin}/?objectId=${encodeURIComponent(draft.id)}`
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url)
+        toast.success("Link copied to clipboard")
+      } else {
+        const textArea = document.createElement("textarea")
+        textArea.value = url
+        textArea.style.position = "fixed"
+        textArea.style.opacity = "0"
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        document.execCommand("copy")
+        document.body.removeChild(textArea)
+        toast.success("Link copied to clipboard")
+      }
+    } catch {
+      toast.error("Could not copy link")
     }
   }
 
@@ -284,6 +328,15 @@ export function ObjectFullScreenView({
           >
             <ArrowLeftRight className="h-3 w-3" />
             {isNote ? "To task" : "To note"}
+          </button>
+          <button
+            type="button"
+            onClick={handleShare}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            title={isNote ? "Share note link" : "Share task link"}
+          >
+            <Share2 className="h-3 w-3" />
+            <span>Share</span>
           </button>
           {onDeleteTask && (
             <button

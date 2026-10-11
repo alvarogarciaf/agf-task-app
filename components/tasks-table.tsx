@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useCallback, useEffect, memo } from "react"
-import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock, Pencil, FileText, ArrowLeftRight, ArrowUpRight, GripVertical } from "lucide-react"
+import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock, Pencil, FileText, ArrowLeftRight, ArrowUpRight, GripVertical, Share2 } from "lucide-react"
 import { ProjectChip } from "@/components/project-select"
 import { ObjectIcon } from "@/components/ui/object-icon"
 import { ICONS } from "@/lib/constants"
@@ -261,6 +261,41 @@ export const TasksTable = memo(function TasksTable({
 
   const [convertedTaskFallback, setConvertedTaskFallback] = useState<Task | null>(null)
   const [isCreatingTask, setIsCreatingTask] = useState(false)
+
+  const handleShareTask = useCallback(async (t: Task) => {
+    if (!t?.id) return
+    const url = `${window.location.origin}/?objectId=${encodeURIComponent(t.id)}`
+    const title = (t.description || "").trim() || (t.type === "note" ? "Note" : "Task")
+
+    if (isMobile && typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title, url })
+        return
+      } catch (err: any) {
+        if (err?.name === "AbortError") return
+      }
+    }
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url)
+        toast.success("Link copied to clipboard")
+      } else {
+        const textArea = document.createElement("textarea")
+        textArea.value = url
+        textArea.style.position = "fixed"
+        textArea.style.opacity = "0"
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        document.execCommand("copy")
+        document.body.removeChild(textArea)
+        toast.success("Link copied to clipboard")
+      }
+    } catch {
+      toast.error("Could not copy link")
+    }
+  }, [isMobile])
 
   /** Open a task/note, routing to full-screen for notes when the preference is set, or if requested explicitly via newTab. */
   const openObject = useCallback((task: Task, mode: "view" | "edit", newTab = false) => {
@@ -609,6 +644,7 @@ export const TasksTable = memo(function TasksTable({
                   isSelected={selectedIds.has(task.id)}
                   onToggleSelection={() => onToggleSelection?.(task.id)}
                   showDragHandle={sortConfig?.key === "urgency"}
+                  onShareTask={handleShareTask}
                 />
               )
             })}
@@ -949,6 +985,16 @@ export const TasksTable = memo(function TasksTable({
                             >
                               <ArrowLeftRight className="mr-2 h-3 w-3" />
                               {task.type === "note" ? "Convert to task" : "Convert to note"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleShareTask(task)
+                              }}
+                              className="text-xs"
+                            >
+                              <Share2 className="mr-2 h-3 w-3" />
+                              Share link
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={(e) => {
@@ -1366,6 +1412,7 @@ const MobileTaskRow = memo(function MobileTaskRow({
   inboxMode = false,
   notesMode = false,
   showDragHandle = false,
+  onShareTask,
 }: {
   task: Task
   project?: Project
@@ -1382,6 +1429,7 @@ const MobileTaskRow = memo(function MobileTaskRow({
   inboxMode?: boolean
   notesMode?: boolean
   showDragHandle?: boolean
+  onShareTask?: (task: Task) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `m-${task.id}` });
   const style = { 
@@ -1615,6 +1663,16 @@ const MobileTaskRow = memo(function MobileTaskRow({
               >
                 <ArrowLeftRight className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
                 <span>{notesMode ? "Convert to Task" : "Convert to Note"}</span>
+              </DropdownMenuItem>
+            )}
+
+            {onShareTask && (
+              <DropdownMenuItem 
+                className="py-3 px-3 text-[15px] font-medium cursor-pointer"
+                onClick={() => onShareTask(task)}
+              >
+                <Share2 className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
+                <span>Share link</span>
               </DropdownMenuItem>
             )}
 

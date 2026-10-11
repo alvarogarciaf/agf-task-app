@@ -17,7 +17,9 @@ import {
   Trash2,
   Undo2,
   Redo2,
+  Share2,
 } from "lucide-react"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
 import {
@@ -160,6 +162,44 @@ export function TaskDetailDialog({
 
   const handleClose = () => {
     save()
+  }
+
+  const handleShare = async () => {
+    if (!draft?.id) return
+    const url = `${window.location.origin}/?objectId=${encodeURIComponent(draft.id)}`
+    const title = (draft.description || "").trim() || (isNote ? "Note" : "Task")
+
+    if (isMobile && typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({
+          title,
+          url,
+        })
+        return
+      } catch (err: any) {
+        if (err?.name === "AbortError") return
+      }
+    }
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url)
+        toast.success("Link copied to clipboard")
+      } else {
+        const textArea = document.createElement("textarea")
+        textArea.value = url
+        textArea.style.position = "fixed"
+        textArea.style.opacity = "0"
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        document.execCommand("copy")
+        document.body.removeChild(textArea)
+        toast.success("Link copied to clipboard")
+      }
+    } catch {
+      toast.error("Could not copy link")
+    }
   }
 
   // Keyboard shortcut listener for Undo (Ctrl+Z / Cmd+Z) and Redo (Ctrl+Shift+Z / Cmd+Shift+Z / Ctrl+Y)
@@ -387,6 +427,17 @@ export function TaskDetailDialog({
                     title="Expand to full screen"
                   >
                     <Maximize2 className="h-4 w-4" />
+                  </button>
+                )}
+                {!isActuallyCreating && (
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    aria-label={isNote ? "Share note link" : "Share task link"}
+                    title={isNote ? "Share note link" : "Share task link"}
+                  >
+                    <Share2 className="h-4 w-4" />
                   </button>
                 )}
                 {onDelete && !isActuallyCreating && (
