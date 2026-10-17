@@ -2303,7 +2303,32 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                                 })
                               }
                             }}
-                            onUpdateUi={(patch) => updateTabUi(tab.id, patch)}
+                            onUpdateUi={(patch) => {
+                              updateTabUi(tab.id, patch)
+                              // Selecting/clearing a project inside the Projects view must create a
+                              // real history entry carrying ?project=, otherwise Back (app or browser)
+                              // restores a URL without it and lands on All Projects.
+                              if (
+                                isActive &&
+                                "initialProjectId" in patch &&
+                                patch.initialProjectId !== tab.ui.initialProjectId &&
+                                typeof window !== "undefined"
+                              ) {
+                                const params = new URLSearchParams(window.location.search)
+                                if (patch.initialProjectId) params.set("project", patch.initialProjectId)
+                                else params.delete("project")
+                                params.delete("objectId")
+                                params.delete("taskId")
+                                params.delete("noteId")
+                                const qs = params.toString()
+                                const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+                                const currentIdx = typeof window.history.state?.idx === "number" ? window.history.state.idx : 0
+                                const nextIdx = currentIdx + 1
+                                window.history.pushState({ idx: nextIdx }, "", newUrl)
+                                window.dispatchEvent(new CustomEvent("app-history-change", { detail: { idx: nextIdx } }))
+                                if (patch.initialProjectId) lastOpenProjectIdRef.current = patch.initialProjectId
+                              }
+                            }}
                           />
                         </div>
                       </div>
