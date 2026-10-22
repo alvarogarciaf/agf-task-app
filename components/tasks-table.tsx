@@ -491,6 +491,50 @@ export const TasksTable = memo(function TasksTable({
     }
   }
 
+  // After a keyboard status/processed toggle, keep the table focused and move the
+  // highlighted cell to the same column one row down. The target row is resolved
+  // *before* the toggle so it stays correct even if the toggled row is filtered out
+  // or re-sorted. Falls back to the row above when toggling the last row.
+  const pendingFocusRef = useRef<{ taskId: string; column: TaskColumnKey } | null>(null)
+
+  function focusCellSoon(taskId: string, column: TaskColumnKey) {
+    pendingFocusRef.current = { taskId, column }
+    setTimeout(() => {
+      cellRefs.current[`${taskId}-${column}`]?.focus()
+    }, 0)
+    // Stop re-applying focus once the list has had time to settle
+    setTimeout(() => {
+      if (pendingFocusRef.current?.taskId === taskId) pendingFocusRef.current = null
+    }, 1500)
+  }
+
+  function toggleAndMoveDown(task: Task, column: TaskColumnKey, kind: "status" | "processed") {
+    const idx = tasks.findIndex((t) => t.id === task.id)
+    const target = idx >= 0 ? (tasks[idx + 1] ?? tasks[idx - 1]) : undefined
+
+    if (kind === "processed") onToggleProcessed(task.id)
+    else onToggleStatus(task.id)
+
+    setIsEditing(false)
+    if (target) {
+      setSelectedCell({ taskId: target.id, column })
+      focusCellSoon(target.id, column)
+    } else {
+      // Only row in the table: keep it selected and focused
+      setSelectedCell({ taskId: task.id, column })
+      focusCellSoon(task.id, column)
+    }
+  }
+
+  // Re-apply focus when the task list updates (the toggled row may unmount / re-sort,
+  // which can otherwise drop focus to <body>).
+  useEffect(() => {
+    const p = pendingFocusRef.current
+    if (!p) return
+    const el = cellRefs.current[`${p.taskId}-${p.column}`]
+    if (el && document.activeElement !== el) el.focus()
+  }, [tasks])
+
   function commitCell(task: Task, column: TaskColumnKey, value: string | string[] | null, close = true) {
     let patch: Partial<Task> = {}
     if (column === "description") patch = { description: value as string }
@@ -779,11 +823,7 @@ export const TasksTable = memo(function TasksTable({
                             if (!isEditing && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
                               if (key === "status" && e.key === " ") {
                                 e.preventDefault()
-                                if (inboxMode) {
-                                  onToggleProcessed(task.id)
-                                } else {
-                                  onToggleStatus(task.id)
-                                }
+                                toggleAndMoveDown(task, key, inboxMode ? "processed" : "status")
                               } else if (key !== "status") {
                                 setIsEditing(true)
                               }
@@ -793,8 +833,7 @@ export const TasksTable = memo(function TasksTable({
                             if (!isEditing) {
                               if (e.key === "Enter" && e.ctrlKey) {
                                 e.preventDefault()
-                                onToggleProcessed(task.id)
-                                setSelectedCell(null)
+                                toggleAndMoveDown(task, key, "processed")
                                 return
                               }
 
@@ -812,11 +851,7 @@ export const TasksTable = memo(function TasksTable({
                               else if (e.key === "Enter") { 
                                 e.preventDefault(); 
                                 if (key === "status") {
-                                  if (inboxMode) {
-                                    onToggleProcessed(task.id)
-                                  } else {
-                                    onToggleStatus(task.id)
-                                  }
+                                  toggleAndMoveDown(task, key, inboxMode ? "processed" : "status")
                                 } else {
                                   setIsEditing(true) 
                                 }
@@ -902,9 +937,7 @@ export const TasksTable = memo(function TasksTable({
                               onCancel={() => setIsEditing(false)}
                               onTab={(rev) => { navigateCell(task.id, key, 0, rev ? -1 : 1, false) }}
                               onCtrlEnter={() => {
-                                onToggleProcessed(task.id)
-                                setSelectedCell(null)
-                                setIsEditing(false)
+                                toggleAndMoveDown(task, key, "processed")
                               }}
                             />
                           ) : (
