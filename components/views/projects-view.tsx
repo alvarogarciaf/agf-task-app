@@ -198,23 +198,28 @@ function SortableProjectItem(props: any) {
   let children = props.children
 
   if (viewMode === "list") {
-    children = React.Children.map(props.children, (child, index) => {
-      if (index === 0) {
-        return React.cloneElement(child as any, {
-          children: (
-            <div className="flex items-center gap-1 w-full">
-              <div
-                {...attributes}
-                {...listeners}
-                onClick={(e) => e.stopPropagation()}
-                className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-1 shrink-0 touch-none"
-              >
-                <GripVertical className="h-4 w-4" />
+    let insertedHandle = false
+    children = React.Children.map(props.children, (child) => {
+      if (!insertedHandle && React.isValidElement(child)) {
+        const cls = String((child.props as any)?.className || "")
+        if (!cls.includes("absolute")) {
+          insertedHandle = true
+          return React.cloneElement(child as any, {
+            children: (
+              <div className="flex items-center gap-1 w-full">
+                <div
+                  {...attributes}
+                  {...listeners}
+                  onClick={(e) => e.stopPropagation()}
+                  className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-1 shrink-0 touch-none"
+                >
+                  <GripVertical className="h-4 w-4" />
+                </div>
+                {(child as any).props.children}
               </div>
-              {(child as any).props.children}
-            </div>
-          ),
-        })
+            ),
+          })
+        }
       }
       return child
     })
@@ -322,8 +327,12 @@ export function ProjectsView({
   const [previewWidth, setPreviewWidth] = useState<number>(480)
   const [isResizingPreview, setIsResizingPreview] = useState(false)
   const splitContainerRef = useRef<HTMLDivElement>(null)
+  const leftPaneRef = useRef<HTMLDivElement>(null)
+  const [leftPaneMeasuredWidth, setLeftPaneMeasuredWidth] = useState<number>(1024)
   const previewPanelRef = useRef<HTMLDivElement>(null)
   const [previewPanelMeasuredWidth, setPreviewPanelMeasuredWidth] = useState<number>(480)
+
+  const isLeftPaneMobile = isMobile || leftPaneMeasuredWidth < 768
 
   useEffect(() => {
     const saved = localStorage.getItem("projects_view_mode")
@@ -339,6 +348,22 @@ export function ProjectsView({
       }
     }
   }, [])
+
+  // Observe the rendered width of the left pane so the Projects Table switches
+  // responsively to the mobile projects list when narrowed (by resizing the
+  // preview sidepanel or the browser window).
+  useEffect(() => {
+    const el = leftPaneRef.current
+    if (!el) return
+    setLeftPaneMeasuredWidth(el.clientWidth || 1024)
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setLeftPaneMeasuredWidth(entry.contentRect.width)
+      }
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [selected])
 
   // Observe the actual rendered width of the preview sidepanel so it switches
   // between mobile (<768px) and desktop (>=768px) layouts responsively!
@@ -862,7 +887,7 @@ export function ProjectsView({
           className="flex h-full min-h-0 w-full items-start gap-0 px-2 pt-2 pb-24 md:px-0 md:pt-0 md:pb-0"
         >
           {/* Left / Main Pane: Toolbar + Projects Table or Grid */}
-          <div className="flex-1 min-w-0">
+          <div ref={leftPaneRef} className="flex-1 min-w-0">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-1 rounded-md border border-border bg-card p-1 w-fit">
                 {(["Ongoing", "Closed", "All"] as const).map((s) => (
@@ -884,7 +909,7 @@ export function ProjectsView({
 
               <div className="flex items-center gap-2 ml-auto">
                 {/* Columns toggle for desktop table view */}
-                {!isMobile && viewMode === "list" && (
+                {!isLeftPaneMobile && viewMode === "list" && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
@@ -973,7 +998,7 @@ export function ProjectsView({
 
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               {/* Desktop List Mode -> Single-Column Projects Table */}
-              {!isMobile && viewMode === "list" ? (
+              {!isLeftPaneMobile && viewMode === "list" ? (
                 <div className="rounded-lg border border-border bg-card overflow-hidden">
                   {filtered.length === 0 ? (
                     <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
@@ -1142,7 +1167,13 @@ export function ProjectsView({
                     className={cn(
                       "grid gap-3",
                       viewMode === "grid"
-                        ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+                        ? leftPaneMeasuredWidth < 480
+                          ? "grid-cols-2"
+                          : leftPaneMeasuredWidth < 768
+                            ? "grid-cols-2 sm:grid-cols-3"
+                            : leftPaneMeasuredWidth < 1024
+                              ? "grid-cols-3"
+                              : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
                         : "grid-cols-1",
                     )}
                   >
@@ -1153,6 +1184,7 @@ export function ProjectsView({
                       const pct =
                         projTasks.length === 0 ? 0 : Math.round((done / projTasks.length) * 100)
                       const ProjIcon = p.icon ? ICONS[p.icon] ?? FolderKanban : FolderKanban
+                      const isPreviewed = !isMobile && previewProjectId === p.id
 
                       if (viewMode === "grid") {
                         return (
@@ -1241,13 +1273,22 @@ export function ProjectsView({
                         )
                       }
 
-                      // Mobile single-column card list
+                      // Mobile single-column card list (used on mobile or when the desktop left pane is narrowed)
                       return (
                         <SortableProjectItem
                           id={p.id}
                           key={p.id}
-                          onClick={() => handleSelect(p.id)}
-                          className="group relative flex cursor-pointer flex-col gap-2 rounded-lg border border-border bg-card p-3 text-left transition-all hover:border-primary/40"
+                          onClick={() => {
+                            if (!isMobile) {
+                              setPreviewProjectId((prev) => (prev === p.id ? null : p.id))
+                            } else {
+                              handleSelect(p.id)
+                            }
+                          }}
+                          className={cn(
+                            "group relative flex cursor-pointer flex-col gap-2 rounded-lg border border-border bg-card p-3 text-left transition-all hover:border-primary/40",
+                            isPreviewed && "border-primary/60 bg-primary/5 ring-1 ring-primary/20",
+                          )}
                           viewMode={viewMode}
                           isMobile={isMobile}
                         >
@@ -1262,7 +1303,7 @@ export function ProjectsView({
                           </div>
 
                           <div className="flex items-center justify-between gap-2 min-w-0 pr-6">
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <div className="group/desc relative flex items-center gap-2 min-w-0 flex-1">
                               <div
                                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
                                 style={
@@ -1280,6 +1321,20 @@ export function ProjectsView({
                               <h3 className="text-sm font-semibold tracking-tight truncate">
                                 {p.name}
                               </h3>
+                              {!isMobile && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleSelect(p.id)
+                                  }}
+                                  className="shrink-0 opacity-0 pointer-events-none group-hover/desc:opacity-100 group-hover/desc:pointer-events-auto focus:opacity-100 focus:pointer-events-auto transition-opacity inline-flex items-center gap-1 rounded border border-primary/40 bg-card hover:bg-muted px-2 py-0.5 text-xs font-semibold text-primary shadow-sm cursor-pointer z-20"
+                                  title="Open Project"
+                                >
+                                  <ArrowUpRight className="h-3.5 w-3.5" />
+                                  <span>Open</span>
+                                </button>
+                              )}
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               {p.linked_person_id &&
