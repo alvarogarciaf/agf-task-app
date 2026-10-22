@@ -146,7 +146,7 @@ export type PersonDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof pers
 
 export const contextSchemaLiteral = {
   title: 'context schema',
-  version: 0,
+  version: 1,
   description: 'describes a context',
   primaryKey: 'id',
   type: 'object',
@@ -155,8 +155,9 @@ export const contextSchemaLiteral = {
     name: { type: 'string' },
     icon: { type: 'string' },
     color: { type: 'string' },
+    order: { type: 'number', default: 0 },
   },
-  required: ['id', 'name', 'icon', 'color'],
+  required: ['id', 'name', 'icon', 'color', 'order'],
 } as const;
 export const contextSchemaTyped = toTypedRxJsonSchema(contextSchemaLiteral);
 export type ContextDocType = ExtractDocumentTypeFromTypedRxJsonSchema<typeof contextSchemaTyped>;

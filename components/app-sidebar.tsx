@@ -63,6 +63,7 @@ interface AppSidebarProps {
   onEditSavedView?: (view: SavedView) => void
   onDeleteSavedView?: (id: string) => void
   onReorderSavedViews?: (views: SavedView[]) => void
+  onReorderContexts?: (activeId: string, overId: string) => void
   inboxCount: number
   totalCount: number
   todayCount: number
@@ -93,6 +94,7 @@ export function AppSidebar({
   onEditSavedView,
   onDeleteSavedView,
   onReorderSavedViews,
+  onReorderContexts,
   inboxCount,
   totalCount,
   todayCount,
@@ -120,7 +122,7 @@ export function AppSidebar({
       label: "Contexts", 
       icon: Tags, 
       shortcut: "C",
-      subItems: contexts.map(c => ({ id: c.id, name: c.name, color: c.color })) 
+      subItems: contexts.map(c => ({ id: c.id, name: c.name, color: c.color, iconKey: c.icon })) 
     },
   ]
   const notesItems: NavItem[] = [
@@ -211,6 +213,7 @@ export function AppSidebar({
                 else if (item.key === "projects") onChange("projects", undefined, undefined, undefined, { initialProjectId: subId })
                 else onChange(item.key, undefined, undefined, subId)
               }}
+              onReorderSubItems={item.key === "contexts" ? onReorderContexts : undefined}
               onAddItem={item.key === "contexts" ? onAddContext : undefined}
               addItemLabel={item.key === "contexts" ? "Add Context" : undefined}
             />
@@ -422,6 +425,7 @@ function NavLink({
   isExpanded,
   onExpandToggle,
   onSubItemClick,
+  onReorderSubItems,
   onAddItem,
   addItemLabel,
 }: {
@@ -439,10 +443,12 @@ function NavLink({
   isExpanded?: boolean
   onExpandToggle?: () => void
   onSubItemClick?: (id: string) => void
+  onReorderSubItems?: (activeId: string, overId: string) => void
   onAddItem?: (name: string) => void
   addItemLabel?: string
 }) {
   const Icon = item.icon
+  const [draggedSubId, setDraggedSubId] = useState<string | null>(null)
   return (
     <li
       draggable={draggable}
@@ -550,7 +556,45 @@ function NavLink({
         {isExpanded && item.subItems && (
           <ul className="mt-0.5 flex flex-col gap-0.5 pl-7 md:pl-2 pb-1">
             {item.subItems.map((sub) => (
-              <li key={sub.id}>
+              <li
+                key={sub.id}
+                draggable={!!onReorderSubItems}
+                onDragStart={
+                  onReorderSubItems
+                    ? (e) => {
+                        e.stopPropagation()
+                        setDraggedSubId(sub.id)
+                        e.dataTransfer.effectAllowed = "move"
+                      }
+                    : undefined
+                }
+                onDragOver={
+                  onReorderSubItems
+                    ? (e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        e.dataTransfer.dropEffect = "move"
+                      }
+                    : undefined
+                }
+                onDrop={
+                  onReorderSubItems
+                    ? (e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        if (draggedSubId && draggedSubId !== sub.id) {
+                          onReorderSubItems(draggedSubId, sub.id)
+                        }
+                        setDraggedSubId(null)
+                      }
+                    : undefined
+                }
+                onDragEnd={() => setDraggedSubId(null)}
+                className={cn(
+                  "transition-opacity",
+                  draggedSubId === sub.id ? "opacity-40" : "opacity-100",
+                )}
+              >
                 <button
                   type="button"
                   onClick={(e) => {

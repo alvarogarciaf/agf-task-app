@@ -116,7 +116,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [initialContextId, setInitialContextId] = useState<string | undefined>()
   const [initialPersonId, setInitialPersonId] = useState<string | undefined>()
   const [initialTagId, setInitialTagId] = useState<string | undefined>()
-  const [initialProjectId, setInitialProjectId] = useState<string | undefined>()
+  const [initialProjectId, setInitialProjectId] = useState<string | undefined>(() => {
+    if (typeof window === "undefined") return undefined
+    return new URLSearchParams(window.location.search).get("project") || undefined
+  })
   const lastOpenProjectIdRef = useRef<string | undefined>(undefined)
 
   // Data state — split tasks into two efficient streams
@@ -126,7 +129,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [projects, setProjects] = useState<Project[]>(() => getCachedData("projects", []))
   usePreloadProjectImages(projects)
   const [persons, setPersons] = useState<Person[]>(() => getCachedData("persons", []))
-  const [contexts, setContexts] = useState<Context[]>(() => getCachedData("contexts", []))
+  const [contexts, setContexts] = useState<Context[]>(() =>
+    [...getCachedData<Context[]>("contexts", [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  )
   const [tags, setTags] = useState<Tag[]>(() => getCachedData("tags", []))
   const [urgencies, setUrgencies] = useState<UrgencyLevel[]>(() => getCachedData("urgencies", []))
   const [savedViews, setSavedViews] = useState<SavedView[]>(() => getCachedData("savedViews", []))
@@ -146,7 +151,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     if (tab && tab !== activeSettingsTab) {
       setActiveSettingsTab(tab)
     }
-  }, [searchParams, activeView, activeSavedViewId, activeSettingsTab])
+  }, [searchParams])
 
   // Listen to popstate for browser back/forward navigation
   useEffect(() => {
@@ -253,7 +258,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         setCachedData("persons", data)
       }),
       db.contexts.find().$.subscribe(docs => {
-        const data = docs.map(d => d.toJSON())
+        const data = docs
+          .map(d => d.toJSON())
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
         setContexts(data)
         setCachedData("contexts", data)
       }),
@@ -647,6 +654,39 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     [db, projects],
   )
 
+  const handleReorderContexts = useCallback(
+    async (activeId: string, overId: string) => {
+      if (!db) return
+      const sortedContexts = [...contexts].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      const oldIndex = sortedContexts.findIndex(c => c.id === activeId)
+      const newIndex = sortedContexts.findIndex(c => c.id === overId)
+      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return
+
+      const newItems = Array.from(sortedContexts)
+      const [moved] = newItems.splice(oldIndex, 1)
+      newItems.splice(newIndex, 0, moved)
+
+      const reordered = newItems.map((item, index) => ({ ...item, order: index }))
+      setContexts(reordered)
+      setCachedData("contexts", reordered)
+
+      try {
+        const updates = newItems.map((item, index) => {
+          if (item.order !== index) {
+            return db.contexts.findOne(item.id).exec().then(doc => {
+              if (doc) return doc.incrementalPatch({ order: index })
+            })
+          }
+          return Promise.resolve()
+        })
+        await Promise.all(updates)
+      } catch (err) {
+        console.error("Failed to reorder contexts", err)
+      }
+    },
+    [db, contexts],
+  )
+
   const handleAddTag = async (t: Omit<Tag, "id">) => {
     const id = crypto.randomUUID()
     await db.tags.insert({ id, ...t })
@@ -708,7 +748,11 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   // Mobile specific state
   const [mobileSection, setMobileSection] = useState<"tasks" | "notes">("tasks")
   const [mobileSelectorType, setMobileSelectorType] = useState<"contexts" | "projects" | "tags" | "views" | null>(null)
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, watchDrag: isMobile })
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    loop: false,
+    watchDrag: isMobile,
+    startIndex: mobileSection === "notes" ? 1 : 0,
+  })
 
   useEffect(() => {
     const handler = (e: CustomEvent<"tasks" | "notes">) => {
@@ -1025,9 +1069,12 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       resetToolbar()
       if (tab) {
         syncUrlToRoute(tab.route)
-        if (tab.ui.objectId && typeof window !== "undefined") {
+        if (typeof window !== "undefined") {
           const params = new URLSearchParams(window.location.search)
-          params.set("objectId", tab.ui.objectId)
+          if (tab.ui.initialProjectId) params.set("project", tab.ui.initialProjectId)
+          else params.delete("project")
+          if (tab.ui.objectId) params.set("objectId", tab.ui.objectId)
+          else params.delete("objectId")
           const qs = params.toString()
           const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
           window.history.replaceState(window.history.state, "", newUrl)
@@ -1397,33 +1444,34 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     [activeTasks, projects, selectedCalendarId, db],
   )
 
+  // Ctrl+Tab / Ctrl+Shift+Tab (and Ctrl+PageDown / Ctrl+PageUp) cycle workspace tabs.
+  // Registered in the *capture* phase so a focused editor, dialog, menu or table
+  // cell can never swallow the event before it reaches us.
+  useEffect(() => {
+    if (isMobile) return
+    function handleTabCycle(e: KeyboardEvent) {
+      if (!(e.ctrlKey || e.metaKey)) return
+      if (e.key !== "Tab" && e.key !== "PageDown" && e.key !== "PageUp") return
+      e.preventDefault()
+      e.stopPropagation()
+      const currentTabs = tabsRef.current
+      if (currentTabs.length <= 1) return
+      const activeIdx = currentTabs.findIndex((t) => t.id === activeTabIdRef.current)
+      const currentIndex = activeIdx >= 0 ? activeIdx : 0
+      const step = e.shiftKey || e.key === "PageUp" ? -1 : 1
+      const nextTab = currentTabs[(currentIndex + step + currentTabs.length) % currentTabs.length]
+      if (nextTab) selectTab(nextTab.id)
+    }
+    window.addEventListener("keydown", handleTabCycle, true)
+    return () => window.removeEventListener("keydown", handleTabCycle, true)
+  }, [isMobile, selectTab])
+
   // Keyboard shortcuts
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "t" && !isMobile) {
         e.preventDefault()
         addTab()
-        return
-      }
-
-      if (
-        (e.ctrlKey || e.metaKey) &&
-        (e.key === "Tab" || e.key === "PageDown" || e.key === "PageUp") &&
-        !isMobile
-      ) {
-        e.preventDefault()
-        const currentTabs = tabsRef.current
-        if (currentTabs.length > 1) {
-          const activeIdx = currentTabs.findIndex((t) => t.id === activeTabIdRef.current)
-          const currentIndex = activeIdx >= 0 ? activeIdx : 0
-          const isBackward = e.shiftKey || e.key === "PageUp"
-          const step = isBackward ? -1 : 1
-          const nextIndex = (currentIndex + step + currentTabs.length) % currentTabs.length
-          const nextTab = currentTabs[nextIndex]
-          if (nextTab) {
-            selectTab(nextTab.id)
-          }
-        }
         return
       }
 
@@ -1659,7 +1707,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     },
     onInsertContext: async (c: Omit<Context, "id">) => {
       const id = crypto.randomUUID()
-      await db.contexts.insert({ id, ...c })
+      await db.contexts.insert({ id, ...c, order: c.order ?? contexts.length })
       return id
     },
     onPatchContext: async (c: Context) => {
@@ -1670,6 +1718,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       const doc = await db.contexts.findOne(id).exec()
       if (doc) await doc.remove()
     },
+    onReorderContexts: handleReorderContexts,
     onInsertUrgency: async (u: Omit<UrgencyLevel, "id">) => {
       await db.urgencies.insert({ id: crypto.randomUUID(), ...u })
     },
@@ -1714,7 +1763,18 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const renderMobileNotesContent = () => (
     <WorkspaceViewContent
       {...workspaceContentProps}
-      route={{ kind: "view", view: initialProjectId ? "projects" : (activeView === "bookmarks" ? "bookmarks" : activeView === "projects" ? "projects" : "notes") }}
+      route={{
+        kind: "view",
+        view: initialProjectId
+          ? "projects"
+          : activeView === "bookmarks"
+            ? "bookmarks"
+            : activeView === "projects"
+              ? "projects"
+              : activeView === "tags"
+                ? "tags"
+                : "notes",
+      }}
       defaultProjectTab="notes"
       ui={{
         initialTagId,
@@ -1743,6 +1803,138 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [directOpenTask, setDirectOpenTask] = useState<Task | null>(null)
   const pendingOpenObjectIdRef = useRef<string | null>(null)
   const isNavigatingProjectDirectRef = useRef(false)
+
+  // Preserve the open tab's view, filters, and open item when resizing between desktop and mobile viewports
+  const prevIsMobileRef = useRef<boolean>(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false,
+  )
+  const pendingEmblaIndexRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    const wasMobile = prevIsMobileRef.current
+    if (wasMobile === isMobile) return
+    prevIsMobileRef.current = isMobile
+
+    if (isMobile) {
+      // Desktop -> Mobile: sync active desktop tab into mobile state
+      const currentTab =
+        tabsRef.current.find((t) => t.id === activeTabIdRef.current) ??
+        tabsRef.current[0]
+      if (!currentTab) return
+
+      const targetView: ViewKey =
+        currentTab.route.kind === "view" ? currentTab.route.view : "home"
+      const targetSavedViewId =
+        currentTab.route.kind === "view"
+          ? (currentTab.route.savedViewId ?? null)
+          : null
+      const targetSettingsTab =
+        currentTab.route.kind === "view"
+          ? currentTab.route.settingsTab
+          : undefined
+
+      setActiveView(targetView)
+      setActiveSavedViewId(targetSavedViewId)
+      if (targetSettingsTab) setActiveSettingsTab(targetSettingsTab)
+
+      setInitialContextId(currentTab.ui.initialContextId)
+      setInitialPersonId(currentTab.ui.initialPersonId)
+      setInitialTagId(currentTab.ui.initialTagId)
+      setInitialProjectId(currentTab.ui.initialProjectId)
+      if (currentTab.ui.initialProjectId) {
+        lastOpenProjectIdRef.current = currentTab.ui.initialProjectId
+      }
+
+      const openObj = currentTab.ui.objectId
+        ? findObjectById(currentTab.ui.objectId)
+        : null
+      setDirectOpenTask(openObj)
+
+      const isNotesSection =
+        targetView === "notes" ||
+        targetView === "bookmarks" ||
+        targetView === "tags" ||
+        !!currentTab.ui.initialTagId ||
+        openObj?.type === "note"
+      const nextSection: "tasks" | "notes" = isNotesSection ? "notes" : "tasks"
+      setMobileSection(nextSection)
+      pendingEmblaIndexRef.current = nextSection === "notes" ? 1 : 0
+    } else {
+      // Mobile -> Desktop: sync mobile state back into active desktop tab
+      const targetTabId = activeTabIdRef.current || tabsRef.current[0]?.id
+      if (!targetTabId) return
+
+      const targetView: ViewKey = initialProjectId
+        ? "projects"
+        : mobileSection === "notes"
+          ? activeView === "bookmarks"
+            ? "bookmarks"
+            : activeView === "projects"
+              ? "projects"
+              : activeView === "tags"
+                ? "tags"
+                : "notes"
+          : activeView === "notes"
+            ? "home"
+            : activeView
+
+      const urlObjId =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("objectId") ||
+            undefined
+          : undefined
+      const openObjectId = directOpenTask?.id || urlObjId
+
+      setTabs((prev) =>
+        prev.map((t) =>
+          t.id === targetTabId
+            ? {
+                ...t,
+                route: {
+                  kind: "view",
+                  view: targetView,
+                  savedViewId: activeSavedViewId,
+                  settingsTab: activeSettingsTab,
+                },
+                ui: {
+                  ...t.ui,
+                  initialContextId,
+                  initialPersonId,
+                  initialTagId,
+                  initialProjectId,
+                  objectId: openObjectId,
+                  objectMode: openObjectId ? "edit" : undefined,
+                },
+              }
+            : t,
+        ),
+      )
+      if (directOpenTask) {
+        setDirectOpenTask(null)
+      }
+    }
+  }, [
+    isMobile,
+    activeView,
+    activeSavedViewId,
+    activeSettingsTab,
+    initialContextId,
+    initialPersonId,
+    initialTagId,
+    initialProjectId,
+    mobileSection,
+    directOpenTask,
+    findObjectById,
+  ])
+
+  useEffect(() => {
+    if (isMobile && emblaApi && pendingEmblaIndexRef.current !== null) {
+      const targetIdx = pendingEmblaIndexRef.current
+      pendingEmblaIndexRef.current = null
+      emblaApi.scrollTo(targetIdx, true)
+      setMobileSection(targetIdx === 1 ? "notes" : "tasks")
+    }
+  }, [isMobile, emblaApi])
 
   const openObjectById = useCallback(
     async (objectId: string) => {
@@ -1961,6 +2153,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         tags={tags}
         persons={persons}
         onReorderSavedViews={handleReorderSavedViews}
+        onReorderContexts={handleReorderContexts}
         user={user}
         onSignOut={onSignOut}
         showUserMenu={!isMobile}
@@ -2190,6 +2383,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                 projects={projects.filter((p) => p.status !== "Closed")}
                 tags={tags}
                 savedViews={savedViews}
+                onReorderContexts={handleReorderContexts}
                 onSelectContext={(id) => { handleNavigate("all"); setInitialContextId(id) }}
                 onSelectProject={(id) => { 
                   handleNavigate("projects", undefined, undefined, undefined, { initialProjectId: id })

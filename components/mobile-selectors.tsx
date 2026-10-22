@@ -1,6 +1,25 @@
 "use client"
 
-import { X, FolderClosed, Briefcase, TagIcon, Star, Plus, MoreVertical, Edit2, Trash2 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { X, FolderClosed, Briefcase, TagIcon, Star, Plus, MoreVertical, Edit2, Trash2, GripVertical } from "lucide-react"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { cn } from "@/lib/utils"
 import type { Context, Project, Tag, SavedView } from "@/lib/types"
 import { ICONS } from "@/lib/constants"
@@ -23,10 +42,60 @@ interface MobileSelectorProps {
   onDeleteView?: (id: string) => void
   onAddContext?: (name: string) => void
   onAddTag?: (name: string) => void
+  onReorderContexts?: (activeId: string, overId: string) => void
   contexts: Context[]
   projects: Project[]
   tags: Tag[]
   savedViews: SavedView[]
+}
+
+function SortableMobileContextRow({
+  context,
+  onSelect,
+}: {
+  context: Context
+  onSelect: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: context.id,
+  })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+    position: "relative" as const,
+    zIndex: isDragging ? 10 : 0,
+  }
+  const Icon = ICONS[context.icon] || Briefcase
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center border-b border-border bg-background hover:bg-accent transition-colors",
+        isDragging && "shadow-md bg-accent/80",
+      )}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        onClick={(e) => e.stopPropagation()}
+        className="flex items-center justify-center pl-3 pr-1 py-4 text-muted-foreground/40 hover:text-muted-foreground cursor-grab active:cursor-grabbing touch-none shrink-0"
+        aria-label={`Reorder ${context.name}`}
+      >
+        <GripVertical className="w-4 h-4" />
+      </div>
+      <button
+        type="button"
+        onClick={onSelect}
+        className="flex flex-1 min-w-0 items-center gap-3 py-4 pr-4 pl-2 text-left"
+      >
+        <Icon className="w-5 h-5 shrink-0" style={{ color: context.color }} />
+        <span className="text-[15px] font-medium flex-1 truncate">{context.name}</span>
+      </button>
+    </div>
+  )
 }
 
 export function MobileSelector({
@@ -41,12 +110,38 @@ export function MobileSelector({
   onDeleteView,
   onAddContext,
   onAddTag,
+  onReorderContexts,
   contexts,
   projects,
   tags,
   savedViews,
 }: MobileSelectorProps) {
+  const [optimisticContexts, setOptimisticContexts] = useState(contexts)
+
+  useEffect(() => {
+    setOptimisticContexts(contexts)
+  }, [contexts])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
   if (!isOpen || !type) return null
+
+  const handleContextDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      setOptimisticContexts((prev) => {
+        const oldIndex = prev.findIndex((c) => c.id === active.id)
+        const newIndex = prev.findIndex((c) => c.id === over.id)
+        if (oldIndex === -1 || newIndex === -1) return prev
+        return arrayMove(prev, oldIndex, newIndex).map((c, i) => ({ ...c, order: i }))
+      })
+      onReorderContexts?.(active.id as string, over.id as string)
+    }
+  }
 
   const getTitle = () => {
     switch (type) {
@@ -79,16 +174,30 @@ export function MobileSelector({
               <span className="text-[15px] font-medium flex-1">Add Context</span>
             </button>
           )}
-          {contexts.length === 0 && !onAddContext && <div className="p-8 text-center text-muted-foreground italic text-sm">No contexts found</div>}
-          {contexts.map(c => {
-            const Icon = ICONS[c.icon] || Briefcase
-            return (
-              <button key={c.id} onClick={() => { onSelectContext(c.id); onClose() }} className="flex items-center gap-3 p-4 border-b border-border hover:bg-accent transition-colors text-left">
-                <Icon className="w-5 h-5 shrink-0" style={{ color: c.color }} />
-                <span className="text-[15px] font-medium flex-1 truncate">{c.name}</span>
-              </button>
-            )
-          })}
+          {optimisticContexts.length === 0 && !onAddContext && (
+            <div className="p-8 text-center text-muted-foreground italic text-sm">No contexts found</div>
+          )}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleContextDragEnd}
+          >
+            <SortableContext
+              items={optimisticContexts.map((c) => c.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {optimisticContexts.map((c) => (
+                <SortableMobileContextRow
+                  key={c.id}
+                  context={c}
+                  onSelect={() => {
+                    onSelectContext(c.id)
+                    onClose()
+                  }}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         </div>
       )
     }

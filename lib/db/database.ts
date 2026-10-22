@@ -232,6 +232,15 @@ export const getDatabase = async (userUid: string) => {
             return oldDoc;
           }
         }
+      },
+      contexts: {
+        ...DatabaseCollections.contexts,
+        migrationStrategies: {
+          1: (oldDoc: any) => {
+            oldDoc.order = oldDoc.order ?? 0;
+            return oldDoc;
+          }
+        }
       }
     });
     

@@ -88,6 +88,7 @@ interface WorkspaceViewContentProps {
   onInsertContext: (c: Omit<Context, "id">) => Promise<string>
   onPatchContext: (c: Context) => Promise<void>
   onRemoveContext: (id: string) => Promise<void>
+  onReorderContexts?: (activeId: string, overId: string) => Promise<void>
   onInsertUrgency: (u: Omit<UrgencyLevel, "id">) => Promise<void>
   onPatchUrgency: (u: UrgencyLevel) => Promise<void>
   onRemoveUrgency: (id: string) => Promise<void>
@@ -136,6 +137,7 @@ export function WorkspaceViewContent({
   onInsertContext,
   onPatchContext,
   onRemoveContext,
+  onReorderContexts,
   onInsertUrgency,
   onPatchUrgency,
   onRemoveUrgency,
@@ -250,6 +252,7 @@ export function WorkspaceViewContent({
           onUpdateContext={onPatchContext}
           onDeleteContext={onRemoveContext}
           onAddContext={onInsertContext}
+          onReorderContexts={onReorderContexts}
         />
       )
     case "notes":

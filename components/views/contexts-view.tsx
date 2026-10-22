@@ -1,11 +1,28 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import {
-  type LucideIcon,
-  Brain, Plus, Trash2, Edit2, Check, X, MoreVertical
+  Brain, Plus, Trash2, Edit2, Check, X, MoreVertical, GripVertical
 } from "lucide-react"
-import { ICON_OPTIONS, ICONS, COLOR_PALETTE } from "@/lib/constants"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import { ICONS, COLOR_PALETTE } from "@/lib/constants"
 import { IconPicker } from "@/components/icon-picker"
 import { cn } from "@/lib/utils"
 import {
@@ -21,8 +38,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import type { Context, Project, Task } from "@/lib/types"
 
-
-
 interface ContextsViewProps {
   contexts: Context[]
   tasks: Task[]
@@ -31,11 +46,169 @@ interface ContextsViewProps {
   onUpdateContext?: (context: Context) => void
   onDeleteContext?: (id: string) => void
   onAddContext?: (context: Omit<Context, "id">) => void
+  onReorderContexts?: (activeId: string, overId: string) => void
 }
 
-export function ContextsView({ contexts, tasks, projects = [], onSelect, onUpdateContext, onDeleteContext, onAddContext }: ContextsViewProps) {
+function SortableContextRow({
+  context: c,
+  openCount: open,
+  onSelect,
+  onEdit,
+  onDelete,
+}: {
+  context: Context
+  openCount: number
+  onSelect: () => void
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: c.id,
+  })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.45 : undefined,
+    position: "relative" as const,
+    zIndex: isDragging ? 10 : 0,
+  }
+  const Icon = ICONS[c.icon] ?? Brain
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      onClick={(e) => {
+        const target = e.target as HTMLElement
+        if (target.closest('[data-options-trigger="true"]') || target.closest('[data-drag-handle="true"]')) {
+          return
+        }
+        onSelect()
+      }}
+      className={cn(
+        "group flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-card px-3 py-3 transition-colors hover:border-primary/30 hover:bg-card/80",
+        isDragging && "shadow-md border-primary/40",
+      )}
+    >
+      {/* Drag Handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        data-drag-handle="true"
+        onClick={(e) => e.stopPropagation()}
+        className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground p-1 -ml-1 shrink-0 touch-none"
+        aria-label={`Reorder ${c.name}`}
+      >
+        <GripVertical className="h-4 w-4" />
+      </div>
+
+      {/* Icon */}
+      <div
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg md:h-9 md:w-9"
+        style={{
+          backgroundColor: `color-mix(in oklch, ${c.color} 15%, transparent)`,
+          color: c.color,
+          boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${c.color} 30%, transparent)`,
+        }}
+      >
+        <Icon className="h-5 w-5 md:h-4 md:w-4" />
+      </div>
+
+      {/* Name */}
+      <div className="flex-1 text-left">
+        <span className="text-base font-medium tracking-tight md:text-sm">{c.name}</span>
+      </div>
+
+      {/* Open count */}
+      {open > 0 ? (
+        <span className="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs tabular-nums text-primary">
+          {open}
+        </span>
+      ) : (
+        <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs tabular-nums text-muted-foreground">
+          0
+        </span>
+      )}
+
+      {/* Options Menu */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            data-options-trigger="true"
+            onClick={(e) => e.stopPropagation()}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:opacity-0 md:group-hover:opacity-100"
+            aria-label={`Options for ${c.name}`}
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="w-32"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <DropdownMenuItem
+            onClick={(e) => {
+              e.stopPropagation()
+              onEdit()
+            }}
+          >
+            <Edit2 className="h-3.5 w-3.5 mr-2" />
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete()
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-2" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+}
+
+export function ContextsView({
+  contexts,
+  tasks,
+  projects = [],
+  onSelect,
+  onUpdateContext,
+  onDeleteContext,
+  onAddContext,
+  onReorderContexts,
+}: ContextsViewProps) {
   const [editing, setEditing] = useState<Context | null>(null)
   const [isAdding, setIsAdding] = useState(false)
+  const [optimisticContexts, setOptimisticContexts] = useState(contexts)
+
+  useEffect(() => {
+    setOptimisticContexts(contexts)
+  }, [contexts])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      setOptimisticContexts((prev) => {
+        const oldIndex = prev.findIndex((c) => c.id === active.id)
+        const newIndex = prev.findIndex((c) => c.id === over.id)
+        if (oldIndex === -1 || newIndex === -1) return prev
+        return arrayMove(prev, oldIndex, newIndex).map((c, i) => ({ ...c, order: i }))
+      })
+      onReorderContexts?.(active.id as string, over.id as string)
+    }
+  }
 
   const closedProjectIds = useMemo(() => {
     return new Set(projects.filter((p) => p.status === "Closed").map((p) => p.id))
@@ -54,107 +227,50 @@ export function ContextsView({ contexts, tasks, projects = [], onSelect, onUpdat
         </button>
       </div>
 
-      <div className="space-y-1.5">
-        {contexts.map((c) => {
-          const Icon = ICONS[c.icon] ?? Brain
-          const open = tasks.filter(
-            (t) =>
-              t.context_ids.includes(c.id) &&
-              t.processed &&
-              t.status === "Open" &&
-              !(t.project_id && closedProjectIds.has(t.project_id)),
-          ).length
-          return (
-            <div
-              key={c.id}
-              onClick={(e) => {
-                const target = e.target as HTMLElement
-                if (target.closest('[data-options-trigger="true"]')) {
-                  return
-                }
-                onSelect(c.id)
-              }}
-              className="group flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:border-primary/30 hover:bg-card/80"
-            >
-              {/* Icon */}
-              <div
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg md:h-9 md:w-9"
-                style={{
-                  backgroundColor: `color-mix(in oklch, ${c.color} 15%, transparent)`,
-                  color: c.color,
-                  boxShadow: `inset 0 0 0 1px color-mix(in oklch, ${c.color} 30%, transparent)`,
-                }}
-              >
-                <Icon className="h-5 w-5 md:h-4 md:w-4" />
-              </div>
-
-              {/* Name */}
-              <div className="flex-1 text-left">
-                <span className="text-base font-medium tracking-tight md:text-sm">{c.name}</span>
-              </div>
-
-              {/* Open count */}
-              {open > 0 ? (
-                <span className="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs tabular-nums text-primary">
-                  {open}
-                </span>
-              ) : (
-                <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs tabular-nums text-muted-foreground">
-                  0
-                </span>
-              )}
-
-              {/* Options Menu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    data-options-trigger="true"
-                    onClick={(e) => e.stopPropagation()}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:opacity-0 md:group-hover:opacity-100"
-                    aria-label={`Options for ${c.name}`}
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent 
-                  align="end" 
-                  className="w-32"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      const plain: Context = {
-                        id: c.id,
-                        name: c.name,
-                        icon: c.icon,
-                        color: c.color,
-                      }
-                      setEditing(plain)
-                    }}
-                  >
-                    <Edit2 className="h-3.5 w-3.5 mr-2" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      if (confirm(`Are you sure you want to delete context "${c.name}"?`)) {
-                        onDeleteContext?.(c.id)
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )
-        })}
-      </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={optimisticContexts.map((c) => c.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="space-y-1.5">
+            {optimisticContexts.map((c) => {
+              const open = tasks.filter(
+                (t) =>
+                  t.context_ids.includes(c.id) &&
+                  t.processed &&
+                  t.status === "Open" &&
+                  !(t.project_id && closedProjectIds.has(t.project_id)),
+              ).length
+              return (
+                <SortableContextRow
+                  key={c.id}
+                  context={c}
+                  openCount={open}
+                  onSelect={() => onSelect(c.id)}
+                  onEdit={() =>
+                    setEditing({
+                      id: c.id,
+                      name: c.name,
+                      icon: c.icon,
+                      color: c.color,
+                      order: c.order,
+                    })
+                  }
+                  onDelete={() => {
+                    if (confirm(`Are you sure you want to delete context "${c.name}"?`)) {
+                      onDeleteContext?.(c.id)
+                    }
+                  }}
+                />
+              )
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {/* Edit Dialog */}
       {editing && (

@@ -15,9 +15,9 @@ export const projects: Project[] = [
 export const persons: Person[] = []
 
 export const contexts: Context[] = [
-  { id: "c_home", name: "Home", icon: "Home", color: "#eab308" },
-  { id: "c_errands", name: "Errands", icon: "Car", color: "#22c55e" },
-  { id: "c_work", name: "Work", icon: "Briefcase", color: "#ef4444" },
+  { id: "c_home", name: "Home", icon: "Home", color: "#eab308", order: 0 },
+  { id: "c_errands", name: "Errands", icon: "Car", color: "#22c55e", order: 1 },
+  { id: "c_work", name: "Work", icon: "Briefcase", color: "#ef4444", order: 2 },
 ]
 
 export const tasks: Task[] = []

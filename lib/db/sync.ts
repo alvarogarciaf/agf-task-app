@@ -52,7 +52,16 @@ export const setupReplication = (db: RxDatabase, userUid: string) => {
      * already equal, so it can skip an unnecessary push. Must be synchronous.
      */
     isEqual(a: any, b: any, _context: string): boolean {
-      return a._deleted === b._deleted && a.updated_at === b.updated_at;
+      if (a._deleted !== b._deleted) return false;
+      if (a.updated_at !== undefined || b.updated_at !== undefined) {
+        return a.updated_at === b.updated_at && a.order === b.order;
+      }
+      return (
+        a.order === b.order &&
+        a.name === b.name &&
+        a.icon === b.icon &&
+        a.color === b.color
+      );
     },
 
     /**
