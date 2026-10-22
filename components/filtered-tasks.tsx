@@ -10,6 +10,7 @@ import { toast } from "sonner"
 import { TasksTable, TASK_COLUMNS, COLUMN_MAP } from "@/components/tasks-table"
 import type { TaskColumnKey } from "@/components/tasks-table"
 import { useTableColumns } from "@/hooks/use-table-columns"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { FormMultiSelect } from "@/components/form-multi-select"
 import { DropdownListItem } from "@/components/ui/dropdown-list-item"
 import { ProjectSelect } from "@/components/project-select"
@@ -142,6 +143,7 @@ export function FilteredTasks({
   hideDesktopAdd = false,
   defaultBookmarked = false,
 }: FilteredTasksProps) {
+  const isMobile = useIsMobile()
   const isTabActive = useIsTabActive()
   const defaultFilterMode = useDefaultFilterMatchMode()
   const [filterMode, setFilterMode] = useState<FilterMatchMode>(() => initialFilterMode ?? getDefaultFilterMatchMode())
@@ -742,20 +744,22 @@ export function FilteredTasks({
 
   return (
     <div key={`${initialContextId}-${initialContextIds?.join(",")}-${initialTagId}-${initialTagIds?.join(",")}-${initialProjectId}-${initialPersonId}-${initialShowStatus}-${initialIsGroupedByProject}-${initialShowHiddenByShowOn}-${initialFilterMode}-${initialSortKey}-${initialSortDirection}`} className={cn(
-      "flex flex-col min-w-0 w-full bg-transparent md:bg-card overflow-hidden",
+      "flex flex-col min-w-0 w-full overflow-hidden",
+      isMobile ? "bg-transparent" : "bg-transparent md:bg-card",
       fullWidthOnMobile 
-        ? "border-0 rounded-none md:rounded-lg md:border md:border-border" 
+        ? (isMobile ? "border-0 rounded-none" : "border-0 rounded-none md:rounded-lg md:border md:border-border")
         : "rounded-lg border border-border"
     )}>
       {/* Filter bar */}
       {!hideFilterBar && (
         <div className={cn(
-          "flex md:flex-wrap items-center border-b border-border bg-muted/20 p-2 gap-2",
-          fullWidthOnMobile && "border-0 bg-transparent px-0 pt-1 pb-2 md:border-b md:bg-muted/20 md:p-2"
+          "flex items-center border-b border-border bg-muted/20 p-2 gap-2",
+          !isMobile && "md:flex-wrap",
+          fullWidthOnMobile && (isMobile ? "border-0 bg-transparent px-0 pt-1 pb-2" : "border-0 bg-transparent px-0 pt-1 pb-2 md:border-b md:bg-muted/20 md:p-2")
         )}>
           
           {/* Scrollable left side: Mobile filter icon and active chips */}
-          <div className="flex md:hidden flex-1 min-w-0 items-center gap-2 overflow-x-auto no-scrollbar">
+          <div className={cn(isMobile ? "flex" : "flex md:hidden", "flex-1 min-w-0 items-center gap-2 overflow-x-auto no-scrollbar")}>
             <button
               onClick={() => setMobileFiltersOpen(true)}
               className={cn(
@@ -777,7 +781,7 @@ export function FilteredTasks({
           </div>
 
           {/* Desktop Filter Bar (hidden on mobile, flex on desktop) */}
-          <div className="hidden md:flex flex-wrap items-center gap-2">
+          <div className={cn(isMobile ? "hidden" : "hidden md:flex", "flex-wrap items-center gap-2")}>
             <div
               className={cn(
                 "flex items-center gap-1.5 px-1 font-mono text-xs uppercase tracking-wider",
@@ -919,7 +923,7 @@ export function FilteredTasks({
             </span>
 
             {/* Desktop-only individual toggle buttons */}
-            <div className="hidden md:flex items-center gap-2">
+            <div className={cn(isMobile ? "hidden" : "hidden md:flex", "items-center gap-2")}>
               {!projectId && !hideFilters.includes("project") && (
                 <button
                   type="button"
@@ -947,7 +951,7 @@ export function FilteredTasks({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className={cn(toolbarBtnBase, toolbarBtnRest, "hidden md:inline-flex px-2.5 py-1 text-xs font-medium")}
+                  className={cn(toolbarBtnBase, toolbarBtnRest, isMobile ? "hidden" : "hidden md:inline-flex", "px-2.5 py-1 text-xs font-medium")}
                 >
                   <Columns3 className="h-3.5 w-3.5" />
                   <span className="hidden lg:inline">Columns</span>
@@ -1006,17 +1010,18 @@ export function FilteredTasks({
                 type="button"
                 onClick={() => handleAddNewTask()}
                 className={cn(
-                  "hidden items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 md:inline-flex",
-                  hideDesktopAdd && "md:hidden",
+                  "items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90",
+                  isMobile ? "hidden md:inline-flex" : "hidden md:inline-flex",
+                  !isMobile && hideDesktopAdd && "md:hidden",
                 )}
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span className="hidden md:inline">{notesMode ? "Add note" : "Add task"}</span>
+                <span>{notesMode ? "Add note" : "Add task"}</span>
               </button>
             )}
 
             {/* Mobile Three-dots Menu */}
-            <div className="md:hidden">
+            <div className={cn(isMobile ? "block" : "md:hidden")}>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button type="button" className={cn(toolbarBtnBase, toolbarBtnRest, "h-8 w-8 justify-center")}>
@@ -1088,7 +1093,7 @@ export function FilteredTasks({
               </DropdownMenu>
             </div>
 
-            {hasFilter && (
+            {hasFilter && !isMobile && (
               <button
                 type="button"
                 onClick={() => {

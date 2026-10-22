@@ -657,7 +657,8 @@ export const TasksTable = memo(function TasksTable({
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndRow}>
           <div className={cn(
-            "md:hidden flex w-full min-w-0 flex-col space-y-2",
+            isMobile ? "flex" : "md:hidden flex",
+            "w-full min-w-0 flex-col space-y-2",
             isNested ? "p-0 bg-transparent" : "px-3.5 py-3 bg-muted/10"
           )}>
             <SortableContext items={optimisticTasks.map(t => `m-${t.id}`)} strategy={verticalListSortingStrategy}>
@@ -698,7 +699,7 @@ export const TasksTable = memo(function TasksTable({
             })}
             </SortableContext>
           </div>
-          <div className="hidden md:block overflow-x-auto">
+          <div className={cn(isMobile ? "hidden" : "hidden md:block", "overflow-x-auto")}>
 <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-card">
               <tr className="border-b border-border">
