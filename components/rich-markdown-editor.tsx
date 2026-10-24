@@ -129,6 +129,117 @@ function isCursorAfterLineBreak(block: HTMLElement, range: Range): boolean {
   )
 }
 
+function hasMeaningfulLineBreak(block: HTMLElement): boolean {
+  const brs = Array.from(block.querySelectorAll("br"))
+  if (brs.length === 0) return false
+  if (brs.length === 1 && block.lastElementChild === brs[0]) {
+    let after: Node | null = brs[0].nextSibling
+    let hasTextAfter = false
+    while (after) {
+      if (after.textContent && after.textContent.length > 0) {
+        hasTextAfter = true
+        break
+      }
+      after = after.nextSibling
+    }
+    if (!hasTextAfter) return false
+  }
+  return true
+}
+
+function parseHeadingShortcut(
+  lineText: string,
+  requireTrailingSpace: boolean,
+): { tag: "h1" | "h2" | "h3"; markerLength: number } | null {
+  if (requireTrailingSpace) {
+    const slashBefore = lineText.match(/^\/(h[123])\s/i)
+    if (slashBefore) {
+      return {
+        tag: slashBefore[1].toLowerCase() as "h1" | "h2" | "h3",
+        markerLength: slashBefore[0].length,
+      }
+    }
+    const slashAfter = lineText.match(/^(h[123])\/\s/i)
+    if (slashAfter) {
+      return {
+        tag: slashAfter[1].toLowerCase() as "h1" | "h2" | "h3",
+        markerLength: slashAfter[0].length,
+      }
+    }
+    const hashes = lineText.match(/^(#{1,3})\s/)
+    if (hashes) {
+      return {
+        tag: `h${hashes[1].length}` as "h1" | "h2" | "h3",
+        markerLength: hashes[0].length,
+      }
+    }
+    return null
+  } else {
+    const slashBefore = lineText.match(/^\/(h[123])$/i)
+    if (slashBefore) {
+      return {
+        tag: slashBefore[1].toLowerCase() as "h1" | "h2" | "h3",
+        markerLength: slashBefore[0].length,
+      }
+    }
+    const slashAfter = lineText.match(/^(h[123])\/$/i)
+    if (slashAfter) {
+      return {
+        tag: slashAfter[1].toLowerCase() as "h1" | "h2" | "h3",
+        markerLength: slashAfter[0].length,
+      }
+    }
+    const hashes = lineText.match(/^(#{1,3})$/)
+    if (hashes) {
+      return {
+        tag: `h${hashes[1].length}` as "h1" | "h2" | "h3",
+        markerLength: hashes[0].length,
+      }
+    }
+    return null
+  }
+}
+
+interface SelectionBookmark {
+  startPath: number[]
+  startOffset: number
+  endPath: number[]
+  endOffset: number
+}
+
+interface EditorHistorySnapshot {
+  html: string
+  markdown: string
+  selection: SelectionBookmark | null
+  timestamp: number
+  locked: boolean
+}
+
+function getNodePath(root: Node, target: Node): number[] | null {
+  const path: number[] = []
+  let cur: Node | null = target
+  while (cur && cur !== root) {
+    const parentNode: ParentNode | null = cur.parentNode
+    if (!parentNode) return null
+    const idx = Array.prototype.indexOf.call(parentNode.childNodes, cur)
+    if (idx === -1) return null
+    path.unshift(idx)
+    cur = parentNode
+  }
+  return cur === root ? path : null
+}
+
+function resolveNodePath(root: Node, path: number[]): Node | null {
+  let cur: Node = root
+  for (const idx of path) {
+    if (!cur.childNodes || idx < 0 || idx >= cur.childNodes.length) {
+      return null
+    }
+    cur = cur.childNodes[idx]
+  }
+  return cur
+}
+
 function isolateLineToParagraph(block: HTMLElement, range: Range): HTMLParagraphElement {
   const lineStart = getLineStartRange(block, range)
   
@@ -223,6 +334,13 @@ function EditorSurface({
   const isFocusedRef = useRef(false)
   const isComposingRef = useRef(false)
   const savedRange = useRef<Range | null>(null)
+  const lastEmittedMarkdownRef = useRef<string>(value || "")
+  const editorHistoryRef = useRef<EditorHistorySnapshot[]>([])
+  const editorHistoryIndexRef = useRef<number>(0)
+  const isRestoringHistoryRef = useRef<boolean>(false)
+  const lastInputTypeRef = useRef<string>("")
+  const lastInputDataRef = useRef<string | null>(null)
+  const lastWasDeleteRef = useRef<boolean>(false)
 
   const [linkOpen, setLinkOpen] = useState(false)
   const [linkUrl, setLinkUrl] = useState("")
@@ -261,6 +379,373 @@ function EditorSurface({
   } | null>(null)
 
   const [taskEmbeds, setTaskEmbeds] = useState<{ id: string, el: HTMLElement }[]>([])
+
+  const saveSelectionBookmark = useCallback((): SelectionBookmark | null => {
+    if (!editorRef.current) return null
+    const sel = window.getSelection()
+    if (!sel || sel.rangeCount === 0) return null
+    const range = sel.getRangeAt(0)
+    if (!editorRef.current.contains(range.startContainer)) return null
+    const startPath = getNodePath(editorRef.current, range.startContainer)
+    const endPath = getNodePath(editorRef.current, range.endContainer)
+    if (!startPath || !endPath) return null
+    return {
+      startPath,
+      startOffset: range.startOffset,
+      endPath,
+      endOffset: range.endOffset,
+    }
+  }, [])
+
+  const restoreSelectionBookmark = useCallback((bookmark: SelectionBookmark | null) => {
+    if (!editorRef.current) return
+    editorRef.current.focus()
+    if (!bookmark) {
+      placeCaretAtEnd(editorRef.current)
+      return
+    }
+    const sel = window.getSelection()
+    if (!sel) return
+    const startNode = resolveNodePath(editorRef.current, bookmark.startPath)
+    const endNode = resolveNodePath(editorRef.current, bookmark.endPath)
+    if (!startNode || !endNode) {
+      placeCaretAtEnd(editorRef.current)
+      return
+    }
+    try {
+      const range = document.createRange()
+      const maxStart =
+        startNode.nodeType === Node.TEXT_NODE
+          ? (startNode.textContent?.length ?? 0)
+          : startNode.childNodes.length
+      const maxEnd =
+        endNode.nodeType === Node.TEXT_NODE
+          ? (endNode.textContent?.length ?? 0)
+          : endNode.childNodes.length
+      range.setStart(startNode, Math.min(bookmark.startOffset, maxStart))
+      range.setEnd(endNode, Math.min(bookmark.endOffset, maxEnd))
+      sel.removeAllRanges()
+      sel.addRange(range)
+    } catch {
+      placeCaretAtEnd(editorRef.current)
+    }
+  }, [])
+
+  const updateEmptyState = useCallback(() => {
+    const root = editorRef.current
+    if (!root) return
+    const rawText = (root.textContent || "").replace(/[\u200B\r\n]/g, "")
+    const hasNonParagraphElement = !!root.querySelector(
+      "h1, h2, h3, ul, ol, hr, img, input.md-task-box, .image-resizer, .link-card-wrapper, .task-embed-wrapper",
+    )
+    const isEmpty = rawText.length === 0 && !hasNonParagraphElement
+    if (isEmpty) {
+      root.setAttribute("data-empty", "true")
+    } else {
+      root.removeAttribute("data-empty")
+    }
+  }, [])
+
+  const ensureBlockStructure = useCallback(() => {
+    const root = editorRef.current
+    if (!root) return
+
+    if (root.childNodes.length === 0) {
+      const p = document.createElement("p")
+      p.appendChild(document.createElement("br"))
+      root.appendChild(p)
+      if (isFocusedRef.current) {
+        placeCaretAtStart(p)
+      }
+      return
+    }
+
+    const hasBareInline = Array.from(root.childNodes).some(
+      (n) =>
+        (n.nodeType === Node.TEXT_NODE && (n.textContent || "").length > 0) ||
+        (n.nodeType === Node.ELEMENT_NODE && (n as HTMLElement).tagName === "BR"),
+    )
+    if (!hasBareInline) return
+
+    const sel = window.getSelection()
+    let savedNode: Node | null = null
+    let savedOffset = 0
+    if (sel && sel.rangeCount > 0) {
+      const r = sel.getRangeAt(0)
+      savedNode = r.startContainer
+      savedOffset = r.startOffset
+    }
+
+    const children = Array.from(root.childNodes)
+    for (const child of children) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        if (!(child.textContent || "")) {
+          child.remove()
+          continue
+        }
+        const next = child.nextSibling as HTMLElement | null
+        if (
+          next &&
+          next.nodeType === Node.ELEMENT_NODE &&
+          next.tagName === "P" &&
+          !next.textContent &&
+          next.querySelector("br")
+        ) {
+          next.innerHTML = ""
+          next.appendChild(child)
+        } else {
+          const p = document.createElement("p")
+          child.replaceWith(p)
+          p.appendChild(child)
+        }
+      } else if (child.nodeType === Node.ELEMENT_NODE && (child as HTMLElement).tagName === "BR") {
+        const p = document.createElement("p")
+        child.replaceWith(p)
+        p.appendChild(child)
+      }
+    }
+
+    if (savedNode && savedNode.nodeType === Node.TEXT_NODE && root.contains(savedNode) && sel) {
+      const r = document.createRange()
+      r.setStart(savedNode, Math.min(savedOffset, savedNode.textContent?.length ?? 0))
+      r.collapse(true)
+      sel.removeAllRanges()
+      sel.addRange(r)
+    }
+  }, [])
+
+  const sanitizeEditorDom = useCallback(() => {
+    const root = editorRef.current
+    if (!root) return
+
+    const sel = window.getSelection()
+    let savedStartNode: Node | null = null
+    let savedStartOffset = 0
+    let savedEndNode: Node | null = null
+    let savedEndOffset = 0
+    let hadSelectionInside = false
+
+    if (sel && sel.rangeCount > 0) {
+      const r = sel.getRangeAt(0)
+      if (root.contains(r.startContainer)) {
+        hadSelectionInside = true
+        savedStartNode = r.startContainer
+        savedStartOffset = r.startOffset
+        savedEndNode = r.endContainer
+        savedEndOffset = r.endOffset
+      }
+    }
+
+    let modifiedSelectionContainer = false
+
+    const fonts = Array.from(root.querySelectorAll("font"))
+    for (const font of fonts) {
+      const parent = font.parentNode
+      if (!parent) continue
+      if (savedStartNode === font || savedEndNode === font) {
+        modifiedSelectionContainer = true
+      }
+      while (font.firstChild) {
+        parent.insertBefore(font.firstChild, font)
+      }
+      font.remove()
+    }
+
+    const styledEls = Array.from(root.querySelectorAll("[style]")) as HTMLElement[]
+    for (const el of styledEls) {
+      if (
+        el.classList.contains("image-resizer") ||
+        el.classList.contains("link-card-wrapper") ||
+        el.classList.contains("task-embed-wrapper") ||
+        el.tagName === "IMG"
+      ) {
+        continue
+      }
+      if (el.style.color) el.style.removeProperty("color")
+      if (el.style.backgroundColor) el.style.removeProperty("background-color")
+      if (el.style.fontSize) el.style.removeProperty("font-size")
+      if (el.style.fontFamily) el.style.removeProperty("font-family")
+      if (el.style.textTransform) el.style.removeProperty("text-transform")
+      if (el.style.letterSpacing) el.style.removeProperty("letter-spacing")
+      if (el.getAttribute("style")?.trim() === "") {
+        el.removeAttribute("style")
+      }
+      if (
+        el.tagName === "SPAN" &&
+        el.attributes.length === 0 &&
+        el.parentNode
+      ) {
+        if (savedStartNode === el || savedEndNode === el) {
+          modifiedSelectionContainer = true
+        }
+        const parent = el.parentNode
+        while (el.firstChild) {
+          parent.insertBefore(el.firstChild, el)
+        }
+        el.remove()
+      }
+    }
+
+    if (
+      hadSelectionInside &&
+      (fonts.length > 0 || modifiedSelectionContainer) &&
+      sel &&
+      savedStartNode &&
+      savedEndNode &&
+      root.contains(savedStartNode) &&
+      root.contains(savedEndNode)
+    ) {
+      try {
+        const r = document.createRange()
+        r.setStart(savedStartNode, savedStartOffset)
+        r.setEnd(savedEndNode, savedEndOffset)
+        sel.removeAllRanges()
+        sel.addRange(r)
+      } catch {}
+    }
+  }, [])
+
+  const lockCurrentHistoryEntry = useCallback(() => {
+    const stack = editorHistoryRef.current
+    const idx = editorHistoryIndexRef.current
+    if (stack[idx]) {
+      stack[idx].locked = true
+      const sel = saveSelectionBookmark()
+      if (sel) stack[idx].selection = sel
+    }
+  }, [saveSelectionBookmark])
+
+  const recordHistorySnapshot = useCallback(
+    (forceNewEntry = false, isWordBoundary = false) => {
+      if (isRestoringHistoryRef.current || !editorRef.current) return
+      const currentHtml = editorRef.current.innerHTML
+      const currentMd = htmlToMarkdown(currentHtml)
+      const now = Date.now()
+      const selection = saveSelectionBookmark()
+
+      const stack = editorHistoryRef.current
+      const idx = editorHistoryIndexRef.current
+
+      if (stack.length === 0) {
+        editorHistoryRef.current = [
+          {
+            html: currentHtml,
+            markdown: currentMd,
+            selection,
+            timestamp: now,
+            locked: true,
+          },
+        ]
+        editorHistoryIndexRef.current = 0
+        return
+      }
+
+      const top = stack[idx]
+      if (top && top.html === currentHtml) {
+        if (selection) top.selection = selection
+        if (forceNewEntry || isWordBoundary) top.locked = true
+        return
+      }
+
+      const truncated = stack.slice(0, idx + 1)
+      const currentTop = truncated[idx]
+
+      const isSmallContinuousEdit =
+        !forceNewEntry &&
+        currentTop &&
+        !currentTop.locked &&
+        now - currentTop.timestamp < 500 &&
+        Math.abs(currentMd.length - currentTop.markdown.length) <= 4
+
+      if (isSmallContinuousEdit) {
+        truncated[idx] = {
+          html: currentHtml,
+          markdown: currentMd,
+          selection,
+          timestamp: now,
+          locked: isWordBoundary,
+        }
+        editorHistoryRef.current = truncated
+        return
+      }
+
+      truncated.push({
+        html: currentHtml,
+        markdown: currentMd,
+        selection,
+        timestamp: now,
+        locked: forceNewEntry || isWordBoundary,
+      })
+
+      if (truncated.length > 150) {
+        truncated.shift()
+      }
+      editorHistoryRef.current = truncated
+      editorHistoryIndexRef.current = truncated.length - 1
+    },
+    [saveSelectionBookmark],
+  )
+
+  const commitUndoCheckpoint = useCallback(() => {
+    if (isRestoringHistoryRef.current || !editorRef.current) return
+    const currentHtml = editorRef.current.innerHTML
+    const stack = editorHistoryRef.current
+    const idx = editorHistoryIndexRef.current
+    const top = stack[idx]
+    if (!top || top.html !== currentHtml) {
+      recordHistorySnapshot(true)
+    } else {
+      top.locked = true
+      const sel = saveSelectionBookmark()
+      if (sel) top.selection = sel
+    }
+  }, [recordHistorySnapshot, saveSelectionBookmark])
+
+  const editorUndo = useCallback((): boolean => {
+    if (!editorRef.current) return false
+    const currentHtml = editorRef.current.innerHTML
+    const stack = editorHistoryRef.current
+    const idx = editorHistoryIndexRef.current
+    if (stack[idx] && stack[idx].html !== currentHtml) {
+      recordHistorySnapshot(true)
+    }
+
+    if (editorHistoryIndexRef.current <= 0) return false
+
+    const newIdx = editorHistoryIndexRef.current - 1
+    const target = editorHistoryRef.current[newIdx]
+    if (!target) return false
+
+    isRestoringHistoryRef.current = true
+    editorHistoryIndexRef.current = newIdx
+    editorRef.current.innerHTML = target.html || "<p><br></p>"
+    updateEmptyState()
+    restoreSelectionBookmark(target.selection)
+    lastEmittedMarkdownRef.current = target.markdown
+    onChange(target.markdown)
+    isRestoringHistoryRef.current = false
+    return true
+  }, [onChange, recordHistorySnapshot, restoreSelectionBookmark, updateEmptyState])
+
+  const editorRedo = useCallback((): boolean => {
+    if (!editorRef.current) return false
+    const stack = editorHistoryRef.current
+    if (editorHistoryIndexRef.current >= stack.length - 1) return false
+
+    const newIdx = editorHistoryIndexRef.current + 1
+    const target = stack[newIdx]
+    if (!target) return false
+
+    isRestoringHistoryRef.current = true
+    editorHistoryIndexRef.current = newIdx
+    editorRef.current.innerHTML = target.html || "<p><br></p>"
+    updateEmptyState()
+    restoreSelectionBookmark(target.selection)
+    lastEmittedMarkdownRef.current = target.markdown
+    onChange(target.markdown)
+    isRestoringHistoryRef.current = false
+    return true
+  }, [onChange, restoreSelectionBookmark, updateEmptyState])
 
   useEffect(() => {
     if (!editorRef.current) return
@@ -308,6 +793,7 @@ function EditorSurface({
 
   const applyImageWidth = (widthStr: string) => {
     if (!activeImageMenu) return
+    commitUndoCheckpoint()
     const { element } = activeImageMenu
     if (widthStr === "auto" || widthStr === "") {
       element.style.width = ""
@@ -317,12 +803,14 @@ function EditorSurface({
       element.setAttribute("data-width", widthStr)
     }
     syncMarkdown()
+    recordHistorySnapshot(true)
     const rect = element.getBoundingClientRect()
     setActiveImageMenu(prev => prev ? { ...prev, currentWidth: widthStr, rect } : null)
   }
 
   const applyImageAlign = (align: "left" | "center" | "right") => {
     if (!activeImageMenu) return
+    commitUndoCheckpoint()
     const { element } = activeImageMenu
     element.setAttribute("data-align", align)
     if (align === "center") {
@@ -339,23 +827,28 @@ function EditorSurface({
       element.style.marginRight = "auto"
     }
     syncMarkdown()
+    recordHistorySnapshot(true)
     const rect = element.getBoundingClientRect()
     setActiveImageMenu(prev => prev ? { ...prev, align, rect } : null)
   }
 
   const deleteActiveImage = () => {
     if (!activeImageMenu) return
+    commitUndoCheckpoint()
     activeImageMenu.element.remove()
     setActiveImageMenu(null)
     setDragState(null)
+    ensureBlockStructure()
+    updateEmptyState()
     syncMarkdown()
-    handleInput()
+    recordHistorySnapshot(true)
   }
 
   const handleResizeStart = (e: React.PointerEvent, handle: "right" | "bottom-right" | "bottom-left") => {
     if (!activeImageMenu) return
     e.preventDefault()
     e.stopPropagation()
+    commitUndoCheckpoint()
 
     const startX = e.clientX
     const currentRect = activeImageMenu.element.getBoundingClientRect()
@@ -387,7 +880,7 @@ function EditorSurface({
         const finalRect = activeImageMenu.element.getBoundingClientRect()
         setActiveImageMenu(prev => prev ? { ...prev, rect: finalRect, currentWidth: activeImageMenu.element.style.width } : null)
         syncMarkdown()
-        handleInput()
+        recordHistorySnapshot(true)
       }
     }
 
@@ -396,16 +889,47 @@ function EditorSurface({
   }
 
   useEffect(() => {
-    if (!editorRef.current || isFocusedRef.current) return
+    if (!editorRef.current) return
+
+    const normalizedIncoming = (value || "").trim()
+    const normalizedLastEmitted = (lastEmittedMarkdownRef.current || "").trim()
+
+    if (!isFirstRender.current && normalizedIncoming === normalizedLastEmitted) {
+      return
+    }
 
     const currentHtml = editorRef.current.innerHTML
     const targetHtml = markdownToHtml(value)
 
     if (isFirstRender.current || htmlToMarkdown(currentHtml) !== htmlToMarkdown(targetHtml)) {
+      const wasFirst = isFirstRender.current
       editorRef.current.innerHTML = targetHtml || "<p><br></p>"
+      lastEmittedMarkdownRef.current = value || ""
       isFirstRender.current = false
+      updateEmptyState()
+
+      if (wasFirst) {
+        editorHistoryRef.current = [
+          {
+            html: editorRef.current.innerHTML,
+            markdown: value || "",
+            selection: null,
+            timestamp: Date.now(),
+            locked: true,
+          },
+        ]
+        editorHistoryIndexRef.current = 0
+      } else {
+        if (isFocusedRef.current) {
+          placeCaretAtEnd(editorRef.current)
+        }
+        recordHistorySnapshot(true)
+      }
+    } else {
+      lastEmittedMarkdownRef.current = value || ""
+      updateEmptyState()
     }
-  }, [value])
+  }, [value, recordHistorySnapshot, updateEmptyState])
 
   // Handle mobile keyboard dismissal
   useEffect(() => {
@@ -433,23 +957,24 @@ function EditorSurface({
   useEffect(() => {
     if (autoFocus && editorRef.current) {
       editorRef.current.focus()
-      const sel = window.getSelection()
-      const range = document.createRange()
-      range.selectNodeContents(editorRef.current)
-      range.collapse(false)
-      sel?.removeAllRanges()
-      sel?.addRange(range)
+      const target = editorRef.current.lastElementChild || editorRef.current
+      placeCaretAtEnd(target)
     }
   }, [autoFocus])
 
   const syncMarkdown = () => {
     if (editorRef.current) {
-      onChange(htmlToMarkdown(editorRef.current.innerHTML))
+      const md = htmlToMarkdown(editorRef.current.innerHTML)
+      lastEmittedMarkdownRef.current = md
+      onChange(md)
     }
   }
 
   const handleInput = () => {
-    if (!editorRef.current) return
+    if (!editorRef.current || isRestoringHistoryRef.current) return
+
+    ensureBlockStructure()
+    sanitizeEditorDom()
 
     // Run fixups before checking isComposing. On Android Gboard, composition 
     // often stays active even after typing a space. We want these shortcut 
@@ -461,19 +986,48 @@ function EditorSurface({
     else if (fixupListAfterInput()) fixedUp = true
     else if (fixupLinkAfterInput()) fixedUp = true
 
+    updateEmptyState()
+
     if (fixedUp) {
       syncMarkdown()
+      recordHistorySnapshot(true)
       return
     }
 
     if (isComposingRef.current) return
     syncMarkdown()
+
+    const inputType = lastInputTypeRef.current
+    const inputData = lastInputDataRef.current
+    const isDelete = inputType.startsWith("delete")
+    const switchedDeleteMode = isDelete !== lastWasDeleteRef.current
+    lastWasDeleteRef.current = isDelete
+
+    const forceNew =
+      switchedDeleteMode ||
+      inputType === "insertFromPaste" ||
+      inputType === "insertFromDrop" ||
+      inputType === "insertReplacementText" ||
+      inputType === "insertParagraph" ||
+      inputType === "insertLineBreak"
+
+    const isWordBoundary =
+      !isDelete && !!inputData && (inputData.endsWith(" ") || inputData.endsWith("\u00A0"))
+
+    recordHistorySnapshot(forceNew, isWordBoundary)
+    lastInputTypeRef.current = ""
+    lastInputDataRef.current = null
   }
 
   const exec = (command: string, arg?: string) => {
     editorRef.current?.focus()
+    commitUndoCheckpoint()
     document.execCommand(command, false, arg)
+    sanitizeEditorDom()
+    ensureBlockStructure()
+    updateEmptyState()
     syncMarkdown()
+    recordHistorySnapshot(true)
   }
 
   const toggleInlineFormat = (command: "bold" | "italic") => {
@@ -481,6 +1035,7 @@ function EditorSurface({
     const sel = window.getSelection()
     if (!sel || sel.rangeCount === 0) return
 
+    commitUndoCheckpoint()
     const range = sel.getRangeAt(0)
     const block = getCurrentBlock()
     if (block && !range.collapsed) {
@@ -498,14 +1053,63 @@ function EditorSurface({
     }
 
     document.execCommand(command, false)
+    sanitizeEditorDom()
+    updateEmptyState()
     syncMarkdown()
+    recordHistorySnapshot(true)
   }
 
   const toggleBlock = (tag: "h1" | "h2" | "h3" | "p") => {
     editorRef.current?.focus()
-    const current = (document.queryCommandValue("formatBlock") || "").toLowerCase()
-    document.execCommand("formatBlock", false, current.includes(tag) && tag !== "p" ? "p" : tag)
-    handleInput()
+    commitUndoCheckpoint()
+    ensureBlockStructure()
+    let block = getCurrentBlock()
+    if (!block && editorRef.current) {
+      const firstBlock = editorRef.current.querySelector("p, div, h1, h2, h3, li") as HTMLElement | null
+      if (firstBlock) {
+        block = firstBlock
+      } else {
+        const p = document.createElement("p")
+        p.innerHTML = "<br>"
+        editorRef.current.appendChild(p)
+        block = p
+      }
+    }
+    if (!block) return
+
+    const currentTag = block.tagName.toLowerCase()
+    const targetTag = currentTag === tag && tag !== "p" ? "p" : tag
+
+    if (currentTag === "li") {
+      document.execCommand("formatBlock", false, targetTag)
+      const newBlock = getCurrentBlock()
+      if (newBlock && (targetTag === "h1" || targetTag === "h2" || targetTag === "h3")) {
+        newBlock.className = HEADING_CLASSES[targetTag]
+      }
+    } else {
+      const newEl = document.createElement(targetTag)
+      if (targetTag === "h1" || targetTag === "h2" || targetTag === "h3") {
+        newEl.className = HEADING_CLASSES[targetTag]
+      } else {
+        newEl.className = "leading-relaxed text-sm text-foreground/90 mb-3 font-sans"
+      }
+      while (block.firstChild) {
+        newEl.appendChild(block.firstChild)
+      }
+      if (!newEl.textContent && !newEl.querySelector("br")) {
+        newEl.appendChild(document.createElement("br"))
+      }
+      block.replaceWith(newEl)
+      if (!newEl.textContent) {
+        placeCaretAtStart(newEl)
+      } else {
+        placeCaretAtEnd(newEl)
+      }
+    }
+    sanitizeEditorDom()
+    updateEmptyState()
+    syncMarkdown()
+    recordHistorySnapshot(true)
   }
 
   // Capture the editor selection and seed the form. Radix owns the open state
@@ -528,6 +1132,7 @@ function EditorSurface({
     if (!url) return
 
     editorRef.current?.focus()
+    commitUndoCheckpoint()
     const sel = window.getSelection()
     if (savedRange.current && sel) {
       sel.removeAllRanges()
@@ -538,6 +1143,7 @@ function EditorSurface({
     const anchor = `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-semibold">${escapeHtml(text)}</a>`
     document.execCommand("insertHTML", false, anchor)
     handleInput()
+    recordHistorySnapshot(true)
 
     setLinkOpen(false)
     setLinkUrl("")
@@ -549,6 +1155,13 @@ function EditorSurface({
     const sel = window.getSelection()
     if (!sel || sel.rangeCount === 0 || !editorRef.current) return null
     let n: Node | null = sel.getRangeAt(0).startContainer
+    if (n === editorRef.current) {
+      const offset = sel.getRangeAt(0).startOffset
+      const child = editorRef.current.childNodes[offset] || editorRef.current.firstElementChild
+      if (child && child.nodeType === Node.ELEMENT_NODE && /^(P|DIV|H1|H2|H3|LI)$/.test((child as HTMLElement).tagName)) {
+        return child as HTMLElement
+      }
+    }
     while (n && n !== editorRef.current) {
       if (n.nodeType === Node.ELEMENT_NODE && /^(P|DIV|H1|H2|H3|LI)$/.test((n as HTMLElement).tagName)) {
         return n as HTMLElement
@@ -629,24 +1242,38 @@ function EditorSurface({
   ) => {
     removeBlockPrefix(block, markerLength)
 
-    if (!block.textContent && !block.querySelector("br")) {
-      block.appendChild(document.createElement("br"))
+    // If inside a list item, use formatBlock first to break out of the list cleanly
+    if (block.tagName === "LI") {
+      if (!block.textContent && !block.querySelector("br")) {
+        block.appendChild(document.createElement("br"))
+      }
+      placeCaretAtStart(block)
+      document.execCommand("formatBlock", false, tag)
+      sanitizeEditorDom()
+      const newBlock = getCurrentBlock()
+      if (newBlock) {
+        newBlock.className = HEADING_CLASSES[tag]
+        if (!newBlock.textContent && !newBlock.querySelector("br")) {
+          newBlock.appendChild(document.createElement("br"))
+        }
+        placeCaretAtEnd(newBlock)
+      }
+      return
     }
 
-    // Place caret in the block and use the browser's native formatBlock command
-    // This correctly handles breaking out of lists and splitting blocks.
-    placeCaretAtStart(block)
-    document.execCommand("formatBlock", false, tag)
-
-    // The browser replaced the block, find the new one
-    const newBlock = getCurrentBlock()
-    if (newBlock) {
-      newBlock.className = HEADING_CLASSES[tag]
-      // If the heading is completely empty, it needs a <br> to be focusable
-      if (!newBlock.textContent && !newBlock.querySelector("br")) {
-        newBlock.appendChild(document.createElement("br"))
-      }
-      placeCaretAtEnd(newBlock)
+    const heading = document.createElement(tag)
+    heading.className = HEADING_CLASSES[tag]
+    while (block.firstChild) {
+      heading.appendChild(block.firstChild)
+    }
+    if (!heading.textContent && !heading.querySelector("br")) {
+      heading.appendChild(document.createElement("br"))
+    }
+    block.replaceWith(heading)
+    if (!heading.textContent) {
+      placeCaretAtStart(heading)
+    } else {
+      placeCaretAtEnd(heading)
     }
   }
 
@@ -656,10 +1283,10 @@ function EditorSurface({
     tag: "h1" | "h2" | "h3",
     markerLength: number,
   ) => {
+    lockCurrentHistoryEntry()
     let target = block
-    // We unconditionally isolate the line so that if there are line breaks AFTER
-    // the cursor, they don't get pulled into the heading.
-    if (block.querySelector("input.md-task-box") || block.querySelector("br")) {
+    // Isolate the line only if there are actual multi-line breaks or checkboxes
+    if (block.querySelector("input.md-task-box") || hasMeaningfulLineBreak(block)) {
       target = isolateLineToParagraph(block, range)
     }
     convertBlockToHeading(target, tag, markerLength)
@@ -672,14 +1299,14 @@ function EditorSurface({
     const tag = ctx.block.tagName.toLowerCase()
     if (tag === "h1" || tag === "h2" || tag === "h3") return false
 
-    const lineText =
+    const lineText = (
       getLineTextBeforeCursor(ctx.block, ctx.range) +
       getLineTextAfterCursor(ctx.block, ctx.range)
-    const match = lineText.match(/^\/(h[123])\s/i)
+    ).replace(/\u00A0/g, " ")
+    const match = parseHeadingShortcut(lineText, true)
     if (!match) return false
 
-    const headingTag = match[1].toLowerCase() as "h1" | "h2" | "h3"
-    applyHeadingShortcut(ctx.block, ctx.range, headingTag, match[1].length + 2)
+    applyHeadingShortcut(ctx.block, ctx.range, match.tag, match.markerLength)
     return true
   }
 
@@ -709,8 +1336,9 @@ function EditorSurface({
     const match = lineText.match(/^(\[\]|\[ \])\s(.*)$/)
     if (!match) return false
 
+    lockCurrentHistoryEntry()
     let target = ctx.block
-    if (ctx.block.querySelector("br")) {
+    if (hasMeaningfulLineBreak(ctx.block)) {
       target = isolateLineToParagraph(ctx.block, ctx.range)
     }
 
@@ -729,9 +1357,10 @@ function EditorSurface({
 
     const ulMatch = lineText.match(/^([*\-•])\s+(.*)$/)
     if (ulMatch) {
+      lockCurrentHistoryEntry()
       const prefixLen = ulMatch[1].length + 1
       let target = ctx.block
-      if (ctx.block.querySelector("br")) {
+      if (hasMeaningfulLineBreak(ctx.block)) {
         target = isolateLineToParagraph(ctx.block, ctx.range)
       }
       removeBlockPrefix(target, prefixLen)
@@ -745,9 +1374,10 @@ function EditorSurface({
 
     const olMatch = lineText.match(/^(\d+[\.\)])\s+(.*)$/)
     if (olMatch) {
+      lockCurrentHistoryEntry()
       const prefixLen = olMatch[1].length + 1
       let target = ctx.block
-      if (ctx.block.querySelector("br")) {
+      if (hasMeaningfulLineBreak(ctx.block)) {
         target = isolateLineToParagraph(ctx.block, ctx.range)
       }
       removeBlockPrefix(target, prefixLen)
@@ -782,6 +1412,8 @@ function EditorSurface({
           return false
         }
 
+        commitUndoCheckpoint()
+
         const deleteRange = document.createRange()
         if (startAnchor && startAnchor.textContent?.trim() === token) {
           deleteRange.selectNode(startAnchor)
@@ -794,15 +1426,6 @@ function EditorSurface({
         const sel = window.getSelection()
         if (sel) {
           const caret = document.createRange()
-          // If we deleted the anchor, startPos.node might be detached.
-          // But since we just inserted the URL placeholder, we can just let handleUrlPaste
-          // put the cursor in the right place, or place it at the end of the block for now.
-          // Actually, if we deleted the anchor, we can't use startPos.node.
-          // Let's rely on the browser's selection which is usually right before the space, 
-          // or we can just fall back to the block.
-          // Since handleUrlPaste uses document.execCommand("insertHTML"), it will insert at the current cursor!
-          // So we need to make sure the cursor is where we deleted.
-          // When we deleteContents(), the range collapses to the deletion point!
           caret.setStart(deleteRange.startContainer, deleteRange.startOffset)
           caret.collapse(true)
           sel.removeAllRanges()
@@ -828,9 +1451,10 @@ function EditorSurface({
 
     const match = lineText.match(/^---\s+(.*)$/)
     if (match) {
+      lockCurrentHistoryEntry()
       const prefixLen = 4 // "--- "
       let target = ctx.block
-      if (ctx.block.querySelector("br")) {
+      if (hasMeaningfulLineBreak(ctx.block)) {
         target = isolateLineToParagraph(ctx.block, ctx.range)
       }
       
@@ -874,6 +1498,8 @@ function EditorSurface({
           return false
         }
 
+        lockCurrentHistoryEntry()
+
         const deleteRange = document.createRange()
         if (startAnchor && startAnchor.textContent?.trim() === token) {
           deleteRange.selectNode(startAnchor)
@@ -905,7 +1531,7 @@ function EditorSurface({
     const ctx = getCursorTextContext()
     if (!ctx) return false
 
-    const { block, range, textBefore, textAfter } = ctx
+    const { block, range, textBefore } = ctx
 
     const tokenMatch = textBefore.match(/(\S+)$/)
     const anchor = getEnclosingAnchor(range.startContainer)
@@ -920,6 +1546,8 @@ function EditorSurface({
         if (startAnchor && startAnchor.getAttribute("contenteditable") === "false") {
           return false
         }
+
+        commitUndoCheckpoint()
 
         const deleteRange = document.createRange()
         if (startAnchor && startAnchor.textContent?.trim() === token) {
@@ -944,50 +1572,60 @@ function EditorSurface({
       }
     }
 
-    const lineBefore = getLineTextBeforeCursor(block, range)
+    const lineBefore = getLineTextBeforeCursor(block, range).replace(/\u00A0/g, " ")
     const lineAfter = getLineTextAfterCursor(block, range)
 
-    const slash = lineBefore.match(/^\/(h[123]|task)$/i)
-    if (slash) {
-      const command = slash[1].toLowerCase()
-      if (command.startsWith("h")) {
-        applyHeadingShortcut(block, range, command as "h1" | "h2" | "h3", lineBefore.length)
-        syncMarkdown()
-        return true
-      } else if (command === "task") {
-        let target = block
-        if (block.querySelector("input.md-task-box") || block.querySelector("br")) {
-          target = isolateLineToParagraph(block, range)
-        }
-        removeBlockPrefix(target, lineBefore.length)
-        
-        const taskId = crypto.randomUUID()
-        const placeholderHtml = `&#8203;<div class="task-embed-wrapper block my-2" data-task-id="${taskId}" contenteditable="false"></div>&#8203;`
-        
-        placeCaretAtStart(target)
-        document.execCommand("insertHTML", false, placeholderHtml)
-        
-        if (window.dispatchEvent) {
-          window.dispatchEvent(new CustomEvent("inline-task-create", { detail: { id: taskId, title: "New task" } }))
-        }
-        syncMarkdown()
-        return true
+    const headingShortcut = parseHeadingShortcut(lineBefore, false)
+    if (headingShortcut) {
+      commitUndoCheckpoint()
+      applyHeadingShortcut(block, range, headingShortcut.tag, headingShortcut.markerLength)
+      updateEmptyState()
+      syncMarkdown()
+      recordHistorySnapshot(true)
+      return true
+    }
+
+    const taskSlash = lineBefore.match(/^(\/task|task\/)$/i)
+    if (taskSlash) {
+      commitUndoCheckpoint()
+      let target = block
+      if (block.querySelector("input.md-task-box") || hasMeaningfulLineBreak(block)) {
+        target = isolateLineToParagraph(block, range)
       }
+      removeBlockPrefix(target, lineBefore.length)
+      
+      const taskId = crypto.randomUUID()
+      const placeholderHtml = `&#8203;<div class="task-embed-wrapper block my-2" data-task-id="${taskId}" contenteditable="false"></div>&#8203;`
+      
+      placeCaretAtStart(target)
+      document.execCommand("insertHTML", false, placeholderHtml)
+      
+      if (window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent("inline-task-create", { detail: { id: taskId, title: "New task" } }))
+      }
+      updateEmptyState()
+      syncMarkdown()
+      recordHistorySnapshot(true)
+      return true
     }
 
     if (lineBefore === "[]" || lineBefore === "[ ]") {
+      commitUndoCheckpoint()
       let target = block
-      if (block.querySelector("input.md-task-box") || block.querySelector("br")) {
+      if (block.querySelector("input.md-task-box") || hasMeaningfulLineBreak(block)) {
         target = isolateLineToParagraph(block, range)
       }
       convertBlockToCheckbox(target, lineBefore.length, lineAfter)
+      updateEmptyState()
       syncMarkdown()
+      recordHistorySnapshot(true)
       return true
     }
 
     if (lineBefore === "*" || lineBefore === "-" || lineBefore === "•") {
+      commitUndoCheckpoint()
       let target = block
-      if (block.querySelector("input.md-task-box") || block.querySelector("br")) {
+      if (block.querySelector("input.md-task-box") || hasMeaningfulLineBreak(block)) {
         target = isolateLineToParagraph(block, range)
       }
       removeBlockPrefix(target, lineBefore.length)
@@ -996,13 +1634,16 @@ function EditorSurface({
       }
       placeCaretAtStart(target)
       document.execCommand("insertUnorderedList", false)
+      updateEmptyState()
       syncMarkdown()
+      recordHistorySnapshot(true)
       return true
     }
 
     if (lineBefore === "---") {
+      commitUndoCheckpoint()
       let target = block
-      if (block.querySelector("input.md-task-box") || block.querySelector("br")) {
+      if (block.querySelector("input.md-task-box") || hasMeaningfulLineBreak(block)) {
         target = isolateLineToParagraph(block, range)
       }
       
@@ -1015,7 +1656,9 @@ function EditorSurface({
         target.appendChild(document.createElement("br"))
       }
       placeCaretAtStart(target)
+      updateEmptyState()
       syncMarkdown()
+      recordHistorySnapshot(true)
       return true
     }
 
@@ -1047,8 +1690,25 @@ function EditorSurface({
     const sel = window.getSelection()
     if (!sel) return
     const r = document.createRange()
-    r.selectNodeContents(el)
-    r.collapse(false)
+    // If the element only has a placeholder <br>, place caret BEFORE the <br>, not after it
+    if (
+      el.nodeType === Node.ELEMENT_NODE &&
+      (el as HTMLElement).childNodes.length === 1 &&
+      (el as HTMLElement).firstChild?.nodeName === "BR"
+    ) {
+      r.setStart(el, 0)
+      r.collapse(true)
+    } else if (
+      el.nodeType === Node.ELEMENT_NODE &&
+      (el as HTMLElement).lastChild?.nodeName === "BR" &&
+      !(el as HTMLElement).textContent
+    ) {
+      r.setStart(el, 0)
+      r.collapse(true)
+    } else {
+      r.selectNodeContents(el)
+      r.collapse(false)
+    }
     sel.removeAllRanges()
     sel.addRange(r)
   }
@@ -1066,6 +1726,23 @@ function EditorSurface({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Handle Editor-level Undo / Redo before parent window listeners intercept it
+    if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+      const key = e.key.toLowerCase()
+      if (key === "z" && !e.shiftKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        editorUndo()
+        return
+      }
+      if (key === "y" || (key === "z" && e.shiftKey)) {
+        e.preventDefault()
+        e.stopPropagation()
+        editorRedo()
+        return
+      }
+    }
+
     if (e.key === "Backspace") {
       const sel = window.getSelection()
       const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null
@@ -1077,13 +1754,19 @@ function EditorSurface({
           const lineText = getLineTextBeforeCursor(block, range).replace(/\u00A0/g, "")
           if (lineText === "") {
             e.preventDefault()
+            commitUndoCheckpoint()
             checkbox.remove()
             if (block.firstChild && block.firstChild.nodeType === Node.TEXT_NODE) {
               block.firstChild.textContent = block.firstChild.textContent?.replace(/^[\s\u00A0]+/, "") || ""
             }
             block.classList.remove("md-task")
             if (block.className === "") block.removeAttribute("class")
+            if (!block.textContent && !block.querySelector("br")) {
+              block.appendChild(document.createElement("br"))
+            }
+            updateEmptyState()
             syncMarkdown()
+            recordHistorySnapshot(true)
             return
           }
         }
@@ -1097,6 +1780,7 @@ function EditorSurface({
       // Ctrl/Cmd+Enter -> soft line break within the current paragraph.
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault()
+        commitUndoCheckpoint()
         document.execCommand("insertLineBreak")
         handleInput()
         return
@@ -1107,46 +1791,100 @@ function EditorSurface({
       const block = getCurrentBlock()
 
       if (block && range) {
-        const lineBefore = getLineTextBeforeCursor(block, range)
-        const slash = lineBefore.match(/^\/(h[123]|task)$/i)
-        if (slash) {
+        const lineBefore = getLineTextBeforeCursor(block, range).replace(/\u00A0/g, " ")
+        const headingShortcut = parseHeadingShortcut(lineBefore, false)
+        if (headingShortcut && /^(\/?h[123]\/?)$/i.test(lineBefore.trim())) {
           e.preventDefault()
-          const command = slash[1].toLowerCase()
-          if (command.startsWith("h")) {
-            applyHeadingShortcut(
-              block,
-              range,
-              command as "h1" | "h2" | "h3",
-              lineBefore.length
-            )
-          } else if (command === "task") {
-            let target = block
-            if (block.querySelector("input.md-task-box") || block.querySelector("br")) {
-              target = isolateLineToParagraph(block, range)
-            }
-            removeBlockPrefix(target, lineBefore.length)
-            
-            const taskId = crypto.randomUUID()
-            const placeholderHtml = `&#8203;<div class="task-embed-wrapper block my-2" data-task-id="${taskId}" contenteditable="false"></div>&#8203;`
-            
-            placeCaretAtStart(target)
-            document.execCommand("insertHTML", false, placeholderHtml)
-            
-            // Insert a new empty line after the task
-            const p = document.createElement("p")
-            p.innerHTML = "<br>"
-            if (target.nextSibling) {
-              target.parentNode?.insertBefore(p, target.nextSibling)
-            } else {
-              target.parentNode?.appendChild(p)
-            }
-            placeCaretAtStart(p)
-
-            if (window.dispatchEvent) {
-              window.dispatchEvent(new CustomEvent("inline-task-create", { detail: { id: taskId, title: "New task" } }))
-            }
-          }
+          commitUndoCheckpoint()
+          applyHeadingShortcut(block, range, headingShortcut.tag, headingShortcut.markerLength)
+          updateEmptyState()
           syncMarkdown()
+          recordHistorySnapshot(true)
+          return
+        }
+
+        const taskSlash = lineBefore.match(/^(\/task|task\/)$/i)
+        if (taskSlash) {
+          e.preventDefault()
+          commitUndoCheckpoint()
+          let target = block
+          if (block.querySelector("input.md-task-box") || hasMeaningfulLineBreak(block)) {
+            target = isolateLineToParagraph(block, range)
+          }
+          removeBlockPrefix(target, lineBefore.length)
+          
+          const taskId = crypto.randomUUID()
+          const placeholderHtml = `&#8203;<div class="task-embed-wrapper block my-2" data-task-id="${taskId}" contenteditable="false"></div>&#8203;`
+          
+          placeCaretAtStart(target)
+          document.execCommand("insertHTML", false, placeholderHtml)
+          
+          // Insert a new empty line after the task
+          const p = document.createElement("p")
+          p.innerHTML = "<br>"
+          if (target.nextSibling) {
+            target.parentNode?.insertBefore(p, target.nextSibling)
+          } else {
+            target.parentNode?.appendChild(p)
+          }
+          placeCaretAtStart(p)
+
+          if (window.dispatchEvent) {
+            window.dispatchEvent(new CustomEvent("inline-task-create", { detail: { id: taskId, title: "New task" } }))
+          }
+          updateEmptyState()
+          syncMarkdown()
+          recordHistorySnapshot(true)
+          return
+        }
+
+        // Explicitly handle Enter inside a heading (H1, H2, H3) to prevent Chromium
+        // from injecting <font color="oklch(...)"> tags on the new line!
+        if (/^H[1-3]$/.test(block.tagName)) {
+          e.preventDefault()
+          commitUndoCheckpoint()
+
+          if (!range.collapsed) {
+            range.deleteContents()
+          }
+
+          const headingText = (block.textContent || "").replace(/\u200B/g, "").trim()
+          if (!headingText) {
+            // Pressing Enter on an empty heading converts it back to a plain paragraph
+            const p = document.createElement("p")
+            p.appendChild(document.createElement("br"))
+            block.replaceWith(p)
+            placeCaretAtStart(p)
+          } else {
+            // Extract content after cursor into a clean <p> without inline styles or <font> tags
+            const afterRange = document.createRange()
+            afterRange.setStart(range.endContainer, range.endOffset)
+            afterRange.setEnd(block, block.childNodes.length)
+            const trailingFrag = afterRange.extractContents()
+
+            if (!(block.textContent || "").trim() && !block.querySelector("br")) {
+              block.appendChild(document.createElement("br"))
+            }
+
+            const p = document.createElement("p")
+            const hasTrailingContent =
+              (trailingFrag.textContent || "").length > 0 ||
+              Boolean(trailingFrag.querySelector?.("img, a, input, .task-embed-wrapper"))
+
+            if (hasTrailingContent) {
+              p.appendChild(trailingFrag)
+            } else {
+              p.appendChild(document.createElement("br"))
+            }
+
+            block.after(p)
+            placeCaretAtStart(p)
+          }
+
+          sanitizeEditorDom()
+          updateEmptyState()
+          syncMarkdown()
+          recordHistorySnapshot(true)
           return
         }
       }
@@ -1156,13 +1894,17 @@ function EditorSurface({
       if (block && block.querySelector("input.md-task-box") && range) {
         if (isCursorAfterLineBreak(block, range)) {
           e.preventDefault()
+          commitUndoCheckpoint()
           const paragraph = isolateLineToParagraph(block, range)
           placeCaretAtStart(paragraph)
+          updateEmptyState()
           syncMarkdown()
+          recordHistorySnapshot(true)
           return
         }
 
         e.preventDefault()
+        commitUndoCheckpoint()
         const lineText = getLineTextBeforeCursor(block, range).replace(/\u00A0/g, "").trim()
         if (lineText === "") {
           const p = document.createElement("p")
@@ -1174,10 +1916,13 @@ function EditorSurface({
           block.after(next)
           placeCaretAtEnd(next)
         }
+        updateEmptyState()
         syncMarkdown()
+        recordHistorySnapshot(true)
         return
       }
-      // Otherwise let the browser create a new paragraph block.
+      // Otherwise let the browser create a new paragraph block, but lock undo state before line break
+      commitUndoCheckpoint()
       return
     }
 
@@ -1199,12 +1944,16 @@ function EditorSurface({
       const block = getCurrentBlock()
       if (block && block.tagName.toLowerCase() === "li") {
         e.preventDefault()
+        commitUndoCheckpoint()
         if (e.shiftKey) {
           document.execCommand("outdent", false)
         } else {
           document.execCommand("indent", false)
         }
+        sanitizeEditorDom()
+        updateEmptyState()
         syncMarkdown()
+        recordHistorySnapshot(true)
       }
       return
     }
@@ -1216,6 +1965,8 @@ function EditorSurface({
 
   const handleBeforeInput = (e: React.FormEvent<HTMLDivElement>) => {
     const inputEvent = e.nativeEvent as InputEvent
+    lastInputTypeRef.current = inputEvent.inputType || ""
+    lastInputDataRef.current = inputEvent.data ?? null
     
     // Support Android keyboard paste suggestions which arrive as insertText / insertFromPaste / insertReplacementText
     if (
@@ -1226,12 +1977,14 @@ function EditorSurface({
     ) {
       if (URL_TOKEN_RE.test(inputEvent.data.trim())) {
         e.preventDefault()
+        commitUndoCheckpoint()
         handleUrlPaste(inputEvent.data.trim())
         return
       }
     }
 
     if (inputEvent.inputType === "insertLineBreak" || inputEvent.inputType === "insertParagraph") {
+      commitUndoCheckpoint()
       applyEnterShortcuts()
       return
     }
@@ -1246,6 +1999,7 @@ function EditorSurface({
     const target = e.target as HTMLElement
 
     if (target === editorRef.current) {
+      ensureBlockStructure()
       const lastChild = editorRef.current.lastElementChild;
       if (lastChild) {
         const rect = lastChild.getBoundingClientRect();
@@ -1257,6 +2011,7 @@ function EditorSurface({
             p.innerHTML = "<br>";
             editorRef.current.appendChild(p);
             placeCaretAtStart(p);
+            updateEmptyState();
             syncMarkdown();
           }
           return;
@@ -1265,6 +2020,7 @@ function EditorSurface({
     }
 
     if (target instanceof HTMLInputElement && target.classList.contains("md-task-box")) {
+      commitUndoCheckpoint()
       // The native click already toggled `checked`; mirror it onto the
       // attribute so innerHTML serialization (and the markdown) stays in sync.
       if (target.checked) {
@@ -1273,6 +2029,7 @@ function EditorSurface({
         target.removeAttribute("checked")
       }
       handleInput()
+      recordHistorySnapshot(true)
       return
     }
 
@@ -1391,11 +2148,14 @@ function EditorSurface({
   }
 
   const handleUrlPaste = async (url: string, addSpace = false) => {
+    commitUndoCheckpoint()
     const id = Math.random().toString(36).substring(2, 9)
     const spaceHtml = addSpace ? "&nbsp;" : ""
     const placeholderHtml = `<a href="${url}" id="preview-${id}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-semibold" contenteditable="false">[Fetching preview for ${url}...]</a>${spaceHtml}`
     document.execCommand("insertHTML", false, placeholderHtml)
+    updateEmptyState()
     syncMarkdown()
+    recordHistorySnapshot(true)
 
     try {
       const res = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`)
@@ -1423,7 +2183,18 @@ function EditorSurface({
           const cardMd = `[card:${title}|${domain}|${finalImageUrl}](${url})`
           const cardHtml = markdownToHtml(cardMd).replace(/^<p[^>]*>/, "").replace(/<\/p>$/, "")
           el.outerHTML = cardHtml
+          updateEmptyState()
           syncMarkdown()
+          // Replace the top history snapshot if it was the "[Fetching preview...]" placeholder
+          const top = editorHistoryRef.current[editorHistoryIndexRef.current]
+          if (top && top.html.includes(`id="preview-${id}"`)) {
+            top.html = editorRef.current.innerHTML
+            top.selection = saveSelectionBookmark()
+            top.timestamp = Date.now()
+            top.locked = true
+          } else {
+            recordHistorySnapshot(true)
+          }
         }
       }
     } catch (e) {
@@ -1432,7 +2203,17 @@ function EditorSurface({
         const el = editorRef.current.querySelector(`#preview-${id}`)
         if (el) {
           el.outerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-semibold">${url}</a>`
+          updateEmptyState()
           syncMarkdown()
+          const top = editorHistoryRef.current[editorHistoryIndexRef.current]
+          if (top && top.html.includes(`id="preview-${id}"`)) {
+            top.html = editorRef.current.innerHTML
+            top.selection = saveSelectionBookmark()
+            top.timestamp = Date.now()
+            top.locked = true
+          } else {
+            recordHistorySnapshot(true)
+          }
         }
       }
     }
@@ -1451,6 +2232,9 @@ function EditorSurface({
 
     e.preventDefault()
     const text = e.clipboardData.getData("text/plain")
+    if (!text) return
+
+    commitUndoCheckpoint()
 
     if (URL_TOKEN_RE.test(text.trim())) {
       handleUrlPaste(text.trim())
@@ -1471,14 +2255,17 @@ function EditorSurface({
     }
 
     document.execCommand("insertHTML", false, htmlToInsert)
+    sanitizeEditorDom()
+    ensureBlockStructure()
+    updateEmptyState()
+    syncMarkdown()
+    recordHistorySnapshot(true)
   }
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"))
     if (files.length > 0) {
       e.preventDefault()
-      // Optional: focus where the image was dropped, but it's hard to get exact caret reliably.
-      // Usually the caret moves to drop location automatically on native drop if we don't preventDefault too early.
       handleImageFiles(files)
     }
   }
@@ -1488,11 +2275,13 @@ function EditorSurface({
   const handleImageFiles = async (files: File[]) => {
     if (!editorRef.current) return
     editorRef.current.focus()
+    commitUndoCheckpoint()
 
     for (const file of files) {
       const placeholderId = Math.random().toString(36).substring(7)
       const placeholderText = `![Uploading_${placeholderId}...]()`
       document.execCommand("insertText", false, placeholderText)
+      updateEmptyState()
       syncMarkdown()
 
       try {
@@ -1503,7 +2292,9 @@ function EditorSurface({
           const updatedMarkdown = markdown.replace(placeholderText, `![${file.name}](${url})`)
           const newHtml = markdownToHtml(updatedMarkdown)
           editorRef.current.innerHTML = newHtml || "<p><br></p>"
+          updateEmptyState()
           syncMarkdown()
+          recordHistorySnapshot(true)
         }
       } catch (error: any) {
         toast.error("Failed to upload image")
@@ -1513,7 +2304,9 @@ function EditorSurface({
           const updatedMarkdown = markdown.replace(placeholderText, `![Upload_Failed:_${error.message.replace(/\s+/g, "_")}]()`)
           const newHtml = markdownToHtml(updatedMarkdown)
           editorRef.current.innerHTML = newHtml || "<p><br></p>"
+          updateEmptyState()
           syncMarkdown()
+          recordHistorySnapshot(true)
         }
       }
     }
@@ -1652,12 +2445,26 @@ function EditorSurface({
           }
           isFocusedRef.current = true
           setIsFocused(true)
+          ensureBlockStructure()
+          updateEmptyState()
+          // If the editor is empty and the selection landed on the root or after <br>, normalize it into the first block before <br>
+          const el = editorRef.current
+          if (el && el.getAttribute("data-empty") === "true" && el.firstElementChild) {
+            const sel = window.getSelection()
+            if (sel && sel.rangeCount > 0) {
+              const r = sel.getRangeAt(0)
+              if (r.startContainer === el || (r.startContainer === el.firstElementChild && r.startOffset > 0)) {
+                placeCaretAtStart(el.firstElementChild)
+              }
+            }
+          }
           if (isMobile) {
             document.documentElement.style.setProperty("--keyboard-toolbar-height", "48px")
           }
         }}
         onBlur={() => {
           isFocusedRef.current = false
+          updateEmptyState()
           syncMarkdown()
           handleInput()
           // Delay hiding toolbar so toolbar button taps don't cause a flash
@@ -1739,9 +2546,12 @@ function EditorSurface({
                 <div className="flex justify-end gap-2 pt-1">
                   <button type="button" onClick={() => setEditingLink(null)} className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">Cancel</button>
                   <button type="button" onClick={() => {
+                    commitUndoCheckpoint();
                     activeLinkMenu.element.textContent = editingLink.text || editingLink.url;
                     activeLinkMenu.element.setAttribute("href", editingLink.url);
+                    updateEmptyState();
                     syncMarkdown();
+                    recordHistorySnapshot(true);
                     setActiveLinkMenu(null);
                     setEditingLink(null);
                   }} className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">Save</button>
@@ -1753,8 +2563,11 @@ function EditorSurface({
                   type="button"
                   className="flex items-center gap-2 rounded-sm px-2 py-3 md:py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer"
                   onClick={() => {
+                    commitUndoCheckpoint();
                     activeLinkMenu.element.outerHTML = `<a href="${activeLinkMenu.url}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-semibold">${activeLinkMenu.url}</a>`;
+                    updateEmptyState();
                     syncMarkdown();
+                    recordHistorySnapshot(true);
                     setActiveLinkMenu(null);
                   }}
                 >
@@ -1764,8 +2577,12 @@ function EditorSurface({
                   type="button"
                   className="flex items-center gap-2 rounded-sm px-2 py-3 md:py-1.5 text-sm outline-none transition-colors hover:bg-destructive/10 text-destructive cursor-pointer"
                   onClick={() => {
+                    commitUndoCheckpoint();
                     activeLinkMenu.element.remove();
+                    ensureBlockStructure();
+                    updateEmptyState();
                     syncMarkdown();
+                    recordHistorySnapshot(true);
                     setActiveLinkMenu(null);
                   }}
                 >
@@ -1797,8 +2614,12 @@ function EditorSurface({
                   type="button"
                   className="flex items-center gap-2 rounded-sm px-2 py-3 md:py-1.5 text-sm outline-none transition-colors hover:bg-destructive/10 text-destructive cursor-pointer"
                   onClick={() => {
+                    commitUndoCheckpoint();
                     activeLinkMenu.element.remove();
+                    ensureBlockStructure();
+                    updateEmptyState();
                     syncMarkdown();
+                    recordHistorySnapshot(true);
                     setActiveLinkMenu(null);
                   }}
                 >

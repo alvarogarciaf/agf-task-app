@@ -246,8 +246,28 @@ export function useObjectDraft({
     const truncated = stack.slice(0, currentIndex + 1)
     const snapshot = JSON.parse(JSON.stringify(newDraft))
 
-    // If continuously typing text within 800ms, update the top entry
-    if (isTypingText && currentIndex > 0 && now - lastHistoryTimestampRef.current < 800) {
+    const prevEntry = truncated[currentIndex]
+    const prevBaseEntry = currentIndex > 0 ? truncated[currentIndex - 1] : null
+
+    // Detect if this change is a large jump (e.g. paste) or a word/line boundary
+    let shouldCoalesce = false
+    if (isTypingText && currentIndex > 0 && now - lastHistoryTimestampRef.current < 800 && prevEntry) {
+      const detailsDelta = Math.abs((newDraft.details || "").length - (prevEntry.details || "").length)
+      const descDelta = Math.abs((newDraft.description || "").length - (prevEntry.description || "").length)
+      const totalDeltaFromBase = prevBaseEntry
+        ? Math.abs((newDraft.details || "").length - (prevBaseEntry.details || "").length) +
+          Math.abs((newDraft.description || "").length - (prevBaseEntry.description || "").length)
+        : 0
+      const endsWithBoundary =
+        /[\s\n]$/.test(newDraft.description || "") && !/[\s\n]$/.test(prevEntry.description || "")
+
+      // Only coalesce single/small character edits within a word (< 25 chars from checkpoint)
+      if (detailsDelta <= 4 && descDelta <= 4 && totalDeltaFromBase < 25 && !endsWithBoundary) {
+        shouldCoalesce = true
+      }
+    }
+
+    if (shouldCoalesce) {
       truncated[currentIndex] = snapshot
       historyRef.current = truncated
       lastHistoryTimestampRef.current = now
@@ -324,18 +344,25 @@ export function useObjectDraft({
       }
       
       // We are opening a genuinely different task — full reset.
-      loadedTaskIdRef.current = fullPlain.id
-      prevDetailsRef.current = fullPlain.details
-      prevDescriptionRef.current = fullPlain.description
-      lastSavedSnapshotRef.current = toPlain(fullPlain)
+      const normalizedInitial = {
+        ...fullPlain,
+        description:
+          fullPlain.description === "New note" || fullPlain.description === "New task"
+            ? ""
+            : fullPlain.description,
+      }
+      loadedTaskIdRef.current = normalizedInitial.id
+      prevDetailsRef.current = normalizedInitial.details
+      prevDescriptionRef.current = normalizedInitial.description
+      lastSavedSnapshotRef.current = toPlain(normalizedInitial)
 
       // Initialize history stack with initial state
-      historyRef.current = [JSON.parse(JSON.stringify(fullPlain))]
+      historyRef.current = [JSON.parse(JSON.stringify(normalizedInitial))]
       historyIndexRef.current = 0
       setCanUndo(false)
       setCanRedo(false)
 
-      return fullPlain
+      return normalizedInitial
     })
 
     setAutoProcess(() => {
@@ -640,8 +667,15 @@ export function ObjectEditFields({
       if (selection) {
         const range = document.createRange()
         const targetNode = el.lastElementChild || el
-        range.selectNodeContents(targetNode)
-        range.collapse(false)
+        const isEmptyBlockWithBr =
+          targetNode.childNodes.length === 1 && targetNode.firstChild?.nodeName === "BR"
+        if (isEmptyBlockWithBr || !(targetNode.textContent || "").trim()) {
+          range.setStart(targetNode, 0)
+          range.collapse(true)
+        } else {
+          range.selectNodeContents(targetNode)
+          range.collapse(false)
+        }
         selection.removeAllRanges()
         selection.addRange(range)
       }

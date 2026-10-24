@@ -210,6 +210,9 @@ export function TaskDetailDialog({
   useEffect(() => {
     if (!open) return
     function handleKeyDown(e: KeyboardEvent) {
+      if (e.defaultPrevented) return
+      const target = e.target as HTMLElement | null
+      if (target?.closest?.(".rich-editor")) return
       if (!(e.metaKey || e.ctrlKey)) return
       if (e.key.toLowerCase() === "z") {
         if (e.shiftKey) {

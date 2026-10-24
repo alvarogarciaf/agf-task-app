@@ -129,6 +129,9 @@ export function ObjectFullScreenView({
   // Keyboard shortcut listener for Undo (Ctrl+Z / Cmd+Z) and Redo (Ctrl+Shift+Z / Cmd+Shift+Z / Ctrl+Y)
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      if (e.defaultPrevented) return
+      const target = e.target as HTMLElement | null
+      if (target?.closest?.(".rich-editor")) return
       if (!(e.metaKey || e.ctrlKey)) return
       if (e.key.toLowerCase() === "z") {
         if (e.shiftKey) {

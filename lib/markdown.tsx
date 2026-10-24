@@ -138,15 +138,18 @@ export function markdownToHtml(md: string): string {
 
     if (trimmed === "#" || trimmed.startsWith("# ")) {
       flushList();
-      html += `<h1 class="text-lg font-bold text-foreground mt-3 mb-1.5 font-sans border-b border-border/10 pb-0.5">${parseInline(trimmed === "#" ? "" : trimmed.substring(2))}</h1>`;
+      const content = parseInline(trimmed === "#" ? "" : trimmed.substring(2));
+      html += `<h1 class="text-lg font-bold text-foreground mt-3 mb-1.5 font-sans border-b border-border/10 pb-0.5">${content || "<br>"}</h1>`;
       i++;
     } else if (trimmed === "##" || trimmed.startsWith("## ")) {
       flushList();
-      html += `<h2 class="text-base font-semibold text-foreground mt-3 mb-1.5 font-sans">${parseInline(trimmed === "##" ? "" : trimmed.substring(3))}</h2>`;
+      const content = parseInline(trimmed === "##" ? "" : trimmed.substring(3));
+      html += `<h2 class="text-base font-semibold text-foreground mt-3 mb-1.5 font-sans">${content || "<br>"}</h2>`;
       i++;
     } else if (trimmed === "###" || trimmed.startsWith("### ")) {
       flushList();
-      html += `<h3 class="text-sm font-semibold text-foreground mt-2 mb-1 font-sans uppercase tracking-wider text-muted-foreground">${parseInline(trimmed === "###" ? "" : trimmed.substring(4))}</h3>`;
+      const content = parseInline(trimmed === "###" ? "" : trimmed.substring(4));
+      html += `<h3 class="text-sm font-semibold text-foreground mt-2 mb-1 font-sans uppercase tracking-wider text-muted-foreground">${content || "<br>"}</h3>`;
       i++;
     } else if (taskMatch) {
       flushList();
@@ -158,7 +161,8 @@ export function markdownToHtml(md: string): string {
         html += '<ul class="list-disc pl-5 mb-3 space-y-1 text-foreground/90 font-sans text-sm">';
         inList = true;
       }
-      html += `<li class="leading-relaxed text-sm">${parseInline(trimmed.substring(2))}</li>`;
+      const content = parseInline(trimmed.substring(2));
+      html += `<li class="leading-relaxed text-sm">${content || "<br>"}</li>`;
       i++;
     } else if (trimmed === "---") {
       flushList();
