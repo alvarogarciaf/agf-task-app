@@ -296,34 +296,47 @@ function ItemModal({
             />
             {showSuggestions && closedMatches.length > 0 && (
               <div className="absolute top-[100%] left-0 w-full z-50 mt-1 rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 max-h-48 overflow-y-auto overflow-x-hidden">
-                {closedMatches.map(item => (
-                   <button
-                     key={item.id}
-                     type="button"
-                     className="w-full flex flex-col text-left px-3 py-2 text-sm hover:bg-muted"
-                     onClick={() => {
-                        setDesc(item.description)
-                        setDetails(item.details || "")
-                        if (item.category_id) {
-                           setSelectedCatId(item.category_id)
-                           setNewCatName("")
-                        } else if (item.category) {
-                           setSelectedCatId(null)
-                           setNewCatName(item.category)
-                        } else {
-                           setSelectedCatId(null)
-                           setNewCatName("")
-                        }
-                        setExistingItemId(item.id)
-                        setShowSuggestions(false)
-                     }}
-                   >
-                     <span className="font-medium truncate block">{item.description}</span>
-                     {item.category && (
-                       <span className="text-xs text-muted-foreground truncate block mt-0.5">Category: {item.category}</span>
-                     )}
-                   </button>
-                ))}
+                {closedMatches.map(item => {
+                   const selectClosedItem = () => {
+                     setDesc(item.description)
+                     setDetails(item.details || "")
+                     if (item.category_id) {
+                       setSelectedCatId(item.category_id)
+                       setNewCatName("")
+                     } else if (item.category) {
+                       setSelectedCatId(null)
+                       setNewCatName(item.category)
+                     } else {
+                       setSelectedCatId(null)
+                       setNewCatName("")
+                     }
+                     setExistingItemId(item.id)
+                     setShowSuggestions(false)
+                   }
+                   return (
+                     <button
+                       key={item.id}
+                       type="button"
+                       className="w-full flex flex-col text-left px-3 py-2 text-sm hover:bg-muted cursor-pointer"
+                       onPointerDown={(e) => {
+                         // Prevent the input from blurring and select immediately on primary pointer/mouse/tap down
+                         if (e.pointerType !== "touch" && e.button === 0) {
+                           e.preventDefault()
+                           selectClosedItem()
+                         }
+                       }}
+                       onMouseDown={(e) => {
+                         e.preventDefault()
+                       }}
+                       onClick={selectClosedItem}
+                     >
+                       <span className="font-medium truncate block">{item.description}</span>
+                       {item.category && (
+                         <span className="text-xs text-muted-foreground truncate block mt-0.5">Category: {item.category}</span>
+                       )}
+                     </button>
+                   )
+                })}
               </div>
             )}
           </div>
