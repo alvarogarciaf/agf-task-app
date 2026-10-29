@@ -64,6 +64,7 @@ interface AppSidebarProps {
   onDeleteSavedView?: (id: string) => void
   onReorderSavedViews?: (views: SavedView[]) => void
   onReorderContexts?: (activeId: string, overId: string) => void
+  onReorderProjects?: (activeId: string, overId: string) => void
   inboxCount: number
   totalCount: number
   todayCount: number
@@ -95,6 +96,7 @@ export function AppSidebar({
   onDeleteSavedView,
   onReorderSavedViews,
   onReorderContexts,
+  onReorderProjects,
   inboxCount,
   totalCount,
   todayCount,
@@ -141,7 +143,10 @@ export function AppSidebar({
       label: "Projects", 
       icon: FolderKanban, 
       shortcut: "P",
-      subItems: projects.filter(p => p.status !== "Closed").map(p => ({ id: p.id, name: p.name, color: p.color ?? undefined, iconKey: p.icon ?? undefined })) 
+      subItems: [...projects]
+        .filter(p => p.status !== "Closed")
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        .map(p => ({ id: p.id, name: p.name, color: p.color ?? undefined, iconKey: p.icon ?? undefined })) 
     },
     { 
       key: "persons", 
@@ -258,6 +263,7 @@ export function AppSidebar({
                 else if (item.key === "projects") onChange("projects", undefined, undefined, undefined, { initialProjectId: subId })
                 else onChange(item.key, undefined, undefined, subId)
               }}
+              onReorderSubItems={item.key === "projects" ? onReorderProjects : undefined}
             />
           ))}
         </NavGroup>

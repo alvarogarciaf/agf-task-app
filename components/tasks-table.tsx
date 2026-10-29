@@ -1377,12 +1377,15 @@ function InlineCellEditor({ task, column, projects, persons, contexts, tags, urg
       return <InlineTextEditor value={task.details ?? ""} {...shared} />
     case "project":
       return <InlineSelectEditor
-        options={projects.map((p) => ({
-          id: p.id,
-          label: p.name,
-          icon: p.icon ?? "Layers",
-          color: p.color ?? undefined,
-        }))}
+        options={[...projects]
+          .filter((p) => p.status !== "Closed" || p.id === task.project_id)
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+          .map((p) => ({
+            id: p.id,
+            label: p.name,
+            icon: p.icon ?? "Layers",
+            color: p.color ?? undefined,
+          }))}
         currentId={task.project_id ?? null}
         allowClear
         {...shared}

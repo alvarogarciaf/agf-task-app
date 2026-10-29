@@ -255,7 +255,10 @@ export function HomeView({
               icon={<FolderKanban className="h-3.5 w-3.5" />}
               label="Project"
               placeholder="Project"
-              options={projects.filter((p) => p.status !== "Closed").map((p) => ({ id: p.id, label: p.name }))}
+              options={[...projects]
+                .filter((p) => p.status !== "Closed")
+                .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                .map((p) => ({ id: p.id, label: p.name }))}
               selectedIds={projectId ? [projectId] : []}
               onToggle={(id) => setProjectId((prev) => (prev === id ? null : id))}
               onSubmit={submit}

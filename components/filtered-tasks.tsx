@@ -448,7 +448,7 @@ export function FilteredTasks({
       groups[pid].push(t)
     })
 
-    // Sort projects alphabetically, with "none" at the end
+    // Sort projects by user's custom project order, with "none" at the end
     return Object.entries(groups)
       .map(([pid, tasks]) => ({
         id: pid,
@@ -458,6 +458,11 @@ export function FilteredTasks({
       .sort((a, b) => {
         if (a.id === "none") return 1
         if (b.id === "none") return -1
+        const projA = projects.find((p) => p.id === a.id)
+        const projB = projects.find((p) => p.id === b.id)
+        const orderA = projA?.order ?? 0
+        const orderB = projB?.order ?? 0
+        if (orderA !== orderB) return orderA - orderB
         return a.name.localeCompare(b.name)
       })
   }, [filtered, isGroupedByProject, contextIds, projects])
@@ -865,8 +870,9 @@ export function FilteredTasks({
                     ? `${projectIds.length} selected`
                     : (projectIds.length === 1 ? projects.find((p) => p.id === projectIds[0])?.name : undefined)
                 }
-                options={projects
+                options={[...projects]
                   .filter((p) => p.status !== "Closed" || projectIds.includes(p.id))
+                  .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                   .map((p) => ({ id: p.id, label: p.name, color: p.color ?? undefined, icon: p.icon ?? "Layers" }))}
                 selectedIds={projectIds}
                 onSelect={(id) => setProjectIds((prev) =>
@@ -1402,8 +1408,9 @@ export function FilteredTasks({
                   Project
                 </label>
                 <FormMultiSelect
-                  options={projects
+                  options={[...projects]
                     .filter((p) => p.status !== "Closed" || projectIds.includes(p.id))
+                    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                     .map((p) => ({ id: p.id, label: p.name, color: p.color ?? undefined, icon: p.icon ?? "Layers" }))}
                   selectedIds={projectIds}
                   onChange={setProjectIds}

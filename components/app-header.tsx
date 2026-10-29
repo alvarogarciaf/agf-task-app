@@ -168,12 +168,14 @@ export function AppHeader({
 
     // 1. Filter Projects (shown first / on top)
     if (searchScope === "projects" || searchScope === "all") {
-      const matchingProjects = (projects || []).filter((p) => {
-        if (!includeClosed && p.status === "Closed") return false
-        const name = p.name?.toLowerCase() || ""
-        const det = p.details?.toLowerCase() || ""
-        return name.includes(q) || det.includes(q)
-      })
+      const matchingProjects = [...(projects || [])]
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        .filter((p) => {
+          if (!includeClosed && p.status === "Closed") return false
+          const name = p.name?.toLowerCase() || ""
+          const det = p.details?.toLowerCase() || ""
+          return name.includes(q) || det.includes(q)
+        })
       matchingProjects.forEach((p) => results.push({ kind: "project", data: p }))
     }
 

@@ -43,6 +43,7 @@ interface MobileSelectorProps {
   onAddContext?: (name: string) => void
   onAddTag?: (name: string) => void
   onReorderContexts?: (activeId: string, overId: string) => void
+  onReorderProjects?: (activeId: string, overId: string) => void
   contexts: Context[]
   projects: Project[]
   tags: Tag[]
@@ -111,16 +112,22 @@ export function MobileSelector({
   onAddContext,
   onAddTag,
   onReorderContexts,
+  onReorderProjects,
   contexts,
   projects,
   tags,
   savedViews,
 }: MobileSelectorProps) {
   const [optimisticContexts, setOptimisticContexts] = useState(contexts)
+  const [optimisticProjects, setOptimisticProjects] = useState(projects)
 
   useEffect(() => {
     setOptimisticContexts(contexts)
   }, [contexts])
+
+  useEffect(() => {
+    setOptimisticProjects(projects)
+  }, [projects])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -203,7 +210,9 @@ export function MobileSelector({
     }
 
     if (type === "projects") {
-      const activeProjects = projects.filter(p => p.status !== "Closed")
+      const activeProjects = [...optimisticProjects]
+        .filter(p => p.status !== "Closed")
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
       if (activeProjects.length === 0) return <div className="p-8 text-center text-muted-foreground italic text-sm">No projects found</div>
       return (
         <div className="flex flex-col">

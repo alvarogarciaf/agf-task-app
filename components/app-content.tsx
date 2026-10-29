@@ -126,7 +126,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
   const [inboxTasks, setInboxTasks] = useState<Task[]>(() => getCachedData("inboxTasks", []))
   const [activeTasks, setActiveTasks] = useState<Task[]>(() => getCachedData("activeTasks", []))
   const [notes, setNotes] = useState<Task[]>(() => getCachedData("notes", []))
-  const [projects, setProjects] = useState<Project[]>(() => getCachedData("projects", []))
+  const [projects, setProjects] = useState<Project[]>(() =>
+    [...getCachedData<Project[]>("projects", [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  )
   usePreloadProjectImages(projects)
   const [persons, setPersons] = useState<Person[]>(() => getCachedData("persons", []))
   const [contexts, setContexts] = useState<Context[]>(() =>
@@ -248,7 +250,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         }
       ),
       db.projects.find().$.subscribe(docs => {
-        const data = docs.map(d => d.toJSON())
+        const data = docs
+          .map(d => d.toJSON())
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
         setProjects(data)
         setCachedData("projects", data)
       }),
@@ -578,6 +582,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       return;
     }
     
+    const maxOrder = projects.reduce((max, proj) => Math.max(max, proj.order ?? -1), -1)
     await db.projects.insert({
       id: crypto.randomUUID(),
       name: p.name,
@@ -589,7 +594,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       color: p.color ?? null,
       background_image: p.background_image ?? null,
       order_dependent: p.order_dependent ?? false,
-      order: p.order ?? 0,
+      order: p.order ?? maxOrder + 1,
     })
   }
 
@@ -636,6 +641,10 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       const newItems = Array.from(sortedProjects)
       const [moved] = newItems.splice(oldIndex, 1)
       newItems.splice(newIndex, 0, moved)
+
+      const reordered = newItems.map((item, index) => ({ ...item, order: index }))
+      setProjects(reordered)
+      setCachedData("projects", reordered)
 
       try {
         const updates = newItems.map((item, index) => {
@@ -2154,6 +2163,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         persons={persons}
         onReorderSavedViews={handleReorderSavedViews}
         onReorderContexts={handleReorderContexts}
+        onReorderProjects={handleReorderProjects}
         user={user}
         onSignOut={onSignOut}
         showUserMenu={!isMobile}
@@ -2384,6 +2394,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
                 tags={tags}
                 savedViews={savedViews}
                 onReorderContexts={handleReorderContexts}
+                onReorderProjects={handleReorderProjects}
                 onSelectContext={(id) => { handleNavigate("all"); setInitialContextId(id) }}
                 onSelectProject={(id) => { 
                   handleNavigate("projects", undefined, undefined, undefined, { initialProjectId: id })

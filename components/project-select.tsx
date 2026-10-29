@@ -115,9 +115,11 @@ export function ProjectSelect({
 
   const filtered = useMemo(
     () =>
-      projects.filter((p) =>
-        p.name.toLowerCase().includes(query.trim().toLowerCase()),
-      ),
+      [...projects]
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        .filter((p) =>
+          p.name.toLowerCase().includes(query.trim().toLowerCase()),
+        ),
     [projects, query],
   )
 
@@ -158,6 +160,8 @@ export function ProjectSelect({
       } else if (db) {
         try {
           const newId = crypto.randomUUID()
+          const allProjDocs = await db.projects.find().exec()
+          const maxOrder = allProjDocs.reduce((max, d) => Math.max(max, d.get("order") ?? -1), -1)
           await db.projects.insert({
             id: newId,
             name: trimmedName,
@@ -166,6 +170,7 @@ export function ProjectSelect({
             icon: "Folder",
             status: "Ongoing",
             linked_person_id: null,
+            order: maxOrder + 1,
           })
           onChange(newId)
         } catch (err) {
