@@ -135,7 +135,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     [...getCachedData<Context[]>("contexts", [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   )
   const [tags, setTags] = useState<Tag[]>(() => getCachedData("tags", []))
-  const [urgencies, setUrgencies] = useState<UrgencyLevel[]>(() => getCachedData("urgencies", []))
+  const [urgencies, setUrgencies] = useState<UrgencyLevel[]>(() =>
+    [...getCachedData<UrgencyLevel[]>("urgencies", [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  )
   const [savedViews, setSavedViews] = useState<SavedView[]>(() => getCachedData("savedViews", []))
   const [editingView, setEditingView] = useState<SavedView | null>(null)
   const [activeSettingsTab, setActiveSettingsTab] = useState<TabKey>(() => {
@@ -274,7 +276,9 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         setCachedData("tags", data)
       }),
       db.urgencies.find().$.subscribe(docs => {
-        const data = docs.map(d => d.toJSON())
+        const data = docs
+          .map(d => d.toJSON())
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
         setUrgencies(data)
         setCachedData("urgencies", data)
       }),

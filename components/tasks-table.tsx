@@ -1399,7 +1399,9 @@ function InlineCellEditor({ task, column, projects, persons, contexts, tags, urg
       />
     case "urgency":
       return <InlineSelectEditor
-        options={urgencies.map((u) => ({ id: u.id, label: u.name, color: u.color }))}
+        options={[...urgencies]
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+          .map((u) => ({ id: u.id, label: u.name, color: u.color }))}
         currentId={task.urgency_id ?? null}
         {...shared}
       />

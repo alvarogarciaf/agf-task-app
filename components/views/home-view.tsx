@@ -288,7 +288,9 @@ export function HomeView({
               icon={<Zap className="h-3.5 w-3.5" />}
               label="Urgency"
               placeholder="Urgency"
-              options={urgencies.map((u) => ({ id: u.id, label: u.name, color: u.color }))}
+              options={[...urgencies]
+                .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                .map((u) => ({ id: u.id, label: u.name, color: u.color }))}
               selectedIds={urgencyId ? [urgencyId] : []}
               onToggle={(id) => setUrgencyId((prev) => (prev === id ? null : id))}
               onSubmit={submit}
