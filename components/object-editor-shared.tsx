@@ -772,8 +772,8 @@ export function ObjectEditFields({
       </div>
 
       {!isNote && (
-        <div className="grid grid-cols-2 gap-4">
-          <div>
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-1 min-w-[180px]">
             <Label icon={<Calendar className="h-3.5 w-3.5" />}>Show on</Label>
             <FormDateField
               value={draft.show_on}
@@ -781,7 +781,7 @@ export function ObjectEditFields({
             />
           </div>
 
-          <div>
+          <div className="flex-1 min-w-[180px]">
             <Label icon={<Calendar className="h-3.5 w-3.5" />}>Action date</Label>
             <FormDateField
               value={draft.action_date}

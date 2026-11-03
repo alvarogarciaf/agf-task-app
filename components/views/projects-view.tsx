@@ -1886,7 +1886,7 @@ function ProjectDetail({
       )}
 
       {tab === "tasks" && (
-        <div className={cn("mt-2", !isPreviewPanel && "md:mt-4 h-auto md:h-[500px]")}>
+        <div className={cn("mt-2", !isPreviewPanel && "md:mt-4 h-auto md:min-h-[500px]")}>
           <FilteredTasks
             tasks={projTasks}
             projects={projects}
@@ -1914,7 +1914,7 @@ function ProjectDetail({
       )}
 
       {tab === "notes" && (
-        <div className={cn("mt-2", !isPreviewPanel && "md:mt-4 h-auto md:h-[500px]")}>
+        <div className={cn("mt-2", !isPreviewPanel && "md:mt-4 h-auto md:min-h-[500px]")}>
           <FilteredTasks
             tasks={projNotes}
             projects={projects}

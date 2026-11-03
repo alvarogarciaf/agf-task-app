@@ -236,8 +236,15 @@ export function AppHeader({
     const openNotesAs = typeof window !== "undefined"
       ? (localStorage.getItem("open_notes_as") as "popup" | "fullscreen") || "popup"
       : "popup"
+    const openTasksAs = typeof window !== "undefined"
+      ? (localStorage.getItem("open_tasks_as") as "popup" | "fullscreen" | "sidebar") || "popup"
+      : "popup"
 
-    if (task.type === "note" && openNotesAs === "fullscreen" && onExpandFullScreen) {
+    const shouldOpenFullScreen = task.type === "note"
+      ? openNotesAs === "fullscreen"
+      : openTasksAs === "fullscreen"
+
+    if (shouldOpenFullScreen && onExpandFullScreen) {
       onExpandFullScreen(task.id, isMobile ? "edit" : "view")
     } else {
       setActiveTask(task)

@@ -292,6 +292,7 @@ export function SettingsView({
 
             <div className="space-y-6">
               <OpenNotesAsSetting />
+              <OpenTasksAsSetting />
               <TodaySectionSetting />
               <DefaultFilterMatchModeSetting />
             </div>
@@ -1019,6 +1020,7 @@ function OpenNotesAsSetting() {
   const handleChange = (next: "popup" | "fullscreen") => {
     setValue(next)
     localStorage.setItem("open_notes_as", next)
+    window.dispatchEvent(new Event("open-notes-as-changed"))
   }
 
   return (
@@ -1075,6 +1077,104 @@ function OpenNotesAsSetting() {
             <div className="text-sm font-medium">Full Screen</div>
             <p className="text-xs text-muted-foreground mt-0.5">
               Notes automatically open in the full-screen editor view.
+            </p>
+          </div>
+        </label>
+      </div>
+    </div>
+  )
+}
+
+function OpenTasksAsSetting() {
+  const [value, setValue] = useState<"popup" | "fullscreen" | "sidebar">(() => {
+    if (typeof window === "undefined") return "popup"
+    return (localStorage.getItem("open_tasks_as") as "popup" | "fullscreen" | "sidebar") || "popup"
+  })
+
+  const handleChange = (next: "popup" | "fullscreen" | "sidebar") => {
+    setValue(next)
+    localStorage.setItem("open_tasks_as", next)
+    window.dispatchEvent(new Event("open-tasks-as-changed"))
+  }
+
+  return (
+    <div className="rounded-lg border border-border p-5">
+      <div className="mb-4">
+        <h4 className="text-sm font-medium">Open Task as</h4>
+        <p className="text-xs text-muted-foreground mt-1">
+          Choose how tasks open when you click on them.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+        <label
+          className={cn(
+            "flex flex-1 cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors",
+            value === "popup"
+              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+              : "border-border hover:border-primary/40",
+          )}
+        >
+          <input
+            type="radio"
+            name="open_tasks_as"
+            value="popup"
+            checked={value === "popup"}
+            onChange={() => handleChange("popup")}
+            className="mt-0.5 accent-primary"
+          />
+          <div>
+            <div className="text-sm font-medium">Popup</div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Tasks open as a modal dialog. Click the expand button to go full screen.
+            </p>
+          </div>
+        </label>
+
+        <label
+          className={cn(
+            "flex flex-1 cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors",
+            value === "fullscreen"
+              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+              : "border-border hover:border-primary/40",
+          )}
+        >
+          <input
+            type="radio"
+            name="open_tasks_as"
+            value="fullscreen"
+            checked={value === "fullscreen"}
+            onChange={() => handleChange("fullscreen")}
+            className="mt-0.5 accent-primary"
+          />
+          <div>
+            <div className="text-sm font-medium">Full Screen</div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Tasks automatically open in the full-screen editor view.
+            </p>
+          </div>
+        </label>
+
+        <label
+          className={cn(
+            "flex flex-1 cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors",
+            value === "sidebar"
+              ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+              : "border-border hover:border-primary/40",
+          )}
+        >
+          <input
+            type="radio"
+            name="open_tasks_as"
+            value="sidebar"
+            checked={value === "sidebar"}
+            onChange={() => handleChange("sidebar")}
+            className="mt-0.5 accent-primary"
+          />
+          <div>
+            <div className="text-sm font-medium">Sidebar</div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Tasks open in a resizable side panel to the right of the tasks list (desktop only).
             </p>
           </div>
         </label>

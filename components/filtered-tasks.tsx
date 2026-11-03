@@ -1,16 +1,17 @@
 "use client"
 
-import { useMemo, useState, useEffect } from "react"
+import { useMemo, useState, useEffect, useRef, useCallback } from "react"
 import { useRegisterTabAdd } from "@/components/tab-toolbar-context"
 import { useIsTabActive } from "@/components/tab-portal-context"
-import { CalendarClock, Filter, X, Check, LayoutList, Columns3, Plus, RotateCcw, Star, MoreHorizontal, ChevronDown, Calendar as CalendarIcon } from "lucide-react"
+import { CalendarClock, Filter, X, Check, LayoutList, Columns3, Plus, RotateCcw, Star, MoreHorizontal, ChevronDown, Calendar as CalendarIcon, GripVertical } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { TasksTable, TASK_COLUMNS, COLUMN_MAP } from "@/components/tasks-table"
 import type { TaskColumnKey } from "@/components/tasks-table"
 import { useTableColumns } from "@/hooks/use-table-columns"
-import { useIsMobile } from "@/hooks/use-mobile"
+import { useIsMobile, MobileOverrideProvider } from "@/hooks/use-mobile"
+import { TaskDetailDialog } from "@/components/task-detail-dialog"
 import { FormMultiSelect } from "@/components/form-multi-select"
 import { DropdownListItem } from "@/components/ui/dropdown-list-item"
 import { ProjectSelect } from "@/components/project-select"
@@ -471,13 +472,116 @@ export function FilteredTasks({
     setPrevTasksLength(tasks.length)
   }, [tasks])
 
+  const [openTasksAs, setOpenTasksAs] = useState<"popup" | "fullscreen" | "sidebar">(() => {
+    if (typeof window === "undefined") return "popup"
+    return (localStorage.getItem("open_tasks_as") as "popup" | "fullscreen" | "sidebar") || "popup"
+  })
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const syncOpenTasksAs = () => {
+      setOpenTasksAs((localStorage.getItem("open_tasks_as") as "popup" | "fullscreen" | "sidebar") || "popup")
+    }
+    window.addEventListener("open-tasks-as-changed", syncOpenTasksAs)
+    window.addEventListener("storage", syncOpenTasksAs)
+    return () => {
+      window.removeEventListener("open-tasks-as-changed", syncOpenTasksAs)
+      window.removeEventListener("storage", syncOpenTasksAs)
+    }
+  }, [])
+
+  const [sidebarTaskId, setSidebarTaskId] = useState<string | null>(null)
+  const [sidebarTaskFallback, setSidebarTaskFallback] = useState<Task | null>(null)
+  const [sidebarIsCreating, setSidebarIsCreating] = useState(false)
+  const [sidebarDetailMode, setSidebarDetailMode] = useState<"view" | "edit">(inboxMode ? "edit" : "view")
+
+  const splitContainerRef = useRef<HTMLDivElement | null>(null)
+  const leftPaneRef = useRef<HTMLDivElement | null>(null)
+  const sidebarPanelRef = useRef<HTMLElement | null>(null)
+  const [leftPaneMeasuredWidth, setLeftPaneMeasuredWidth] = useState<number>(1200)
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = Number(localStorage.getItem("velocity:task-sidebar:width"))
+      if (!Number.isNaN(saved) && saved >= 340 && saved <= 1200) return saved
+    }
+    return 520
+  })
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false)
+
+  const canUseTaskSidebar = !notesMode && !isMobile && openTasksAs === "sidebar"
+  const foundSidebarTask = sidebarTaskId ? tasks.find((t) => t.id === sidebarTaskId) ?? null : null
+  const activeSidebarTask = foundSidebarTask ?? sidebarTaskFallback
+  const showTaskSidebar = canUseTaskSidebar && activeSidebarTask !== null
+
+  useEffect(() => {
+    const el = leftPaneRef.current
+    if (!el || typeof ResizeObserver === "undefined") return
+    setLeftPaneMeasuredWidth(el.getBoundingClientRect().width)
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setLeftPaneMeasuredWidth(entry.contentRect.width)
+      }
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [showTaskSidebar])
+
+  const isLeftPaneNarrow = showTaskSidebar && leftPaneMeasuredWidth < 768
+  const isLeftPaneMobile = isMobile || isLeftPaneNarrow
+
+  const startResizeSidebar = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsResizingSidebar(true)
+    const startX = e.clientX
+    const startWidth = sidebarPanelRef.current?.getBoundingClientRect().width ?? sidebarWidth
+
+    const onMouseMove = (moveEvt: MouseEvent) => {
+      const delta = startX - moveEvt.clientX
+      const containerWidth = splitContainerRef.current?.getBoundingClientRect().width ?? window.innerWidth
+      const maxWidth = Math.max(360, Math.min(1150, Math.floor(containerWidth - 260)))
+      const nextWidth = Math.max(340, Math.min(maxWidth, Math.round(startWidth + delta)))
+      setSidebarWidth(nextWidth)
+    }
+
+    const onMouseUp = () => {
+      setIsResizingSidebar(false)
+      document.removeEventListener("mousemove", onMouseMove)
+      document.removeEventListener("mouseup", onMouseUp)
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+    }
+
+    document.body.style.cursor = "col-resize"
+    document.body.style.userSelect = "none"
+    document.addEventListener("mousemove", onMouseMove)
+    document.addEventListener("mouseup", onMouseUp)
+  }, [sidebarWidth])
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("velocity:task-sidebar:width", String(sidebarWidth))
+    }
+  }, [sidebarWidth])
+
+  const handleOpenSidebarTask = useCallback((task: Task, mode: "view" | "edit", creating = false) => {
+    setSidebarDetailMode(mode)
+    setSidebarTaskId(task.id)
+    setSidebarTaskFallback(task)
+    setSidebarIsCreating(creating)
+  }, [])
+
   const handleAddNewTask = async (overriddenProjectId?: string | null) => {
     if (!onCreate) return
     const openNotesAs = typeof window !== "undefined"
       ? (localStorage.getItem("open_notes_as") as "popup" | "fullscreen") || "popup"
       : "popup"
+    const openTasksAsNow = typeof window !== "undefined"
+      ? (localStorage.getItem("open_tasks_as") as "popup" | "fullscreen" | "sidebar") || "popup"
+      : "popup"
 
-    const willOpenFullScreen = notesMode && openNotesAs === "fullscreen"
+    const willOpenFullScreen = notesMode
+      ? openNotesAs === "fullscreen"
+      : openTasksAsNow === "fullscreen"
 
     const id = await onCreate({
       description: notesMode ? "New note" : "New task",
@@ -748,23 +852,35 @@ export function FilteredTasks({
   }
 
   return (
-    <div key={`${initialContextId}-${initialContextIds?.join(",")}-${initialTagId}-${initialTagIds?.join(",")}-${initialProjectId}-${initialPersonId}-${initialShowStatus}-${initialIsGroupedByProject}-${initialShowHiddenByShowOn}-${initialFilterMode}-${initialSortKey}-${initialSortDirection}`} className={cn(
-      "flex flex-col min-w-0 w-full overflow-hidden",
-      isMobile ? "bg-transparent" : "bg-transparent md:bg-card",
-      fullWidthOnMobile 
-        ? (isMobile ? "border-0 rounded-none" : "border-0 rounded-none md:rounded-lg md:border md:border-border")
-        : "rounded-lg border border-border"
-    )}>
+    <div
+      key={`${initialContextId}-${initialContextIds?.join(",")}-${initialTagId}-${initialTagIds?.join(",")}-${initialProjectId}-${initialPersonId}-${initialShowStatus}-${initialIsGroupedByProject}-${initialShowHiddenByShowOn}-${initialFilterMode}-${initialSortKey}-${initialSortDirection}`}
+      ref={splitContainerRef}
+      className={cn(
+        "w-full min-w-0",
+        showTaskSidebar && "flex items-start gap-0",
+      )}
+    >
+      <div
+        ref={leftPaneRef}
+        className={cn(
+          "flex flex-col min-w-0 overflow-hidden",
+          showTaskSidebar ? "flex-1" : "w-full",
+          isLeftPaneMobile ? "bg-transparent" : "bg-transparent md:bg-card",
+          fullWidthOnMobile 
+            ? (isLeftPaneMobile ? "border-0 rounded-none" : "border-0 rounded-none md:rounded-lg md:border md:border-border")
+            : "rounded-lg border border-border"
+        )}
+      >
       {/* Filter bar */}
       {!hideFilterBar && (
         <div className={cn(
           "flex items-center border-b border-border bg-muted/20 p-2 gap-2",
-          !isMobile && "md:flex-wrap",
-          fullWidthOnMobile && (isMobile ? "border-0 bg-transparent px-0 pt-1 pb-2" : "border-0 bg-transparent px-0 pt-1 pb-2 md:border-b md:bg-muted/20 md:p-2")
+          !isLeftPaneMobile && "md:flex-wrap",
+          fullWidthOnMobile && (isLeftPaneMobile ? "border-0 bg-transparent px-0 pt-1 pb-2" : "border-0 bg-transparent px-0 pt-1 pb-2 md:border-b md:bg-muted/20 md:p-2")
         )}>
           
           {/* Scrollable left side: Mobile filter icon and active chips */}
-          <div className={cn(isMobile ? "flex" : "flex md:hidden", "flex-1 min-w-0 items-center gap-2 overflow-x-auto no-scrollbar")}>
+          <div className={cn(isLeftPaneMobile ? "flex" : "flex md:hidden", "flex-1 min-w-0 items-center gap-2 overflow-x-auto no-scrollbar")}>
             <button
               onClick={() => setMobileFiltersOpen(true)}
               className={cn(
@@ -786,7 +902,7 @@ export function FilteredTasks({
           </div>
 
           {/* Desktop Filter Bar (hidden on mobile, flex on desktop) */}
-          <div className={cn(isMobile ? "hidden" : "hidden md:flex", "flex-wrap items-center gap-2")}>
+          <div className={cn(isLeftPaneMobile ? "hidden" : "hidden md:flex", "flex-wrap items-center gap-2")}>
             <div
               className={cn(
                 "flex items-center gap-1.5 px-1 font-mono text-xs uppercase tracking-wider",
@@ -929,7 +1045,7 @@ export function FilteredTasks({
             </span>
 
             {/* Desktop-only individual toggle buttons */}
-            <div className={cn(isMobile ? "hidden" : "hidden md:flex", "items-center gap-2")}>
+            <div className={cn(isLeftPaneMobile ? "hidden" : "hidden md:flex", "items-center gap-2")}>
               {!projectId && !hideFilters.includes("project") && (
                 <button
                   type="button"
@@ -957,7 +1073,7 @@ export function FilteredTasks({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className={cn(toolbarBtnBase, toolbarBtnRest, isMobile ? "hidden" : "hidden md:inline-flex", "px-2.5 py-1 text-xs font-medium")}
+                  className={cn(toolbarBtnBase, toolbarBtnRest, isLeftPaneMobile ? "hidden" : "hidden md:inline-flex", "px-2.5 py-1 text-xs font-medium")}
                 >
                   <Columns3 className="h-3.5 w-3.5" />
                   <span className="hidden lg:inline">Columns</span>
@@ -1027,7 +1143,7 @@ export function FilteredTasks({
             )}
 
             {/* Mobile Three-dots Menu */}
-            <div className={cn(isMobile ? "block" : "md:hidden")}>
+            <div className={cn(isLeftPaneMobile ? "block" : "md:hidden")}>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button type="button" className={cn(toolbarBtnBase, toolbarBtnRest, "h-8 w-8 justify-center")}>
@@ -1099,7 +1215,7 @@ export function FilteredTasks({
               </DropdownMenu>
             </div>
 
-            {hasFilter && !isMobile && (
+            {hasFilter && !isLeftPaneMobile && (
               <button
                 type="button"
                 onClick={() => {
@@ -1155,100 +1271,186 @@ export function FilteredTasks({
         </div>
       )}
 
-      <div className="min-h-0 min-w-0 w-full overflow-y-visible md:overflow-y-auto max-h-none md:max-h-[calc(100vh-180px)]">
-        {groupedByProject ? (
-          <div className="flex flex-col gap-8 p-0">
-            {groupedByProject.map((group) => (
-              <div key={group.id} className="flex flex-col gap-2">
-                <div className="sticky top-0 z-20 flex items-center justify-between bg-background/95 md:bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 md:supports-[backdrop-filter]:bg-card/75 py-2.5 px-4">
-                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                    {group.name}
-                    <span className="ml-2 font-mono text-xs uppercase tracking-wider text-muted-foreground font-normal">
-                      {group.tasks.length} {group.tasks.length === 1 ? itemNoun : `${itemNoun}s`}
-                    </span>
-                  </h3>
-                  {onCreate && (
-                    <button
-                      type="button"
-                      onClick={() => handleAddNewTask(group.id === "none" ? null : group.id)}
-                      className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
-                    >
-                      <Plus className="mr-1 h-3.5 w-3.5" />
-                      Add to project
-                    </button>
-                  )}
+      <MobileOverrideProvider value={isLeftPaneMobile}>
+        <div className="min-h-0 min-w-0 w-full overflow-y-visible md:overflow-y-auto max-h-none md:max-h-[calc(100vh-180px)]">
+          {groupedByProject ? (
+            <div className="flex flex-col gap-8 p-0">
+              {groupedByProject.map((group) => (
+                <div key={group.id} className="flex flex-col gap-2">
+                  <div className="sticky top-0 z-20 flex items-center justify-between bg-background/95 md:bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 md:supports-[backdrop-filter]:bg-card/75 py-2.5 px-4">
+                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                      {group.name}
+                      <span className="ml-2 font-mono text-xs uppercase tracking-wider text-muted-foreground font-normal">
+                        {group.tasks.length} {group.tasks.length === 1 ? itemNoun : `${itemNoun}s`}
+                      </span>
+                    </h3>
+                    {onCreate && (
+                      <button
+                        type="button"
+                        onClick={() => handleAddNewTask(group.id === "none" ? null : group.id)}
+                        className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                      >
+                        <Plus className="mr-1 h-3.5 w-3.5" />
+                        Add to project
+                      </button>
+                    )}
+                  </div>
+                  <TasksTable
+                    tasks={group.tasks}
+                    projects={projects}
+                    persons={persons}
+                    contexts={contexts}
+                    tags={tags}
+                    urgencies={urgencies}
+                    notesMode={notesMode}
+                    onToggleProcessed={onToggleProcessed}
+                    onUpdate={onUpdate}
+                    onArchiveTask={onArchiveTask}
+                    onDeleteTask={onDeleteTask}
+                    hideColumns={hiddenCols}
+                    columnState={columnState}
+                    emptyTitle={tableEmptyTitle}
+                    emptyHint={tableEmptyHint}
+                    itemNoun={itemNoun}
+                    inboxMode={inboxMode}
+                    onCreate={onCreate ? () => handleAddNewTask(group.id === "none" ? null : group.id) : undefined}
+                    onToggleStatus={onToggleStatus}
+                    autoFocusTaskId={autoFocusTaskId}
+                    onAutoFocusComplete={() => setAutoFocusTaskId(null)}
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    selectedIds={selectedIds}
+                    onToggleSelection={handleToggleSelection}
+                    onToggleAll={handleToggleAllSelection}
+                    onBulkDelete={handleBulkDelete}
+                    onReorderTasks={handleReorderTasks}
+                    hideToolbar
+                    isNested={true}
+                    activeSidebarTaskId={canUseTaskSidebar ? sidebarTaskId : null}
+                    onOpenSidebarTask={canUseTaskSidebar ? handleOpenSidebarTask : undefined}
+                  />
                 </div>
-                <TasksTable
-                  tasks={group.tasks}
-                  projects={projects}
-                  persons={persons}
-                  contexts={contexts}
-                  tags={tags}
-                  urgencies={urgencies}
-                  notesMode={notesMode}
-                  onToggleProcessed={onToggleProcessed}
-                  onUpdate={onUpdate}
-                  onArchiveTask={onArchiveTask}
-                  onDeleteTask={onDeleteTask}
-                  hideColumns={hiddenCols}
-                  columnState={columnState}
-                  emptyTitle={tableEmptyTitle}
-                  emptyHint={tableEmptyHint}
-                  itemNoun={itemNoun}
-                  inboxMode={inboxMode}
-                  onCreate={onCreate ? () => handleAddNewTask(group.id === "none" ? null : group.id) : undefined}
-                  onToggleStatus={onToggleStatus}
-                  autoFocusTaskId={autoFocusTaskId}
-                  onAutoFocusComplete={() => setAutoFocusTaskId(null)}
-                  sortConfig={sortConfig}
-                  onSort={handleSort}
-                  selectedIds={selectedIds}
-                  onToggleSelection={handleToggleSelection}
-                  onToggleAll={handleToggleAllSelection}
-                  onBulkDelete={handleBulkDelete}
-                  onReorderTasks={handleReorderTasks}
-                  hideToolbar
-                  isNested={true}
-                />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <TasksTable
-            tasks={filtered}
-            projects={projects}
-            persons={persons}
-            contexts={contexts}
-            tags={tags}
-            urgencies={urgencies}
-            notesMode={notesMode}
-            onToggleProcessed={onToggleProcessed}
-            onUpdate={onUpdate}
-            onArchiveTask={onArchiveTask}
-            onDeleteTask={onDeleteTask}
-            hideColumns={hiddenCols}
-            columnState={columnState}
-            emptyTitle={tableEmptyTitle}
-            emptyHint={tableEmptyHint}
-            itemNoun={itemNoun}
-            inboxMode={inboxMode}
-            onCreate={onCreate ? () => handleAddNewTask() : undefined}
-            onToggleStatus={onToggleStatus}
-            autoFocusTaskId={autoFocusTaskId}
-            onAutoFocusComplete={() => setAutoFocusTaskId(null)}
-            sortConfig={sortConfig}
-            onSort={handleSort}
-            selectedIds={selectedIds}
-            onToggleSelection={handleToggleSelection}
-            onToggleAll={handleToggleAllSelection}
-            onBulkDelete={handleBulkDelete}
-            onReorderTasks={handleReorderTasks}
-            hideToolbar
-            isNested={nestedOnMobile}
-          />
-        )}
+              ))}
+            </div>
+          ) : (
+            <TasksTable
+              tasks={filtered}
+              projects={projects}
+              persons={persons}
+              contexts={contexts}
+              tags={tags}
+              urgencies={urgencies}
+              notesMode={notesMode}
+              onToggleProcessed={onToggleProcessed}
+              onUpdate={onUpdate}
+              onArchiveTask={onArchiveTask}
+              onDeleteTask={onDeleteTask}
+              hideColumns={hiddenCols}
+              columnState={columnState}
+              emptyTitle={tableEmptyTitle}
+              emptyHint={tableEmptyHint}
+              itemNoun={itemNoun}
+              inboxMode={inboxMode}
+              onCreate={onCreate ? () => handleAddNewTask() : undefined}
+              onToggleStatus={onToggleStatus}
+              autoFocusTaskId={autoFocusTaskId}
+              onAutoFocusComplete={() => setAutoFocusTaskId(null)}
+              sortConfig={sortConfig}
+              onSort={handleSort}
+              selectedIds={selectedIds}
+              onToggleSelection={handleToggleSelection}
+              onToggleAll={handleToggleAllSelection}
+              onBulkDelete={handleBulkDelete}
+              onReorderTasks={handleReorderTasks}
+              hideToolbar
+              isNested={nestedOnMobile || isLeftPaneNarrow}
+              activeSidebarTaskId={canUseTaskSidebar ? sidebarTaskId : null}
+              onOpenSidebarTask={canUseTaskSidebar ? handleOpenSidebarTask : undefined}
+            />
+          )}
+        </div>
+      </MobileOverrideProvider>
       </div>
+
+      {/* Resizable Desktop Task Sidebar */}
+      {showTaskSidebar && activeSidebarTask && (
+        <div className="hidden md:flex items-stretch shrink-0 sticky top-4">
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize task sidebar"
+            onMouseDown={startResizeSidebar}
+            className="group/handle relative flex w-3 -mx-0.5 z-20 cursor-col-resize items-center justify-center select-none"
+          >
+            <div
+              className={cn(
+                "h-full w-0.5 rounded-full transition-colors",
+                isResizingSidebar
+                  ? "bg-primary"
+                  : "bg-transparent group-hover/handle:bg-primary/50",
+              )}
+            />
+            <div
+              className={cn(
+                "absolute flex h-7 w-3.5 items-center justify-center rounded border border-border bg-card text-muted-foreground shadow-sm opacity-0 transition-opacity group-hover/handle:opacity-100",
+                isResizingSidebar && "opacity-100 border-primary text-primary",
+              )}
+            >
+              <GripVertical className="h-3 w-3" />
+            </div>
+          </div>
+
+          <aside
+            ref={sidebarPanelRef}
+            style={{ width: `${sidebarWidth}px` }}
+            className="flex flex-col rounded-xl border border-border bg-card shadow-xl overflow-hidden max-h-[calc(100dvh-5rem)] animate-in slide-in-from-right-4 duration-200"
+          >
+            <TaskDetailDialog
+              key={activeSidebarTask.id}
+              variant="sidebar"
+              task={activeSidebarTask}
+              open={true}
+              onOpenChange={(o) => {
+                if (!o) {
+                  setSidebarTaskId(null)
+                  setSidebarTaskFallback(null)
+                  setSidebarIsCreating(false)
+                }
+              }}
+              onNavigateProject={(projId) => {
+                setSidebarTaskId(null)
+                setSidebarTaskFallback(null)
+                setSidebarIsCreating(false)
+                window.dispatchEvent(
+                  new CustomEvent("navigate-to-project", {
+                    detail: { projectId: projId },
+                  })
+                )
+              }}
+              isCreating={sidebarIsCreating}
+              projects={projects}
+              persons={persons}
+              contexts={contexts}
+              tags={tags}
+              urgencies={urgencies}
+              onUpdate={(t) => {
+                setSidebarTaskFallback(t)
+                onUpdate(t)
+              }}
+              onDelete={(id) => {
+                setSidebarTaskId(null)
+                setSidebarTaskFallback(null)
+                setSidebarIsCreating(false)
+                onDeleteTask?.(id)
+              }}
+              inboxMode={inboxMode}
+              mode={sidebarDetailMode}
+              onModeChange={setSidebarDetailMode}
+            />
+          </aside>
+        </div>
+      )}
 
       {/* Mobile Actions Overlay */}
       <div 

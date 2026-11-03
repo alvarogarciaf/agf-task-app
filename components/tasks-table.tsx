@@ -148,6 +148,8 @@ interface TasksTableProps {
   onBulkDelete?: () => void
   isNested?: boolean
   onReorderTasks?: (activeId: string, overId: string) => void
+  activeSidebarTaskId?: string | null
+  onOpenSidebarTask?: (task: Task, mode: "view" | "edit", isCreating?: boolean) => void
 }
 
 
@@ -216,6 +218,8 @@ export const TasksTable = memo(function TasksTable({
   onBulkDelete,
   isNested = false,
   onReorderTasks,
+  activeSidebarTaskId,
+  onOpenSidebarTask,
 }: TasksTableProps) {
   const internalColumnState = useTableColumns<TaskColumnKey>(
     storageKey, DEFAULT_ORDER, DEFAULT_VISIBILITY,
@@ -254,10 +258,31 @@ export const TasksTable = memo(function TasksTable({
   const isMobile = useIsMobile()
   const tabObjectCtx = useOpenObjectFullScreen()
 
-  // Read user preference for how notes should open
-  const openNotesAs = typeof window !== "undefined"
-    ? (localStorage.getItem("open_notes_as") as "popup" | "fullscreen") || "popup"
-    : "popup"
+  // Read user preferences for how notes and tasks should open
+  const [openNotesAs, setOpenNotesAs] = useState<"popup" | "fullscreen">(() => {
+    if (typeof window === "undefined") return "popup"
+    return (localStorage.getItem("open_notes_as") as "popup" | "fullscreen") || "popup"
+  })
+  const [openTasksAs, setOpenTasksAs] = useState<"popup" | "fullscreen" | "sidebar">(() => {
+    if (typeof window === "undefined") return "popup"
+    return (localStorage.getItem("open_tasks_as") as "popup" | "fullscreen" | "sidebar") || "popup"
+  })
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const syncPrefs = () => {
+      setOpenNotesAs((localStorage.getItem("open_notes_as") as "popup" | "fullscreen") || "popup")
+      setOpenTasksAs((localStorage.getItem("open_tasks_as") as "popup" | "fullscreen" | "sidebar") || "popup")
+    }
+    window.addEventListener("open-notes-as-changed", syncPrefs)
+    window.addEventListener("open-tasks-as-changed", syncPrefs)
+    window.addEventListener("storage", syncPrefs)
+    return () => {
+      window.removeEventListener("open-notes-as-changed", syncPrefs)
+      window.removeEventListener("open-tasks-as-changed", syncPrefs)
+      window.removeEventListener("storage", syncPrefs)
+    }
+  }, [])
 
   const [convertedTaskFallback, setConvertedTaskFallback] = useState<Task | null>(null)
   const [isCreatingTask, setIsCreatingTask] = useState(false)
@@ -301,33 +326,42 @@ export const TasksTable = memo(function TasksTable({
     }
   }, [isMobile])
 
-  /** Open a task/note, routing to full-screen for notes when the preference is set, or if requested explicitly via newTab. */
-  const openObject = useCallback((task: Task, mode: "view" | "edit", newTab = false) => {
+  /** Open a task/note, routing to full-screen, sidebar, or popup based on preferences, or if requested explicitly via newTab. */
+  const openObject = useCallback((task: Task, mode: "view" | "edit", newTab = false, creating = false) => {
+    const isNote = task.type === "note" || notesMode
     if (newTab && tabObjectCtx?.openObjectInNewTab) {
       tabObjectCtx.openObjectInNewTab(task.id, mode)
-    } else if (task.type === "note" && openNotesAs === "fullscreen" && tabObjectCtx?.openObjectFullScreen) {
+    } else if (isNote && openNotesAs === "fullscreen" && tabObjectCtx?.openObjectFullScreen) {
       tabObjectCtx.openObjectFullScreen(task.id, mode)
+    } else if (!isNote && openTasksAs === "fullscreen" && tabObjectCtx?.openObjectFullScreen) {
+      tabObjectCtx.openObjectFullScreen(task.id, mode)
+    } else if (!isNote && openTasksAs === "sidebar" && onOpenSidebarTask) {
+      onOpenSidebarTask(task, mode, creating)
     } else {
       setDetailMode(mode)
       setActiveTaskId(task.id)
       setConvertedTaskFallback(task)
     }
-  }, [openNotesAs, tabObjectCtx])
+  }, [openNotesAs, openTasksAs, notesMode, tabObjectCtx, onOpenSidebarTask])
 
   // Auto-focus logic for new tasks
   useEffect(() => {
     if (autoFocusTaskId) {
       const task = tasks.find((t) => t.id === autoFocusTaskId)
       if (task) {
-        const willOpenFullScreen = task.type === "note" && openNotesAs === "fullscreen"
-        if (!willOpenFullScreen) {
+        const isNote = task.type === "note" || notesMode
+        const willOpenFullScreen = isNote
+          ? openNotesAs === "fullscreen"
+          : openTasksAs === "fullscreen"
+        const willOpenSidebar = !isNote && openTasksAs === "sidebar" && !!onOpenSidebarTask
+        if (!willOpenFullScreen && !willOpenSidebar) {
           setIsCreatingTask(true)
         }
-        openObject(task, "edit")
+        openObject(task, "edit", false, !willOpenFullScreen)
         onAutoFocusComplete?.()
       }
     }
-  }, [autoFocusTaskId, tasks, onAutoFocusComplete, openObject, openNotesAs])
+  }, [autoFocusTaskId, tasks, onAutoFocusComplete, openObject, openNotesAs, openTasksAs, notesMode, onOpenSidebarTask])
 
   // Refocus cell when exiting edit mode
   useEffect(() => {
@@ -690,7 +724,7 @@ export const TasksTable = memo(function TasksTable({
                   onEditClick={(t) => {
                     openObject(t, "edit")
                   }}
-                  isSelected={selectedIds.has(task.id)}
+                  isSelected={selectedIds.has(task.id) || activeSidebarTaskId === task.id}
                   onToggleSelection={() => onToggleSelection?.(task.id)}
                   showDragHandle={sortConfig?.key === "urgency"}
                   onShareTask={handleShareTask}
@@ -781,7 +815,8 @@ export const TasksTable = memo(function TasksTable({
                     isMobile={isMobile}
                     className={cn(
                       "group border-b border-border/60 last:border-b-0 transition-colors hover:bg-muted/30 select-none",
-                      selectedIds.has(task.id) && "bg-primary/5 hover:bg-primary/10"
+                      selectedIds.has(task.id) && "bg-primary/5 hover:bg-primary/10",
+                      activeSidebarTaskId === task.id && "bg-primary/5 ring-1 ring-inset ring-primary/30"
                     )}
                   >
                     <td 

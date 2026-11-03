@@ -61,6 +61,7 @@ interface TaskDetailDialogProps {
   onExpandFullScreen?: (taskId: string, mode: "view" | "edit") => void
   isCreating?: boolean
   onNavigateProject?: (projectId: string) => void
+  variant?: "dialog" | "sidebar"
 }
 
 export function TaskDetailDialog({
@@ -81,8 +82,11 @@ export function TaskDetailDialog({
   onExpandFullScreen,
   isCreating = false,
   onNavigateProject: onNavigateProjectProp,
+  variant = "dialog",
 }: TaskDetailDialogProps) {
-  const isMobile = useIsMobile()
+  const isMobileViewport = useIsMobile()
+  const isSidebar = variant === "sidebar"
+  const isMobile = isSidebar ? false : isMobileViewport
   const tabObject = useOpenObjectFullScreen()
   const expandFullScreen =
     onExpandFullScreen ?? tabObject?.openObjectFullScreen
@@ -292,6 +296,67 @@ export function TaskDetailDialog({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [open, mode, onModeChange])
 
+  // Track latest state in refs so sidebar unmount/task-switch flushes pending edits or discards empty drafts
+  const draftRef = useRef(draft)
+  const dirtyRef = useRef(dirty)
+  const isActuallyCreatingRef = useRef(isActuallyCreating)
+  const autoProcessRef = useRef(autoProcess)
+  const onUpdateRef = useRef(onUpdate)
+  const onDeleteRef = useRef(onDelete)
+  const taskIdRef = useRef(task?.id)
+  draftRef.current = draft
+  dirtyRef.current = dirty
+  isActuallyCreatingRef.current = isActuallyCreating
+  autoProcessRef.current = autoProcess
+  onUpdateRef.current = onUpdate
+  onDeleteRef.current = onDelete
+  taskIdRef.current = task?.id
+
+  useEffect(() => {
+    if (!isSidebar) return
+    return () => {
+      if (isSavedRef.current || isDiscardingRef.current) return
+      const currentDraft = draftRef.current
+      if (isActuallyCreatingRef.current) {
+        if (currentDraft && (currentDraft.description || "").trim()) {
+          isSavedRef.current = true
+          const finalDraft = { ...currentDraft, updated_at: Date.now() }
+          if (autoProcessRef.current) finalDraft.processed = true
+          onUpdateRef.current(finalDraft)
+          void commitHeldBackTask(finalDraft.id, finalDraft)
+        } else if (taskIdRef.current) {
+          isDiscardingRef.current = true
+          discardHeldBackTask(taskIdRef.current)
+          onDeleteRef.current?.(taskIdRef.current)
+        }
+      } else if (dirtyRef.current && currentDraft && (currentDraft.description || "").trim()) {
+        const finalDraft = { ...currentDraft, updated_at: Date.now() }
+        if (autoProcessRef.current && !finalDraft.processed) {
+          finalDraft.processed = true
+        }
+        onUpdateRef.current(finalDraft)
+      }
+    }
+  }, [isSidebar, task?.id])
+
+  // Close sidebar on Escape when no popover/dialog is open
+  useEffect(() => {
+    if (!isSidebar || !open) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape" || e.defaultPrevented) return
+      const openOverlay = document.querySelector('[data-radix-popper-content-wrapper], [role="dialog"]')
+      if (openOverlay) return
+      e.preventDefault()
+      if (isActuallyCreatingRef.current) {
+        void handleDiscard()
+      } else {
+        handleClose()
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [isSidebar, open])
+
   if (!draft) return null
 
   const canExpand = !isMobile && !!expandFullScreen && !!task
@@ -302,6 +367,7 @@ export function TaskDetailDialog({
       save()
       void commitHeldBackTask(task.id, draft ? { ...draft } : undefined)
     } else {
+      isSavedRef.current = true
       save()
     }
     expandFullScreen(task.id, "edit")
@@ -314,6 +380,287 @@ export function TaskDetailDialog({
 
   const selectedProject = draft.project_id ? projects.find(p => p.id === draft.project_id) : null;
   const isProjectShared = !!(selectedProject && selectedProject.linked_person_id);
+
+  const editorContent = (
+    <>
+      {/* Edit Mode Header */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 border-b border-border bg-card px-4 md:px-5 py-3 shrink-0">
+        {isNote ? (
+          <div className="inline-flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary shrink-0">
+            <FileText className="h-3.5 w-3.5" />
+            Note
+          </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => update("processed", !draft.processed)}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors shrink-0 md:px-2.5 md:py-1 md:text-xs whitespace-nowrap",
+                draft.processed
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border bg-background text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {draft.processed ? (
+                <CircleCheck className="h-3.5 w-3.5" />
+              ) : (
+                <Circle className="h-3.5 w-3.5" />
+              )}
+              {draft.processed ? "Processed" : "Inbox"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => update("status", draft.status === "Open" ? "Done" : "Open")}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors shrink-0 md:px-2.5 md:py-1 md:text-xs whitespace-nowrap",
+                draft.status === "Done"
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border bg-background text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {draft.status === "Done" ? (
+                <CircleCheck className="h-3.5 w-3.5" />
+              ) : (
+                <Circle className="h-3.5 w-3.5" />
+              )}
+              {draft.status === "Done" ? "Mark as undone" : "Mark as done"}
+            </button>
+
+            <span
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 font-mono text-xs uppercase tracking-wider text-muted-foreground shrink-0 whitespace-nowrap"
+            >
+              {urgency ? (
+                <>
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: urgency.color }} />
+                  {urgency.name}
+                </>
+              ) : "No urgency"}
+            </span>
+          </>
+        )}
+
+        <div className="ml-auto flex items-center gap-1 shrink-0">
+          {canExpand && (
+            <button
+              type="button"
+              onClick={expand}
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Expand to full screen"
+              title="Expand to full screen"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </button>
+          )}
+          {!isActuallyCreating && (
+            <button
+              type="button"
+              onClick={handleShare}
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label={isNote ? "Share note link" : "Share task link"}
+              title={isNote ? "Share note link" : "Share task link"}
+            >
+              <Share2 className="h-4 w-4" />
+            </button>
+          )}
+          {onDelete && !isActuallyCreating && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive active:scale-95"
+              aria-label={isNote ? "Delete note" : "Delete task"}
+              title={isNote ? "Delete note" : "Delete task"}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={isActuallyCreating ? handleDiscard : handleClose}
+            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label={isActuallyCreating ? "Discard" : "Close"}
+            title={isActuallyCreating ? "Discard" : "Close"}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Edit Mode Body */}
+      <div className={cn("overflow-y-auto px-4 py-4 md:px-5 md:py-5", (isMobile || isSidebar) ? "flex-1 min-h-0" : "max-h-[70vh]")}>
+        <div className="mb-3 flex items-center justify-between text-xs font-mono text-muted-foreground">
+          <span>
+            Created {created.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={undo}
+              disabled={!canUndo}
+              className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-sans font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              title="Undo (Ctrl+Z)"
+              aria-label="Undo"
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+              <span>Undo</span>
+            </button>
+            <button
+              type="button"
+              onClick={redo}
+              disabled={!canRedo}
+              className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-sans font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              title="Redo (Ctrl+Shift+Z)"
+              aria-label="Redo"
+            >
+              <Redo2 className="h-3.5 w-3.5" />
+              <span>Redo</span>
+            </button>
+          </div>
+        </div>
+
+        <ObjectEditFields
+          draft={draft}
+          setDraft={setDraft}
+          update={update}
+          isNote={isNote}
+          projects={projects}
+          persons={persons}
+          contexts={contexts}
+          tags={tags}
+          sortedUrgencies={sortedUrgencies}
+          isProjectShared={isProjectShared}
+          descriptionRef={descriptionRef}
+          detailsRef={detailsRef}
+          isMobile={isMobile}
+          defaultPropertiesOpen={inboxMode}
+          onSubmit={isActuallyCreating ? handleSaveAndClose : save}
+          onNavigateProject={(projectId) => {
+            if (isActuallyCreating) {
+              if (draft.description.trim()) {
+                isSavedRef.current = true
+                saveWithoutClose()
+                const finalDraft = { ...draft }
+                if (autoProcess) finalDraft.processed = true
+                if (task?.id) {
+                  void commitHeldBackTask(task.id, finalDraft)
+                }
+              } else {
+                isDiscardingRef.current = true
+                cancel()
+                if (task?.id) {
+                  discardHeldBackTask(task.id)
+                  if (onDelete) onDelete(task.id)
+                }
+              }
+            } else {
+              isSavedRef.current = true
+              saveWithoutClose()
+            }
+            if (onNavigateProjectProp) {
+              onNavigateProjectProp(projectId)
+            } else {
+              window.dispatchEvent(
+                new CustomEvent("navigate-to-project", {
+                  detail: { projectId },
+                })
+              )
+            }
+          }}
+        />
+
+        <div className="mt-5">
+          <ObjectDetailsEditor
+            value={draft.details ?? ""}
+            onChange={(val) => update("details", val)}
+            containerRef={detailsRef}
+            isListMode={!!draft.is_list}
+            listItems={draft.list_items}
+            onListItemsChange={updateListItems}
+            listCategories={draft.list_categories}
+            onListCategoriesChange={updateListCategories}
+            listId={draft.id}
+            projectId={draft.project_id}
+          />
+        </div>
+      </div>
+
+      {/* Edit Mode Footer */}
+      <div 
+        className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-background/40 px-4 md:px-5 pt-3 shrink-0 transition-[padding] duration-200"
+        style={{ paddingBottom: "calc(0.75rem + var(--keyboard-toolbar-height, 0px))" }}
+      >
+        <div className="flex items-center">
+          {task && !task.processed && !draft.processed && (
+            <label className="flex items-center gap-1.5 cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={autoProcess}
+                onChange={(e) => setAutoProcess(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-border bg-background accent-primary"
+              />
+              Processed
+            </label>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 ml-auto">
+          <button
+            type="button"
+            onClick={convertType}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs whitespace-nowrap"
+            title={isNote ? "Convert this note into a task" : "Convert this task into a note"}
+          >
+            <ArrowLeftRight className="h-3 w-3" />
+            {isNote ? "To task" : "To note"}
+          </button>
+          {onDelete && !isActuallyCreating && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="inline-flex items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 md:px-2.5 md:py-1.5 md:text-xs whitespace-nowrap"
+              title={isNote ? "Delete note" : "Delete task"}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Delete</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={isActuallyCreating ? handleDiscard : handleClose}
+            className="rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs whitespace-nowrap"
+          >
+            {isActuallyCreating ? "Discard" : "Close"}
+          </button>
+          <button
+            type="button"
+            onClick={isActuallyCreating ? handleSaveAndClose : saveWithoutClose}
+            disabled={isActuallyCreating ? !(draft.description || "").trim() : (!dirty || !(draft.description || "").trim())}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-4 py-2.5 text-sm font-medium transition-colors md:px-3.5 md:py-1.5 md:text-xs whitespace-nowrap",
+              (isActuallyCreating ? !!(draft.description || "").trim() : dirty)
+                ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs"
+                : "bg-muted text-muted-foreground border border-border/40 cursor-not-allowed opacity-60"
+            )}
+          >
+            <Check className="h-3.5 w-3.5" />
+            {isActuallyCreating
+              ? (isNote ? "Create note" : "Create task")
+              : (dirty ? "Save now" : "Saved")}
+          </button>
+        </div>
+      </div>
+    </>
+  )
+
+  if (isSidebar) {
+    if (!open) return null
+    return (
+      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-card">
+        {editorContent}
+      </div>
+    )
+  }
 
   return (
     <Dialog
@@ -364,276 +711,7 @@ export function TaskDetailDialog({
         <DialogTitle className="sr-only">
           {draft.description || "Task details"}
         </DialogTitle>
-
-        <>
-            {/* Edit Mode Header */}
-            <div className="flex items-center gap-2 sm:gap-3 border-b border-border bg-card px-4 md:px-5 py-3">
-              {isNote ? (
-                <div className="inline-flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary shrink-0">
-                  <FileText className="h-3.5 w-3.5" />
-                  Note
-                </div>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => update("processed", !draft.processed)}
-                    className={cn(
-                      "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors shrink-0 md:px-2.5 md:py-1 md:text-xs whitespace-nowrap",
-                      draft.processed
-                        ? "border-primary/40 bg-primary/10 text-primary"
-                        : "border-border bg-background text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {draft.processed ? (
-                      <CircleCheck className="h-3.5 w-3.5" />
-                    ) : (
-                      <Circle className="h-3.5 w-3.5" />
-                    )}
-                    {draft.processed ? "Processed" : "Inbox"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => update("status", draft.status === "Open" ? "Done" : "Open")}
-                    className={cn(
-                      "inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors shrink-0 md:px-2.5 md:py-1 md:text-xs whitespace-nowrap",
-                      draft.status === "Done"
-                        ? "border-primary/40 bg-primary/10 text-primary"
-                        : "border-border bg-background text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {draft.status === "Done" ? (
-                      <CircleCheck className="h-3.5 w-3.5" />
-                    ) : (
-                      <Circle className="h-3.5 w-3.5" />
-                    )}
-                    {draft.status === "Done" ? "Mark as undone" : "Mark as done"}
-                  </button>
-
-                  <span
-                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 font-mono text-xs uppercase tracking-wider text-muted-foreground shrink-0 whitespace-nowrap"
-                  >
-                    {urgency ? (
-                      <>
-                        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: urgency.color }} />
-                        {urgency.name}
-                      </>
-                    ) : "No urgency"}
-                  </span>
-                </>
-              )}
-
-              <div className="ml-auto flex items-center gap-1 shrink-0">
-                {canExpand && (
-                  <button
-                    type="button"
-                    onClick={expand}
-                    className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    aria-label="Expand to full screen"
-                    title="Expand to full screen"
-                  >
-                    <Maximize2 className="h-4 w-4" />
-                  </button>
-                )}
-                {!isActuallyCreating && (
-                  <button
-                    type="button"
-                    onClick={handleShare}
-                    className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    aria-label={isNote ? "Share note link" : "Share task link"}
-                    title={isNote ? "Share note link" : "Share task link"}
-                  >
-                    <Share2 className="h-4 w-4" />
-                  </button>
-                )}
-                {onDelete && !isActuallyCreating && (
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive active:scale-95"
-                    aria-label={isNote ? "Delete note" : "Delete task"}
-                    title={isNote ? "Delete note" : "Delete task"}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={isActuallyCreating ? handleDiscard : handleClose}
-                  className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  aria-label={isActuallyCreating ? "Discard" : "Close"}
-                  title={isActuallyCreating ? "Discard" : "Close"}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Edit Mode Body */}
-            <div className={cn("overflow-y-auto px-4 py-4 md:px-5 md:py-5", isMobile ? "flex-1" : "max-h-[70vh]")}>
-              <div className="mb-3 flex items-center justify-between text-xs font-mono text-muted-foreground">
-                <span>
-                  Created {created.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={undo}
-                    disabled={!canUndo}
-                    className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-sans font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                    title="Undo (Ctrl+Z)"
-                    aria-label="Undo"
-                  >
-                    <Undo2 className="h-3.5 w-3.5" />
-                    <span>Undo</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={redo}
-                    disabled={!canRedo}
-                    className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-sans font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                    title="Redo (Ctrl+Shift+Z)"
-                    aria-label="Redo"
-                  >
-                    <Redo2 className="h-3.5 w-3.5" />
-                    <span>Redo</span>
-                  </button>
-                </div>
-              </div>
-
-              <ObjectEditFields
-                draft={draft}
-                setDraft={setDraft}
-                update={update}
-                isNote={isNote}
-                projects={projects}
-                persons={persons}
-                contexts={contexts}
-                tags={tags}
-                sortedUrgencies={sortedUrgencies}
-                isProjectShared={isProjectShared}
-                descriptionRef={descriptionRef}
-                detailsRef={detailsRef}
-                isMobile={isMobile}
-                defaultPropertiesOpen={inboxMode}
-                onSubmit={isActuallyCreating ? handleSaveAndClose : save}
-                onNavigateProject={(projectId) => {
-                  if (isActuallyCreating) {
-                    if (draft.description.trim()) {
-                      isSavedRef.current = true
-                      saveWithoutClose()
-                      const finalDraft = { ...draft }
-                      if (autoProcess) finalDraft.processed = true
-                      if (task?.id) {
-                        void commitHeldBackTask(task.id, finalDraft)
-                      }
-                    } else {
-                      isDiscardingRef.current = true
-                      cancel()
-                      if (task?.id) {
-                        discardHeldBackTask(task.id)
-                        if (onDelete) onDelete(task.id)
-                      }
-                    }
-                  } else {
-                    isSavedRef.current = true
-                    saveWithoutClose()
-                  }
-                  if (onNavigateProjectProp) {
-                    onNavigateProjectProp(projectId)
-                  } else {
-                    window.dispatchEvent(
-                      new CustomEvent("navigate-to-project", {
-                        detail: { projectId },
-                      })
-                    )
-                  }
-                }}
-              />
-
-              <div className="mt-5">
-                <ObjectDetailsEditor
-                  value={draft.details ?? ""}
-                  onChange={(val) => update("details", val)}
-                  containerRef={detailsRef}
-                  isListMode={!!draft.is_list}
-                  listItems={draft.list_items}
-                  onListItemsChange={updateListItems}
-                  listCategories={draft.list_categories}
-                  onListCategoriesChange={updateListCategories}
-                  listId={draft.id}
-                  projectId={draft.project_id}
-                />
-              </div>
-            </div>
-
-            {/* Edit Mode Footer */}
-            <div 
-              className="flex items-center justify-between border-t border-border bg-background/40 px-4 md:px-5 pt-3 transition-[padding] duration-200"
-              style={{ paddingBottom: "calc(0.75rem + var(--keyboard-toolbar-height, 0px))" }}
-            >
-              <div className="flex items-center">
-                {task && !task.processed && !draft.processed && (
-                  <label className="flex items-center gap-1.5 cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">
-                    <input
-                      type="checkbox"
-                      checked={autoProcess}
-                      onChange={(e) => setAutoProcess(e.target.checked)}
-                      className="h-3.5 w-3.5 rounded border-border bg-background accent-primary"
-                    />
-                    Processed
-                  </label>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={convertType}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs whitespace-nowrap"
-                  title={isNote ? "Convert this note into a task" : "Convert this task into a note"}
-                >
-                  <ArrowLeftRight className="h-3 w-3" />
-                  {isNote ? "To task" : "To note"}
-                </button>
-                {onDelete && !isActuallyCreating && (
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 md:px-2.5 md:py-1.5 md:text-xs whitespace-nowrap"
-                    title={isNote ? "Delete note" : "Delete task"}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Delete</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={isActuallyCreating ? handleDiscard : handleClose}
-                  className="rounded-md border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:px-3 md:py-1.5 md:text-xs whitespace-nowrap"
-                >
-                  {isActuallyCreating ? "Discard" : "Close"}
-                </button>
-                <button
-                  type="button"
-                  onClick={isActuallyCreating ? handleSaveAndClose : saveWithoutClose}
-                  disabled={isActuallyCreating ? !(draft.description || "").trim() : (!dirty || !(draft.description || "").trim())}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-md px-4 py-2.5 text-sm font-medium transition-colors md:px-3.5 md:py-1.5 md:text-xs whitespace-nowrap",
-                    (isActuallyCreating ? !!(draft.description || "").trim() : dirty)
-                      ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs"
-                      : "bg-muted text-muted-foreground border border-border/40 cursor-not-allowed opacity-60"
-                  )}
-                >
-                  <Check className="h-3.5 w-3.5" />
-                  {isActuallyCreating
-                    ? (isNote ? "Create note" : "Create task")
-                    : (dirty ? "Save now" : "Saved")}
-                </button>
-              </div>
-            </div>
-          </>
+        {editorContent}
       </DialogContent>
     </Dialog>
   )
