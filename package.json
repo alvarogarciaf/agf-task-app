@@ -2,6 +2,9 @@
   "name": "tasker-agf",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "22"
+  },
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "node scripts/bump-sw-version.mjs && next build --webpack",
