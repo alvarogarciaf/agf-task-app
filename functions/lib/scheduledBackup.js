@@ -35,20 +35,19 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.scheduledBackup = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
-const firestore = __importStar(require("@google-cloud/firestore"));
-const client = new firestore.v1.FirestoreAdminClient();
-// Change this to your Google Cloud Project ID and a bucket name you create for backups
-const PROJECT_ID = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
-const BUCKET_NAME = `${PROJECT_ID}-firestore-backups`;
 exports.scheduledBackup = (0, scheduler_1.onSchedule)("every day 00:00", async (event) => {
-    if (!PROJECT_ID) {
+    const projectId = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
+    if (!projectId) {
         console.error("No project ID found. Cannot run backup.");
         return;
     }
-    const databaseName = client.databasePath(PROJECT_ID, "(default)");
+    const firestore = await Promise.resolve().then(() => __importStar(require("@google-cloud/firestore")));
+    const client = new firestore.v1.FirestoreAdminClient();
+    const databaseName = client.databasePath(projectId, "(default)");
     // Format the backup folder name with a timestamp
+    const bucketName = `${projectId}-firestore-backups`;
     const timestamp = new Date().toISOString();
-    const outputUriPrefix = `gs://${BUCKET_NAME}/${timestamp}`;
+    const outputUriPrefix = `gs://${bucketName}/${timestamp}`;
     try {
         console.log(`Starting Firestore backup to ${outputUriPrefix}`);
         const [operation] = await client.exportDocuments({
