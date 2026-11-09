@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useMemo } from "react"
-import { Search, Command, Settings, Menu, Users, Tags, Tag as TagIcon, AlertCircle, Calendar, Trash2, Info, Bell, Circle, CheckCircle2, FolderKanban, ListChecks, FileText, Plus, ChevronLeft, ChevronRight } from "lucide-react"
+import { Search, Settings, Menu, Users, Tags, Tag as TagIcon, AlertCircle, Calendar, Trash2, Info, Bell, Circle, CheckCircle2, FolderKanban, ListChecks, FileText, Plus, ChevronLeft, ChevronRight } from "lucide-react"
 import { UserMenu } from "@/components/user-menu"
 import { ObjectIcon } from "@/components/ui/object-icon"
 import { useIsMobile } from "@/components/ui/use-mobile"
@@ -388,13 +388,14 @@ export function AppHeader({
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
+            data-tour="universal-search"
             onClick={() => setSearchOpen(true)}
             className="hidden h-10 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-muted-foreground transition-all hover:bg-muted active:scale-[0.98] md:flex md:h-8 md:text-xs"
           >
             <Search className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Search…</span>
-            <span className="ml-2 hidden items-center gap-1 font-mono text-xs sm:flex">
-              <Command className="h-3.5 w-3.5" />K
+            <span className="ml-2 hidden items-center font-mono text-xs sm:flex">
+              Ctrl+K
             </span>
           </button>
 

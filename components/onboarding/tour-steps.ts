@@ -142,6 +142,15 @@ export const TOUR_STEPS: TourStep[] = [
     },
   },
   {
+    id: "search",
+    kind: "spotlight",
+    desktopTarget: "universal-search",
+    mobileTarget: "mobile-search",
+    title: "Universal Search (Ctrl+K)",
+    getDescription: () =>
+      "Press Ctrl+K from anywhere in the app (or tap the search button) to instantly find any task, note, or project.",
+  },
+  {
     id: "finish",
     kind: "finish",
     title: "You're all set!",

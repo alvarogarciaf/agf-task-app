@@ -2404,6 +2404,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
               >
                 <button
                   type="button"
+                  data-tour="mobile-search"
                   onClick={() => window.dispatchEvent(new CustomEvent("open-search"))}
                   className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground shadow-lg border border-border active:scale-95 transition-transform"
                   aria-label="Search"

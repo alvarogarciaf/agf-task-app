@@ -1323,7 +1323,7 @@ function ReplayTutorialSetting() {
       <div>
         <h4 className="text-sm font-medium">Onboarding Tutorial</h4>
         <p className="text-xs text-muted-foreground mt-1">
-          Take the 1-minute guided tour of Quick Capture, Inbox, Contexts, Projects, Notes, Bookmarks, and Tags again.
+          Take the 1-minute guided tour of Quick Capture, Inbox, Contexts, Projects, Notes, Bookmarks, Tags, and Universal Search again.
         </p>
       </div>
       <button

@@ -191,7 +191,7 @@ export function TourOverlay({
 
   if (hole) {
     const isLeftSidebarTarget = !isMobile && hole.x < 280 && hole.w < 300
-    const isBottomNavTarget = isMobile && hole.y > viewport.height - 140
+    const isBottomNavTarget = isMobile && hole.y > viewport.height - 230
 
     if (isLeftSidebarTarget) {
       const left = Math.min(
