@@ -43,6 +43,7 @@ import { usePreloadProjectImages } from "@/lib/image-cache"
 import { holdBackTask } from "@/lib/sync-coordinator"
 import { useSubscription } from "@/hooks/use-subscription"
 import { PaywallDialog } from "@/components/paywall-dialog"
+import { TourProvider } from "@/components/onboarding/tour-provider"
 
 const CACHE_PREFIX = "tasker_cache_"
 function getCachedData<T>(key: string, defaultVal: T): T {
@@ -2145,7 +2146,57 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       ? "px-0 md:px-6 pt-0 pb-28 md:py-6"
       : "px-4 md:px-6 pt-6 pb-28 md:py-6"
 
+  const [tourExpandedGroups, setTourExpandedGroups] = useState<Record<string, boolean>>({})
+
+  const tourSampleFlags = useMemo(
+    () => ({
+      hasSampleTask: inboxTasks.some(
+        (t) => t.id === "t_sample" || t.description === "This is a sample task",
+      ),
+      hasSampleProject: projects.some(
+        (p) => p.id === "p_first" && p.status !== "Closed",
+      ),
+      hasSampleTags: tags.some(
+        (t) => t.id === "tag_meeting_notes" || t.id === "tag_health",
+      ),
+    }),
+    [inboxTasks, projects, tags],
+  )
+
+  const tourNavHelpers = useMemo(
+    () => ({
+      isMobile,
+      navigateToHome: () => {
+        if (isMobile) {
+          handleNavigate("home")
+        } else {
+          navigateActiveTab("home")
+        }
+      },
+      setSidebarExpandedGroup: (groupKey: string, expanded: boolean) => {
+        setTourExpandedGroups((prev) => ({ ...prev, [groupKey]: expanded }))
+      },
+      switchMobileSection: (section: "tasks" | "notes") => {
+        setMobileSection(section)
+        if (emblaApi) {
+          emblaApi.scrollTo(section === "notes" ? 1 : 0)
+        }
+        if (section === "notes") {
+          handleNavigate("notes")
+        }
+      },
+    }),
+    [isMobile, handleNavigate, navigateActiveTab, emblaApi],
+  )
+
   return (
+    <TourProvider
+      userUid={user.uid}
+      userEmail={user.email}
+      isMobile={isMobile}
+      sampleFlags={tourSampleFlags}
+      navHelpers={tourNavHelpers}
+    >
     <div className="flex h-[100dvh] w-full bg-background overflow-hidden">
       <AppSidebar
         active={sidebarActive.view ?? "home"}
@@ -2171,6 +2222,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         user={user}
         onSignOut={onSignOut}
         showUserMenu={!isMobile}
+        forceExpandedGroups={tourExpandedGroups}
         onAddContext={async (name) => {
           await workspaceContentProps.onInsertContext({ name, icon: "briefcase", color: "#6b7280" })
         }}
@@ -2256,7 +2308,7 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
               : undefined
           }
           mobileCenterContent={
-            <div className="flex bg-muted/50 rounded-lg p-1 w-[160px] relative">
+            <div data-tour="mobile-section-toggle" className="flex bg-muted/50 rounded-lg p-1 w-[160px] relative">
               <div
                 className={cn(
                   "absolute inset-y-1 w-[calc(50%-0.25rem)] rounded-md bg-background shadow-sm transition-transform duration-300 ease-in-out",
@@ -2631,5 +2683,6 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
         featureName={paywallFeature}
       />
     </div>
+    </TourProvider>
   )
 }

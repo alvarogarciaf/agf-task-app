@@ -2,9 +2,7 @@
 
 import { Home, Calendar, Briefcase, FolderClosed, Star, FileText, Tags, ListTodo, Bookmark } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { ViewKey, SavedView } from "@/lib/types"
-import { useState, useEffect } from "react"
-
+import type { ViewKey } from "@/lib/types"
 
 interface TasksMobileNavProps {
   active: string
@@ -17,7 +15,6 @@ interface TasksMobileNavProps {
 
 export function TasksMobileNav({ 
   active, 
-  activeSavedViewId,
   onChange, 
   onOpenSelector,
   inboxCount,
@@ -44,6 +41,7 @@ export function TasksMobileNav({
           <button
             key={item.key}
             type="button"
+            data-tour={`mobile-nav-${item.key}`}
             onClick={() => {
               if (item.isSelector) {
                 onOpenSelector(item.key as "contexts" | "projects" | "views")
@@ -100,6 +98,7 @@ export function NotesMobileNav({
           <button
             key={item.key}
             type="button"
+            data-tour={`mobile-nav-${item.key}`}
             onClick={() => {
               if (item.isSelector) {
                 onOpenSelector(item.key as "tags" | "projects")

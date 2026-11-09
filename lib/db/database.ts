@@ -244,38 +244,11 @@ export const getDatabase = async (userUid: string) => {
       }
     });
     
-    // Seed system data if missing
-    const [urgencyCount, projectCount, personCount, contextCount] = await Promise.all([
-      db.urgencies.count().exec(),
-      db.projects.count().exec(),
-      db.persons.count().exec(),
-      db.contexts.count().exec(),
-    ]);
+    // Starter data (urgencies, contexts, sample project, tags, and sample task)
+    // is seeded once in Firestore by the `seedNewUser` Auth onCreate Cloud Function
+    // and replicated down to clients. A post-replication fallback in DbProvider
+    // ensures legacy accounts still receive default urgencies if none exist in the cloud.
 
-    const hasSeeded = typeof window !== 'undefined' ? localStorage.getItem('tasker_has_seeded') : 'true';
-    const needsUrgencies = urgencyCount === 0;
-    const needsInitialSeed = !hasSeeded && (projectCount === 0 || personCount === 0 || contextCount === 0);
-
-    if (needsUrgencies || needsInitialSeed) {
-      const mockData = await import('../mock-data');
-      const seeds = [];
-      
-      if (needsUrgencies) seeds.push(db.urgencies.bulkInsert(mockData.urgencies));
-      if (needsInitialSeed) {
-        if (projectCount === 0 && mockData.projects.length > 0) seeds.push(db.projects.bulkInsert(mockData.projects));
-        if (personCount === 0 && mockData.persons.length > 0) seeds.push(db.persons.bulkInsert(mockData.persons));
-        if (contextCount === 0 && mockData.contexts.length > 0) seeds.push(db.contexts.bulkInsert(mockData.contexts));
-        
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('tasker_has_seeded', 'true');
-        }
-      }
-      
-      if (seeds.length > 0) {
-        await Promise.all(seeds);
-      }
-    }
-    
     resolvedDbCache[dbName] = db;
     return db;
   };

@@ -16,7 +16,8 @@ import { useDatabase } from "@/components/db-provider"
 import { useSubscription } from "@/hooks/use-subscription"
 import { useTodaySectionFilter, setTodaySectionFilter } from "@/lib/today-filter"
 import { useDefaultFilterMatchMode, setDefaultFilterMatchMode } from "@/lib/filter-match-mode"
-import { CreditCard, Loader2 } from "lucide-react"
+import { CreditCard, Loader2, Sparkles } from "lucide-react"
+import { useTour } from "@/components/onboarding/tour-provider"
 
 export type TabKey = "view" | "contexts" | "tags" | "calendar" | "billing" | "data" | "notifications" | "troubleshoot"
 
@@ -295,6 +296,7 @@ export function SettingsView({
               <OpenTasksAsSetting />
               <TodaySectionSetting />
               <DefaultFilterMatchModeSetting />
+              <ReplayTutorialSetting />
             </div>
           </div>
         )}
@@ -1309,6 +1311,29 @@ function DefaultFilterMatchModeSetting() {
           </div>
         </label>
       </div>
+    </div>
+  )
+}
+
+function ReplayTutorialSetting() {
+  const { start } = useTour()
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h4 className="text-sm font-medium">Onboarding Tutorial</h4>
+        <p className="text-xs text-muted-foreground mt-1">
+          Take the 1-minute guided tour of Quick Capture, Inbox, Contexts, Projects, Notes, Bookmarks, and Tags again.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => start({ isReplay: true })}
+        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
+      >
+        <Sparkles className="h-4 w-4 text-primary" />
+        Replay tutorial
+      </button>
     </div>
   )
 }

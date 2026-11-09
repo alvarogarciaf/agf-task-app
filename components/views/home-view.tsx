@@ -201,6 +201,7 @@ export function HomeView({
             submit(e)
           }
         }}
+        data-tour="quick-capture"
         className="rounded-lg border border-border bg-card shadow-sm"
       >
         <div className="flex items-center gap-2 border-b border-border bg-background/40 px-4 py-2.5">
@@ -321,7 +322,7 @@ export function HomeView({
       </form>
 
       {/* Inbox list */}
-      <section>
+      <section data-tour="inbox-section">
         <div className="mb-3 flex items-center gap-2">
           <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/15 text-primary">
             <InboxIcon className="h-3.5 w-3.5" />

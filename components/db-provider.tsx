@@ -107,6 +107,32 @@ export function DbProvider({
       queueMicrotask(() => {
         if (!mounted) return;
         replications = setupReplication(database, userUid);
+        // Safety net for legacy accounts with no urgencies in Firestore:
+        // wait until the urgencies collection finishes its first pull before
+        // checking count, so we never overwrite cloud-customized urgencies.
+        const urgenciesRep = replications.find(
+          (r) => r.collection.name === "urgencies",
+        );
+        if (urgenciesRep) {
+          void urgenciesRep
+            .awaitInitialReplication()
+            .then(async () => {
+              if (!mounted) return;
+              const initialCount = await database.urgencies.count().exec();
+              if (initialCount > 0) return;
+              // Give seedNewUser (Auth onCreate) a moment to finish on brand-new signups
+              await new Promise((resolve) => setTimeout(resolve, 4000));
+              if (!mounted) return;
+              const count = await database.urgencies.count().exec();
+              if (count === 0) {
+                const { urgencies } = await import("@/lib/mock-data");
+                await database.urgencies.bulkInsert(urgencies);
+              }
+            })
+            .catch((err) => {
+              console.warn("[DbProvider] Urgency fallback check failed:", err);
+            });
+        }
         if (replications.length > 0) {
           rxSubs.add(
             combineLatest(replications.map((r) => r.active$)).subscribe(
@@ -154,8 +180,6 @@ export function DbProvider({
   if (throwError) {
     throw throwError;
   }
-
-
 
   return (
     <SyncStatusContext.Provider value={syncStatus}>

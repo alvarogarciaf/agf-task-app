@@ -85,6 +85,7 @@ interface AppSidebarProps {
   showUserMenu?: boolean
   onAddContext?: (name: string) => void
   onAddTag?: (name: string) => void
+  forceExpandedGroups?: Record<string, boolean>
 }
 
 export function AppSidebar({
@@ -113,6 +114,7 @@ export function AppSidebar({
   showUserMenu = false,
   onAddContext,
   onAddTag,
+  forceExpandedGroups,
 }: AppSidebarProps) {
   const showActive = sidebarSelectionActive
   const items: NavItem[] = [
@@ -160,8 +162,11 @@ export function AppSidebar({
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
 
+  const isGroupExpanded = (key: string) =>
+    Boolean(expandedGroups[key] || forceExpandedGroups?.[key])
+
   const toggleGroup = (key: string) => {
-    setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }))
+    setExpandedGroups(prev => ({ ...prev, [key]: !isGroupExpanded(key) }))
   }
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
@@ -209,7 +214,7 @@ export function AppSidebar({
               item={item}
               active={showActive && active === item.key}
               onClick={() => onChange(item.key)}
-              isExpanded={!!expandedGroups[item.key]}
+              isExpanded={isGroupExpanded(item.key)}
               onExpandToggle={() => toggleGroup(item.key)}
               onSubItemClick={(subId) => {
                 if (item.key === "contexts") onChange("all", undefined, undefined, undefined, { initialContextId: subId })
@@ -232,7 +237,7 @@ export function AppSidebar({
               item={item}
               active={showActive && active === item.key}
               onClick={() => onChange(item.key)}
-              isExpanded={!!expandedGroups[item.key]}
+              isExpanded={isGroupExpanded(item.key)}
               onExpandToggle={() => toggleGroup(item.key)}
               onSubItemClick={(subId) => {
                 if (item.key === "contexts") onChange("all", undefined, undefined, undefined, { initialContextId: subId })
@@ -254,7 +259,7 @@ export function AppSidebar({
               item={item}
               active={showActive && active === item.key}
               onClick={() => onChange(item.key)}
-              isExpanded={!!expandedGroups[item.key]}
+              isExpanded={isGroupExpanded(item.key)}
               onExpandToggle={() => toggleGroup(item.key)}
               onSubItemClick={(subId) => {
                 if (item.key === "contexts") onChange("all", undefined, undefined, undefined, { initialContextId: subId })
@@ -457,6 +462,7 @@ function NavLink({
   const [draggedSubId, setDraggedSubId] = useState<string | null>(null)
   return (
     <li
+      data-tour={item.key !== "saved-view" ? `nav-${item.key}` : undefined}
       draggable={draggable}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
