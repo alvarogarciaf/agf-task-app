@@ -33,11 +33,13 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.scheduledBackup = exports.deleteUserAccount = void 0;
+exports.scheduledBackup = exports.seedNewUser = exports.deleteUserAccount = void 0;
 const admin = __importStar(require("firebase-admin"));
 admin.initializeApp();
 var deleteUserAccount_1 = require("./deleteUserAccount");
 Object.defineProperty(exports, "deleteUserAccount", { enumerable: true, get: function () { return deleteUserAccount_1.deleteUserAccount; } });
+var seedNewUser_1 = require("./seedNewUser");
+Object.defineProperty(exports, "seedNewUser", { enumerable: true, get: function () { return seedNewUser_1.seedNewUser; } });
 // Temporarily disable Stripe functions until secrets are configured
 // export { createCheckoutSession } from "./stripe/createCheckoutSession";
 // export { createPortalSession } from "./stripe/createPortalSession";
