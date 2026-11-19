@@ -31,7 +31,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Drawer, DrawerContent, DrawerTrigger, DrawerTitle } from "@/components/ui/drawer"
 import { ICON_OPTIONS, ICONS, COLOR_PALETTE } from "@/lib/constants"
 import { Switch } from "@/components/ui/switch"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Select,
   SelectContent,
@@ -43,6 +42,7 @@ import type {
   Context,
   ListItem,
   ListCategory,
+  ListField,
   ObjectType,
   Person,
   Project,
@@ -191,6 +191,8 @@ function toPlain(t: Task | null) {
     tag_ids: [...(data.tag_ids || [])].sort(),
     is_list: data.is_list ?? null,
     list_items: data.list_items ?? null,
+    list_categories: data.list_categories ?? null,
+    list_fields: data.list_fields ?? null,
   }
 }
 
@@ -581,12 +583,35 @@ export function useObjectDraft({
     update("list_categories", categories)
   }, [update])
 
+  const updateListFields = useCallback((fields: ListField[]) => {
+    update("list_fields", fields)
+  }, [update])
+
+  const updateListBatch = useCallback(
+    (patch: Partial<Pick<Task, "list_items" | "list_categories" | "list_fields">>) => {
+      setDraft((prev) => {
+        if (!prev) return prev
+        const next: Task = { ...prev, ...patch }
+        pushHistory(next, false)
+        if (autosave) {
+          onUpdate({ ...next, updated_at: Date.now() })
+          lastSavedSnapshotRef.current = toPlain(next)
+          setAutosaveStatus("saved")
+        }
+        return next
+      })
+    },
+    [autosave, onUpdate, pushHistory],
+  )
+
   return {
     draft,
     setDraft,
     update,
     updateListItems,
     updateListCategories,
+    updateListFields,
+    updateListBatch,
     dirty,
     autoProcess,
     setAutoProcess,
@@ -805,19 +830,46 @@ export function ObjectEditFields({
         </div>
       )}
 
-      <div className="group flex items-center gap-2.5 pt-1">
-        <Checkbox
-          id={`is-list-checkbox-${draft.id}`}
-          checked={!!draft.is_list}
-          onCheckedChange={(checked) => update("is_list", checked ? true : null)}
-          className="group-hover:border-foreground/80 transition-colors"
-        />
-        <label
-          htmlFor={`is-list-checkbox-${draft.id}`}
-          className="text-sm font-medium leading-none cursor-pointer select-none text-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+      <div className="grid gap-1.5 pt-1">
+        <Label icon={draft.is_list ? <List className="h-3.5 w-3.5" /> : <FileText className="h-3.5 w-3.5" />}>
+          Format
+        </Label>
+        <div
+          role="radiogroup"
+          aria-label="Content format"
+          className="inline-grid w-full max-w-[240px] grid-cols-2 rounded-lg border border-border bg-muted/40 p-0.5"
         >
-          This is a list
-        </label>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!draft.is_list}
+            onClick={() => update("is_list", null)}
+            className={cn(
+              "inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+              !draft.is_list
+                ? "bg-background text-foreground shadow-sm ring-1 ring-border/50"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            <span>Note</span>
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!!draft.is_list}
+            onClick={() => update("is_list", true)}
+            className={cn(
+              "inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+              draft.is_list
+                ? "bg-background text-foreground shadow-sm ring-1 ring-border/50"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <List className="h-3.5 w-3.5" />
+            <span>List</span>
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -1041,6 +1093,10 @@ export function ObjectDetailsEditor({
   onListItemsChange,
   listCategories,
   onListCategoriesChange,
+  listFields,
+  onListFieldsChange,
+  onListBatchChange,
+  onListViewModeChange,
   listId,
   projectId,
 }: {
@@ -1055,6 +1111,14 @@ export function ObjectDetailsEditor({
   onListItemsChange?: (items: ListItem[]) => void
   listCategories?: ListCategory[] | null
   onListCategoriesChange?: (categories: ListCategory[]) => void
+  listFields?: ListField[] | null
+  onListFieldsChange?: (fields: ListField[]) => void
+  onListBatchChange?: (patch: {
+    list_items?: ListItem[]
+    list_categories?: ListCategory[]
+    list_fields?: ListField[]
+  }) => void
+  onListViewModeChange?: (mode: "list" | "table") => void
   listId?: string
   projectId?: string | null
 }) {
@@ -1094,11 +1158,16 @@ export function ObjectDetailsEditor({
     return (
       <div ref={containerRef} className={cn(fillHeight && "flex min-h-0 flex-1 flex-col", className)}>
         <ListEditor
+          key={listId}
           listId={listId}
           items={listItems ?? []}
           onChange={onListItemsChange ?? (() => {})}
           categories={listCategories ?? []}
           onCategoriesChange={onListCategoriesChange ?? (() => {})}
+          fields={listFields ?? []}
+          onFieldsChange={onListFieldsChange ?? (() => {})}
+          onBatchChange={onListBatchChange}
+          onViewModeChange={onListViewModeChange}
         />
       </div>
     )

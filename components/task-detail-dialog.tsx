@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useRef } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import {
   ArrowLeftRight,
   Calendar,
@@ -132,6 +132,8 @@ export function TaskDetailDialog({
     canRedo,
     updateListItems,
     updateListCategories,
+    updateListFields,
+    updateListBatch,
   } = useObjectDraft({
     task,
     projects,
@@ -140,6 +142,11 @@ export function TaskDetailDialog({
     onClose: () => onOpenChange(false),
     autosave: true,
   })
+
+  const [listViewMode, setListViewMode] = useState<"list" | "table">("list")
+  useEffect(() => {
+    setListViewMode("list")
+  }, [task?.id])
 
   const handleDiscard = async () => {
     if (isDiscardingRef.current || isSavedRef.current) return
@@ -579,6 +586,10 @@ export function TaskDetailDialog({
             onListItemsChange={updateListItems}
             listCategories={draft.list_categories}
             onListCategoriesChange={updateListCategories}
+            listFields={draft.list_fields}
+            onListFieldsChange={updateListFields}
+            onListBatchChange={updateListBatch}
+            onListViewModeChange={setListViewMode}
             listId={draft.id}
             projectId={draft.project_id}
           />
@@ -703,9 +714,9 @@ export function TaskDetailDialog({
           "gap-0 overflow-hidden p-0",
           isMobile 
             ? "fixed inset-0 z-50 flex h-full w-full max-w-none translate-x-0 translate-y-0 flex-col rounded-none border-none duration-200 shadow-none" 
-            : portalContainer
-              ? "max-h-[calc(100%-2rem)] max-w-2xl sm:rounded-lg"
-              : "max-w-2xl sm:rounded-lg"
+            : draft.is_list && listViewMode === "table"
+              ? cn(portalContainer && "max-h-[calc(100%-2rem)]", "sm:max-w-4xl lg:max-w-5xl sm:rounded-lg")
+              : cn(portalContainer && "max-h-[calc(100%-2rem)]", "sm:max-w-2xl sm:rounded-lg")
         )}
       >
         <DialogTitle className="sr-only">

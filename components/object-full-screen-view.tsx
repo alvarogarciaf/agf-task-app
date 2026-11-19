@@ -117,6 +117,8 @@ export function ObjectFullScreenView({
     canRedo,
     updateListItems,
     updateListCategories,
+    updateListFields,
+    updateListBatch,
   } = useObjectDraft({
     task: effectiveTask,
     projects,
@@ -125,6 +127,11 @@ export function ObjectFullScreenView({
     onClose: onBack,
     autosave: true,
   })
+
+  const [listViewMode, setListViewMode] = useState<"list" | "table">("list")
+  useEffect(() => {
+    setListViewMode("list")
+  }, [draft?.id])
 
   // Keyboard shortcut listener for Undo (Ctrl+Z / Cmd+Z) and Redo (Ctrl+Shift+Z / Cmd+Shift+Z / Ctrl+Y)
   useEffect(() => {
@@ -466,9 +473,9 @@ export function ObjectFullScreenView({
           />
         </div>
 
-        {/* Right: details editor only, capped to the maximized-editor width */}
+        {/* Right: details editor only, capped to the maximized-editor width (widens for table view) */}
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-5">
-          <div className="flex min-h-0 w-full max-w-3xl flex-1 flex-col">
+          <div className={cn("flex min-h-0 w-full flex-1 flex-col", draft.is_list && listViewMode === "table" ? "max-w-none" : "max-w-3xl")}>
             <ObjectDetailsEditor
               value={draft.details ?? ""}
               onChange={(val) => update("details", val)}
@@ -479,6 +486,10 @@ export function ObjectFullScreenView({
               onListItemsChange={updateListItems}
               listCategories={draft.list_categories}
               onListCategoriesChange={updateListCategories}
+              listFields={draft.list_fields}
+              onListFieldsChange={updateListFields}
+              onListBatchChange={updateListBatch}
+              onListViewModeChange={setListViewMode}
               listId={draft.id}
               projectId={draft.project_id}
             />

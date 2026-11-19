@@ -7,6 +7,15 @@ export interface UrgencyLevel {
 
 export type ProjectStatus = "Ongoing" | "Closed"
 
+export type ListFieldType = "text" | "number" | "link" | "image"
+
+export interface ListField {
+  id: string
+  name: string
+  type: ListFieldType
+  order: number
+}
+
 export interface ListItem {
   id: string
   description: string
@@ -16,6 +25,7 @@ export interface ListItem {
   category_id?: string | null
   category?: string | null
   details?: string | null
+  custom_fields?: Record<string, string | number | null> | null
 }
 
 // The unified object can be a task or a note. Both kinds always carry
@@ -57,6 +67,8 @@ export interface AppObject {
   list_items?: ListItem[] | null
   /** The list categories. Only meaningful when is_list = true */
   list_categories?: ListCategory[] | null
+  /** Custom field definitions for this list database. Only meaningful when is_list = true */
+  list_fields?: ListField[] | null
 }
 
 // `Task` remains the name used across the app; it is now an alias of the

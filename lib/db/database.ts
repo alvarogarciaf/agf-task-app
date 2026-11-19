@@ -147,6 +147,17 @@ export const getDatabase = async (userUid: string) => {
           15: (oldDoc: any) => {
             oldDoc.color = oldDoc.color ?? null;
             return oldDoc;
+          },
+          // 16: Migrate from version 15 to 16 (add list_fields and custom_fields on list_items)
+          16: (oldDoc: any) => {
+            oldDoc.list_fields = oldDoc.list_fields ?? null;
+            if (Array.isArray(oldDoc.list_items)) {
+              oldDoc.list_items = oldDoc.list_items.map((item: any) => ({
+                ...item,
+                custom_fields: item.custom_fields ?? null,
+              }));
+            }
+            return oldDoc;
           }
         }
       },

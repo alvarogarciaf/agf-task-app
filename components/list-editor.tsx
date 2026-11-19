@@ -25,23 +25,25 @@ import {
   GripVertical,
   Plus,
   Circle,
-  CircleCheck,
   MoreVertical,
   Trash2,
   Pencil,
   RotateCcw,
   Columns3,
   Settings2,
-  Palette,
   Check,
   Tag,
   ChevronsUpDown,
+  List,
+  Table2,
+  SlidersHorizontal,
+  Link2,
+  ExternalLink,
 } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -50,7 +52,23 @@ import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, Command
 import { IconPicker } from "@/components/icon-picker"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
-import type { ListItem, ListCategory } from "@/lib/types"
+import {
+  cleanCustomFields,
+  formatLinkLabel,
+  formatNumberValue,
+  getSafeHref,
+  sanitizeCustomFieldValue,
+} from "@/lib/list-field-utils"
+import {
+  AddFieldDialog,
+  FieldTypeIcon,
+  FieldsManagerModal,
+  ImageFieldInput,
+  ImageLightboxDialog,
+  ImageThumbnail,
+} from "@/components/list-field-inputs"
+import { ListTableView } from "@/components/list-table-view"
+import type { ListItem, ListCategory, ListField } from "@/lib/types"
 
 const MAX_ITEMS = 200
 
@@ -60,16 +78,20 @@ function SortableListRow({
   item,
   categoryDef,
   showCategoryIcon,
+  fields = [],
   onToggleStatus,
   onDelete,
   onEdit,
+  onPreviewImage,
 }: {
   item: ListItem
   categoryDef?: ListCategory
   showCategoryIcon?: boolean
+  fields?: ListField[]
   onToggleStatus: (id: string) => void
   onDelete: (id: string) => void
   onEdit: () => void
+  onPreviewImage?: (url: string, title?: string) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id })
@@ -86,6 +108,28 @@ function SortableListRow({
   const isDone = item.status === "Done"
 
   const CatIcon = categoryDef?.icon ? ICON_OPTIONS.find(o => o.name === categoryDef?.icon)?.icon || Tag : Tag
+
+  const populatedMetaFields = useMemo(() => {
+    if (!fields.length || !item.custom_fields) return []
+    const entries: { field: ListField; value: string | number }[] = []
+    for (const field of fields) {
+      if (field.type === "image") continue
+      const val = sanitizeCustomFieldValue(field.type, item.custom_fields[field.id])
+      if (val !== null) entries.push({ field, value: val })
+    }
+    return entries
+  }, [fields, item.custom_fields])
+
+  const populatedImageFields = useMemo(() => {
+    if (!fields.length || !item.custom_fields) return []
+    const entries: { field: ListField; value: string }[] = []
+    for (const field of fields) {
+      if (field.type !== "image") continue
+      const val = sanitizeCustomFieldValue("image", item.custom_fields[field.id])
+      if (typeof val === "string") entries.push({ field, value: val })
+    }
+    return entries
+  }, [fields, item.custom_fields])
 
   return (
     <div
@@ -138,7 +182,81 @@ function SortableListRow({
             {item.details}
           </span>
         )}
+        {populatedMetaFields.length > 0 && (
+          <div
+            className={cn(
+              "mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1",
+              isDone && "opacity-65",
+            )}
+          >
+            {populatedMetaFields.map(({ field, value }) => {
+              if (field.type === "number") {
+                return (
+                  <span
+                    key={field.id}
+                    className="inline-flex items-center gap-1 rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-foreground/85"
+                  >
+                    <span className="font-sans text-muted-foreground">{field.name}:</span>
+                    {formatNumberValue(value)}
+                  </span>
+                )
+              }
+
+              if (field.type === "link") {
+                const strVal = String(value)
+                const safeHref = getSafeHref(strVal)
+                if (safeHref) {
+                  return (
+                    <a
+                      key={field.id}
+                      href={safeHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex max-w-[220px] items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      title={`${field.name}: ${safeHref}`}
+                    >
+                      <Link2 className="h-3 w-3 shrink-0" />
+                      <span className="truncate">
+                        {field.name}: {formatLinkLabel(strVal)}
+                      </span>
+                      <ExternalLink className="h-2.5 w-2.5 shrink-0 opacity-70" />
+                    </a>
+                  )
+                }
+              }
+
+              return (
+                <span
+                  key={field.id}
+                  className="inline-flex max-w-[220px] items-center gap-1 text-xs text-muted-foreground"
+                  title={`${field.name}: ${String(value)}`}
+                >
+                  <span className="font-medium text-foreground/75 shrink-0">{field.name}:</span>
+                  <span className="truncate">{String(value)}</span>
+                </span>
+              )
+            })}
+          </div>
+        )}
       </div>
+
+      {populatedImageFields.length > 0 && (
+        <div className="flex items-center gap-1.5 shrink-0">
+          {populatedImageFields.map(({ field, value }) => (
+            <ImageThumbnail
+              key={field.id}
+              src={value}
+              alt={`${item.description} - ${field.name}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                onPreviewImage?.(value, `${item.description} (${field.name})`)
+              }}
+              className="h-9 w-9 shrink-0 cursor-zoom-in transition-transform hover:scale-105"
+            />
+          ))}
+        </div>
+      )}
 
       {item.category && showCategoryIcon && (
         <div 
@@ -204,20 +322,33 @@ function ItemModal({
   initialDescription = "",
   initialDetails = "",
   initialCategory = null,
+  initialCustomFields = null,
   onSave,
   categories,
+  fields = [],
   isEdit = false,
   items = [],
+  onPreviewImage,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   initialDescription?: string
   initialDetails?: string | null
   initialCategory?: string | null
-  onSave: (description: string, categoryId: string | null, details: string | null, newCategoryName?: string | null, existingItemId?: string) => void
+  initialCustomFields?: Record<string, string | number | null> | null
+  onSave: (
+    description: string,
+    categoryId: string | null,
+    details: string | null,
+    newCategoryName?: string | null,
+    existingItemId?: string,
+    customFields?: Record<string, string | number | null> | null,
+  ) => void
   categories: ListCategory[]
+  fields?: ListField[]
   isEdit?: boolean
   items?: ListItem[]
+  onPreviewImage?: (url: string, title?: string) => void
 }) {
   const [desc, setDesc] = useState(initialDescription)
   const [details, setDetails] = useState(initialDetails || "")
@@ -227,13 +358,15 @@ function ItemModal({
   const [catInput, setCatInput] = useState("")
   const [existingItemId, setExistingItemId] = useState<string | undefined>(undefined)
   const [showSuggestions, setShowSuggestions] = useState(false)
-  
+  const [customFields, setCustomFields] = useState<Record<string, string | number | null>>({})
+
   useEffect(() => {
     if (open) {
       setDesc(initialDescription)
       setDetails(initialDetails || "")
       setExistingItemId(undefined)
       setShowSuggestions(false)
+      setCustomFields(initialCustomFields ? { ...initialCustomFields } : {})
       if (initialCategory) {
         const found = categories.find((c) => c.id === initialCategory || c.name === initialCategory)
         if (found) {
@@ -249,11 +382,26 @@ function ItemModal({
       }
       setCatInput("")
     }
-  }, [open, initialDescription, initialDetails, initialCategory, categories])
+  }, [open, initialDescription, initialDetails, initialCategory, initialCustomFields, categories])
 
   const handleSave = () => {
     if (!desc.trim()) return
-    onSave(desc.trim(), selectedCatId, details.trim() || null, newCatName.trim() || null, existingItemId)
+    const sanitizedMap: Record<string, string | number | null> = {}
+    for (const field of fields) {
+      const val = sanitizeCustomFieldValue(field.type, customFields[field.id])
+      if (val !== null) {
+        sanitizedMap[field.id] = val
+      }
+    }
+    const finalCustomFields = cleanCustomFields(sanitizedMap)
+    onSave(
+      desc.trim(),
+      selectedCatId,
+      details.trim() || null,
+      newCatName.trim() || null,
+      existingItemId,
+      finalCustomFields,
+    )
     onOpenChange(false)
   }
 
@@ -267,7 +415,7 @@ function ItemModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Item" : "Add Item"}</DialogTitle>
         </DialogHeader>
@@ -300,6 +448,7 @@ function ItemModal({
                    const selectClosedItem = () => {
                      setDesc(item.description)
                      setDetails(item.details || "")
+                     setCustomFields(item.custom_fields ? { ...item.custom_fields } : {})
                      if (item.category_id) {
                        setSelectedCatId(item.category_id)
                        setNewCatName("")
@@ -408,7 +557,7 @@ function ItemModal({
                           className="w-full text-left px-2 py-1.5 text-sm hover:bg-muted flex items-center gap-2"
                         >
                           <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                          Create "{catInput.trim()}"
+                          Create &ldquo;{catInput.trim()}&rdquo;
                         </button>
                       </CommandEmpty>
                       <CommandGroup>
@@ -464,7 +613,7 @@ function ItemModal({
                             }}
                           >
                             <Plus className="mr-2 h-4 w-4 text-muted-foreground" />
-                            Create "{catInput.trim()}"
+                            Create &ldquo;{catInput.trim()}&rdquo;
                           </CommandItem>
                         )}
                       </CommandGroup>
@@ -474,6 +623,106 @@ function ItemModal({
               </Popover>
             </div>
           </div>
+
+          {fields.length > 0 && (
+            <div className="border-t border-border pt-4 grid gap-3">
+              {fields.map((field) => {
+                const rawVal = customFields[field.id]
+                const strVal = rawVal !== null && rawVal !== undefined ? String(rawVal) : ""
+                const safeHref = field.type === "link" ? getSafeHref(strVal) : null
+
+                return (
+                  <div key={field.id} className="grid gap-1.5">
+                    <label className="flex items-center gap-1.5 text-sm font-medium">
+                      <FieldTypeIcon type={field.type} className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>{field.name}</span>
+                    </label>
+
+                    {field.type === "text" && (
+                      <input
+                        type="text"
+                        value={strVal}
+                        onChange={(e) =>
+                          setCustomFields((prev) => ({ ...prev, [field.id]: e.target.value }))
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault()
+                            handleSave()
+                          }
+                        }}
+                        placeholder={`Enter ${field.name}...`}
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      />
+                    )}
+
+                    {field.type === "number" && (
+                      <input
+                        type="number"
+                        step="any"
+                        inputMode="decimal"
+                        value={strVal}
+                        onChange={(e) =>
+                          setCustomFields((prev) => ({ ...prev, [field.id]: e.target.value }))
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault()
+                            handleSave()
+                          }
+                        }}
+                        placeholder="0"
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 font-mono text-sm tabular-nums shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      />
+                    )}
+
+                    {field.type === "link" && (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="url"
+                          value={strVal}
+                          onChange={(e) =>
+                            setCustomFields((prev) => ({ ...prev, [field.id]: e.target.value }))
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault()
+                              handleSave()
+                            }
+                          }}
+                          placeholder="https://example.com"
+                          className="flex h-9 min-w-0 flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                        {safeHref && (
+                          <a
+                            href={safeHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            title="Open link"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    {field.type === "image" && (
+                      <ImageFieldInput
+                        value={strVal || null}
+                        onPreview={(url) =>
+                          onPreviewImage?.(url, `${desc.trim() || "Item"} (${field.name})`)
+                        }
+                        onChange={(nextUrl) =>
+                          setCustomFields((prev) => ({ ...prev, [field.id]: nextUrl }))
+                        }
+                      />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
         <div className="flex items-center justify-end gap-2">
           <button type="button" onClick={() => onOpenChange(false)} className="rounded-md border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted">Cancel</button>
@@ -494,12 +743,24 @@ export function ListEditor({
   onChange,
   categories = [],
   onCategoriesChange = () => {},
+  fields = [],
+  onFieldsChange = () => {},
+  onBatchChange,
+  onViewModeChange,
 }: {
   listId?: string
   items: ListItem[]
   onChange: (items: ListItem[]) => void
   categories?: ListCategory[]
   onCategoriesChange?: (cats: ListCategory[]) => void
+  fields?: ListField[]
+  onFieldsChange?: (fields: ListField[]) => void
+  onBatchChange?: (patch: {
+    list_items?: ListItem[]
+    list_categories?: ListCategory[]
+    list_fields?: ListField[]
+  }) => void
+  onViewModeChange?: (mode: "list" | "table") => void
 }) {
   const [filter, setFilter] = useState<StatusFilter>("open")
   const [isGrouped, setIsGrouped] = useState(() => {
@@ -509,19 +770,58 @@ export function ListEditor({
     }
     return false
   })
-  
+  const [viewMode, setViewMode] = useState<"list" | "table">(() => {
+    if (typeof window !== "undefined" && listId) {
+      const stored = localStorage.getItem(`list_view_mode_${listId}`)
+      if (stored === "table" || stored === "list") return stored
+    }
+    return "list"
+  })
+
   useEffect(() => {
     if (listId) {
       localStorage.setItem(`list_grouped_${listId}`, isGrouped.toString())
     }
   }, [isGrouped, listId])
 
+  useEffect(() => {
+    if (listId) {
+      localStorage.setItem(`list_view_mode_${listId}`, viewMode)
+    }
+    onViewModeChange?.(viewMode)
+  }, [viewMode, listId, onViewModeChange])
+
   const [showCategoriesModal, setShowCategoriesModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState<ListCategory | null>(null)
-  
+  const [showFieldsModal, setShowFieldsModal] = useState(false)
+  const [showAddFieldModal, setShowAddFieldModal] = useState(false)
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; title?: string } | null>(null)
+
   // States for Item Modal
   const [addingToCategory, setAddingToCategory] = useState<string | null | undefined>(undefined)
   const [editingItem, setEditingItem] = useState<ListItem | null>(null)
+
+  const sortedFields = useMemo(
+    () => [...fields].sort((a, b) => a.order - b.order),
+    [fields],
+  )
+
+  const commitBatch = useCallback(
+    (patch: {
+      list_items?: ListItem[]
+      list_categories?: ListCategory[]
+      list_fields?: ListField[]
+    }) => {
+      if (onBatchChange) {
+        onBatchChange(patch)
+        return
+      }
+      if (patch.list_categories !== undefined) onCategoriesChange(patch.list_categories)
+      if (patch.list_fields !== undefined) onFieldsChange(patch.list_fields)
+      if (patch.list_items !== undefined) onChange(patch.list_items)
+    },
+    [onBatchChange, onCategoriesChange, onFieldsChange, onChange],
+  )
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -544,7 +844,10 @@ export function ListEditor({
   )
 
   const resolveCategory = useCallback(
-    (categoryId: string | null, newCategoryName?: string | null): { id: string | null; name: string | null } => {
+    (
+      categoryId: string | null,
+      newCategoryName?: string | null,
+    ): { id: string | null; name: string | null; nextCategories?: ListCategory[] } => {
       if (newCategoryName && newCategoryName.trim()) {
         const trimmed = newCategoryName.trim()
         const existing = categories.find((c) => c.name.toLowerCase() === trimmed.toLowerCase())
@@ -557,8 +860,7 @@ export function ListEditor({
           color: COLOR_PALETTE[categories.length % COLOR_PALETTE.length],
           icon: "Tag",
         }
-        onCategoriesChange([...categories, newCat])
-        return { id: newCat.id, name: newCat.name }
+        return { id: newCat.id, name: newCat.name, nextCategories: [...categories, newCat] }
       }
       if (categoryId) {
         const cat = categories.find((c) => c.id === categoryId)
@@ -566,35 +868,52 @@ export function ListEditor({
       }
       return { id: null, name: null }
     },
-    [categories, onCategoriesChange],
+    [categories],
+  )
+
+  const handleReorderItems = useCallback(
+    (activeId: string, overId: string, targetCategoryId?: string | null) => {
+      const oldIndex = items.findIndex((i) => i.id === activeId)
+      const newIndex = items.findIndex((i) => i.id === overId)
+      if (oldIndex === -1 || newIndex === -1) return
+
+      let reordered = arrayMove(items, oldIndex, newIndex)
+
+      if (targetCategoryId !== undefined) {
+        const targetCatDef = targetCategoryId
+          ? categories.find((c) => c.id === targetCategoryId)
+          : undefined
+        const resolvedId = targetCatDef ? targetCatDef.id : null
+        const resolvedName = targetCatDef ? targetCatDef.name : null
+        reordered = reordered.map((item) =>
+          item.id === activeId
+            ? { ...item, category_id: resolvedId, category: resolvedName }
+            : item,
+        )
+      }
+
+      onChange(reordered.map((item, idx) => ({ ...item, order: idx })))
+    },
+    [items, categories, onChange],
   )
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event
       if (!over || active.id === over.id) return
-      const oldIndex = items.findIndex((i) => i.id === active.id)
-      const newIndex = items.findIndex((i) => i.id === over.id)
-      if (oldIndex === -1 || newIndex === -1) return
-      
-      let reordered = arrayMove(items, oldIndex, newIndex)
-      
-      // If grouped, dragging into a new category should update its category
+      const activeId = String(active.id)
+      const overId = String(over.id)
+      let targetCategoryId: string | null | undefined = undefined
       if (isGrouped) {
-        const targetItem = items[newIndex]
-        const targetCatDef = getCategoryDef(targetItem)
-        const targetCatId = targetCatDef ? targetCatDef.id : null
-        const targetCatName = targetCatDef ? targetCatDef.name : null
-        reordered = reordered.map((item) => 
-          item.id === active.id
-            ? { ...item, category_id: targetCatId, category: targetCatName }
-            : item
-        )
+        const targetItem = items.find((i) => i.id === overId)
+        if (targetItem) {
+          const targetCatDef = getCategoryDef(targetItem)
+          targetCategoryId = targetCatDef ? targetCatDef.id : null
+        }
       }
-
-      onChange(reordered.map((item, idx) => ({ ...item, order: idx })))
+      handleReorderItems(activeId, overId, targetCategoryId)
     },
-    [items, onChange, isGrouped, getCategoryDef],
+    [items, isGrouped, getCategoryDef, handleReorderItems],
   )
 
   const handleToggleStatus = useCallback(
@@ -615,6 +934,55 @@ export function ListEditor({
     [items, onChange],
   )
 
+  const handleUpdateItem = useCallback(
+    (id: string, patch: Partial<ListItem>) => {
+      onChange(items.map((item) => (item.id === id ? { ...item, ...patch } : item)))
+    },
+    [items, onChange],
+  )
+
+  const handleSelectItemCategory = useCallback(
+    (itemId: string, categoryId: string | null, newCategoryName?: string | null) => {
+      const { id: finalCatId, name: finalCatName, nextCategories } = resolveCategory(
+        categoryId,
+        newCategoryName,
+      )
+      const nextItems = items.map((item) =>
+        item.id === itemId
+          ? { ...item, category_id: finalCatId, category: finalCatName }
+          : item,
+      )
+      if (nextCategories) {
+        commitBatch({ list_categories: nextCategories, list_items: nextItems })
+      } else {
+        onChange(nextItems)
+      }
+    },
+    [items, resolveCategory, commitBatch, onChange],
+  )
+
+  const handleUpdateItemCustomField = useCallback(
+    (itemId: string, fieldId: string, value: string | number | null) => {
+      const field = fields.find((f) => f.id === fieldId)
+      const sanitized = field ? sanitizeCustomFieldValue(field.type, value) : value
+      onChange(
+        items.map((item) => {
+          if (item.id !== itemId) return item
+          const nextMap: Record<string, string | number | null> = {
+            ...(item.custom_fields || {}),
+          }
+          if (sanitized === null || sanitized === undefined || sanitized === "") {
+            delete nextMap[fieldId]
+          } else {
+            nextMap[fieldId] = sanitized
+          }
+          return { ...item, custom_fields: cleanCustomFields(nextMap) }
+        }),
+      )
+    },
+    [fields, items, onChange],
+  )
+
   const handleRename = useCallback(
     (
       id: string,
@@ -622,17 +990,32 @@ export function ListEditor({
       categoryId: string | null,
       details: string | null = null,
       newCategoryName?: string | null,
+      customFields?: Record<string, string | number | null> | null,
     ) => {
-      const { id: finalCatId, name: finalCatName } = resolveCategory(categoryId, newCategoryName)
-      onChange(
-        items.map((item) =>
-          item.id === id
-            ? { ...item, description, category_id: finalCatId, category: finalCatName, details }
-            : item,
-        ),
+      const { id: finalCatId, name: finalCatName, nextCategories } = resolveCategory(
+        categoryId,
+        newCategoryName,
       )
+      const cleanedCustomFields = cleanCustomFields(customFields)
+      const nextItems = items.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              description,
+              category_id: finalCatId,
+              category: finalCatName,
+              details,
+              custom_fields: cleanedCustomFields,
+            }
+          : item,
+      )
+      if (nextCategories) {
+        commitBatch({ list_categories: nextCategories, list_items: nextItems })
+      } else {
+        onChange(nextItems)
+      }
     },
-    [items, onChange, resolveCategory],
+    [items, onChange, resolveCategory, commitBatch],
   )
 
   const handleAdd = useCallback(
@@ -642,17 +1025,33 @@ export function ListEditor({
       details: string | null = null,
       newCategoryName?: string | null,
       existingItemId?: string,
+      customFields?: Record<string, string | number | null> | null,
     ) => {
-      const { id: finalCatId, name: finalCatName } = resolveCategory(categoryId, newCategoryName)
-      
+      const { id: finalCatId, name: finalCatName, nextCategories } = resolveCategory(
+        categoryId,
+        newCategoryName,
+      )
+      const cleanedCustomFields = cleanCustomFields(customFields)
+
       if (existingItemId) {
-        onChange(
-          items.map((item) =>
-            item.id === existingItemId
-              ? { ...item, status: "Open", description, category_id: finalCatId, category: finalCatName, details }
-              : item,
-          ),
+        const nextItems = items.map((item) =>
+          item.id === existingItemId
+            ? {
+                ...item,
+                status: "Open" as const,
+                description,
+                category_id: finalCatId,
+                category: finalCatName,
+                details,
+                custom_fields: cleanedCustomFields,
+              }
+            : item,
         )
+        if (nextCategories) {
+          commitBatch({ list_categories: nextCategories, list_items: nextItems })
+        } else {
+          onChange(nextItems)
+        }
         setAddingToCategory(undefined)
         return
       }
@@ -669,28 +1068,68 @@ export function ListEditor({
         category_id: finalCatId,
         category: finalCatName,
         details,
+        custom_fields: cleanedCustomFields,
       }
-      onChange([...items, newItem])
+      const nextItems = [...items, newItem]
+      if (nextCategories) {
+        commitBatch({ list_categories: nextCategories, list_items: nextItems })
+      } else {
+        onChange(nextItems)
+      }
       setAddingToCategory(undefined)
     },
-    [items, onChange, resolveCategory],
+    [items, onChange, resolveCategory, commitBatch],
   )
 
-  const openCount = items.filter((i) => i.status === "Open").length
-  const doneCount = items.filter((i) => i.status === "Done").length
+  const handleAddField = useCallback(
+    (field: ListField) => {
+      onFieldsChange([...fields, field])
+    },
+    [fields, onFieldsChange],
+  )
 
-  const visibleItems = items
-    .filter((i) => {
-      if (filter === "open") return i.status === "Open"
-      if (filter === "done") return i.status === "Done"
-      return true
-    })
-    .sort((a, b) => a.order - b.order)
+  const handleRenameField = useCallback(
+    (fieldId: string, name: string) => {
+      onFieldsChange(fields.map((f) => (f.id === fieldId ? { ...f, name } : f)))
+    },
+    [fields, onFieldsChange],
+  )
 
-  const allCategories = useMemo(() => {
-    const cats = new Set(items.map((i) => i.category).filter(Boolean) as string[])
-    return Array.from(cats).sort()
-  }, [items])
+  const handleReorderFields = useCallback(
+    (reordered: ListField[]) => {
+      onFieldsChange(reordered.map((f, idx) => ({ ...f, order: idx })))
+    },
+    [onFieldsChange],
+  )
+
+  const handleDeleteField = useCallback(
+    (fieldId: string) => {
+      const nextFields = fields
+        .filter((f) => f.id !== fieldId)
+        .map((f, idx) => ({ ...f, order: idx }))
+      const allowedIds = new Set(nextFields.map((f) => f.id))
+      const nextItems = items.map((item) => {
+        if (!item.custom_fields || !(fieldId in item.custom_fields)) return item
+        const nextMap = { ...item.custom_fields }
+        delete nextMap[fieldId]
+        return { ...item, custom_fields: cleanCustomFields(nextMap, allowedIds) }
+      })
+      commitBatch({ list_fields: nextFields, list_items: nextItems })
+    },
+    [fields, items, commitBatch],
+  )
+
+  const visibleItems = useMemo(
+    () =>
+      items
+        .filter((i) => {
+          if (filter === "open") return i.status === "Open"
+          if (filter === "done") return i.status === "Done"
+          return true
+        })
+        .sort((a, b) => a.order - b.order),
+    [items, filter],
+  )
 
   const groupedItems = useMemo(() => {
     if (!isGrouped) return null
@@ -750,10 +1189,10 @@ export function ListEditor({
     const observer = new ResizeObserver(checkFit)
     observer.observe(container)
     return () => observer.disconnect()
-  }, [items.length])
+  }, [items.length, sortedFields.length, viewMode, atLimit])
 
   return (
-    <div className="flex flex-col gap-3 relative pb-20">
+    <div className={cn("flex flex-col gap-3 relative", viewMode === "list" ? "pb-20" : "pb-6")}>
       {/* Invisible measurement element to calculate natural button width */}
       <button
         ref={groupMeasureRef}
@@ -766,7 +1205,7 @@ export function ListEditor({
         <span>Group by category</span>
       </button>
 
-      {/* Filter bar */}
+      {/* Filter & view toolbar */}
       <div
         ref={barContainerRef}
         className="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar pb-1 -mb-1"
@@ -790,7 +1229,7 @@ export function ListEditor({
               </button>
             )
           })}
-          
+
           <div className="w-px h-4 bg-border mx-1 shrink-0" />
         </div>
 
@@ -817,6 +1256,47 @@ export function ListEditor({
               {MAX_ITEMS} item limit
             </span>
           )}
+
+          {/* List / Table View Switcher */}
+          <div
+            role="radiogroup"
+            aria-label="List display mode"
+            className="inline-flex items-center rounded-md border border-border bg-muted/40 p-0.5"
+          >
+            <button
+              type="button"
+              role="radio"
+              aria-checked={viewMode === "list"}
+              onClick={() => setViewMode("list")}
+              className={cn(
+                "inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors",
+                viewMode === "list"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              title="List view"
+            >
+              <List className="h-3.5 w-3.5" />
+              <span>List</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={viewMode === "table"}
+              onClick={() => setViewMode("table")}
+              className={cn(
+                "inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors",
+                viewMode === "table"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              title="Table view"
+            >
+              <Table2 className="h-3.5 w-3.5" />
+              <span>Table</span>
+            </button>
+          </div>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -841,6 +1321,15 @@ export function ListEditor({
                   <DropdownMenuSeparator />
                 </>
               )}
+              <DropdownMenuItem onClick={() => setShowFieldsModal(true)}>
+                <SlidersHorizontal className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span className="flex-1">Fields</span>
+                {sortedFields.length > 0 && (
+                  <span className="ml-auto rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                    {sortedFields.length}
+                  </span>
+                )}
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setShowCategoriesModal(true)}>
                 <Settings2 className="mr-2 h-4 w-4 text-muted-foreground" />
                 Categories
@@ -850,117 +1339,144 @@ export function ListEditor({
         </div>
       </div>
 
-
-
-      {/* List / Groups */}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        {groupedItems ? (
-          <div className="flex flex-col gap-6 p-0 mt-2">
-            {groupedItems.map((group) => (
-              <div key={group.id} className="flex flex-col gap-2">
-                <div className="sticky top-0 z-10 flex items-center justify-between bg-background/95 md:bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 md:supports-[backdrop-filter]:bg-card/75 py-2 px-1">
-                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    {(() => {
-                      const catDef = categories.find((c) => c.id === group.id)
-                      const CatIcon = catDef?.icon ? ICON_OPTIONS.find((o) => o.name === catDef.icon)?.icon : undefined
-                      return (
-                        <span className="flex items-center justify-center shrink-0 h-5 w-5 md:h-6 md:w-6 rounded-sm" style={{ color: catDef?.color || "var(--primary)", backgroundColor: catDef?.color ? `color-mix(in oklch, ${catDef.color} 15%, transparent)` : undefined }}>
-                          {CatIcon ? <CatIcon className="h-3 w-3 md:h-4 md:w-4" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+      {/* Main Content: Table View vs List View */}
+      {viewMode === "table" ? (
+        <ListTableView
+          listId={listId}
+          items={visibleItems}
+          allItemsCount={items.length}
+          categories={categories}
+          fields={sortedFields}
+          filter={filter}
+          isGrouped={isGrouped}
+          atLimit={atLimit}
+          onToggleStatus={handleToggleStatus}
+          onDeleteItem={handleDelete}
+          onEditItem={(item) => setEditingItem(item)}
+          onAddItem={(catId) => setAddingToCategory(catId)}
+          onUpdateItem={handleUpdateItem}
+          onSelectCategory={handleSelectItemCategory}
+          onUpdateCustomField={handleUpdateItemCustomField}
+          onReorderItems={handleReorderItems}
+          onOpenAddField={() => setShowAddFieldModal(true)}
+          onOpenFieldsManager={() => setShowFieldsModal(true)}
+          onPreviewImage={(url, title) => setLightboxImage({ url, title })}
+        />
+      ) : (
+        <>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            {groupedItems ? (
+              <div className="flex flex-col gap-6 p-0 mt-2">
+                {groupedItems.map((group) => (
+                  <div key={group.id} className="flex flex-col gap-2">
+                    <div className="sticky top-0 z-10 flex items-center justify-between bg-background/95 md:bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 md:supports-[backdrop-filter]:bg-card/75 py-2 px-1">
+                      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        {(() => {
+                          const catDef = categories.find((c) => c.id === group.id)
+                          const CatIcon = catDef?.icon ? ICON_OPTIONS.find((o) => o.name === catDef.icon)?.icon : undefined
+                          return (
+                            <span className="flex items-center justify-center shrink-0 h-5 w-5 md:h-6 md:w-6 rounded-sm" style={{ color: catDef?.color || "var(--primary)", backgroundColor: catDef?.color ? `color-mix(in oklch, ${catDef.color} 15%, transparent)` : undefined }}>
+                              {CatIcon ? <CatIcon className="h-3 w-3 md:h-4 md:w-4" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+                            </span>
+                          )
+                        })()}
+                        {group.name}
+                        <span className="ml-2 font-mono text-xs uppercase tracking-wider text-muted-foreground font-normal">
+                          {group.items.length}
                         </span>
-                      )
-                    })()}
-                    {group.name}
-                    <span className="ml-2 font-mono text-xs uppercase tracking-wider text-muted-foreground font-normal">
-                      {group.items.length}
-                    </span>
-                  </h3>
-                  {filter !== "done" && !atLimit && (
-                    <button
-                      type="button"
-                      onClick={() => setAddingToCategory(group.id === "none" ? null : group.id)}
-                      className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20 shrink-0"
-                    >
-                      <Plus className="h-3 w-3" />
-                      Add item
-                    </button>
-                  )}
-                </div>
-                <SortableContext items={group.items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-                  <div className="flex flex-col gap-2">
-                    {group.items.map((item) => (
+                      </h3>
+                      {filter !== "done" && !atLimit && (
+                        <button
+                          type="button"
+                          onClick={() => setAddingToCategory(group.id === "none" ? null : group.id)}
+                          className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20 shrink-0"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Add item
+                        </button>
+                      )}
+                    </div>
+                    <SortableContext items={group.items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                      <div className="flex flex-col gap-2">
+                        {group.items.map((item) => (
+                          <SortableListRow
+                            key={item.id}
+                            item={item}
+                            categoryDef={getCategoryDef(item)}
+                            showCategoryIcon={false}
+                            fields={sortedFields}
+                            onToggleStatus={handleToggleStatus}
+                            onDelete={handleDelete}
+                            onEdit={() => setEditingItem(item)}
+                            onPreviewImage={(url, title) => setLightboxImage({ url, title })}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <SortableContext items={visibleItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                <div className="flex flex-col gap-2 mt-2">
+                  {visibleItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-center">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        {filter === "all" ? "No items yet" : filter === "done" ? "No done items" : "No open items"}
+                      </p>
+                      {filter === "all" && (
+                        <p className="mt-1 text-xs text-muted-foreground/60">
+                          Add your first item below
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    visibleItems.map((item) => (
                       <SortableListRow
                         key={item.id}
                         item={item}
                         categoryDef={getCategoryDef(item)}
-                        showCategoryIcon={false}
+                        showCategoryIcon={true}
+                        fields={sortedFields}
                         onToggleStatus={handleToggleStatus}
                         onDelete={handleDelete}
                         onEdit={() => setEditingItem(item)}
+                        onPreviewImage={(url, title) => setLightboxImage({ url, title })}
                       />
-                    ))}
-                  </div>
-                </SortableContext>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <SortableContext items={visibleItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-            <div className="flex flex-col gap-2 mt-2">
-              {visibleItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    {filter === "all" ? "No items yet" : filter === "done" ? "No done items" : "No open items"}
-                  </p>
-                  {filter === "all" && (
-                    <p className="mt-1 text-xs text-muted-foreground/60">
-                      Add your first item below
-                    </p>
+                    ))
                   )}
                 </div>
-              ) : (
-                visibleItems.map((item) => (
-                  <SortableListRow
-                    key={item.id}
-                    item={item}
-                    categoryDef={getCategoryDef(item)}
-                    showCategoryIcon={true}
-                    onToggleStatus={handleToggleStatus}
-                    onDelete={handleDelete}
-                    onEdit={() => setEditingItem(item)}
-                  />
-                ))
-              )}
+              </SortableContext>
+            )}
+          </DndContext>
+
+          {/* Add item at bottom (only when not filtered and not grouped) */}
+          {!isGrouped && filter !== "done" && !atLimit && (
+            <button
+              type="button"
+              onClick={() => setAddingToCategory(null)}
+              className="mt-2 flex w-full items-center gap-2 rounded-lg border border-dashed border-border p-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Plus className="h-4 w-4" />
+              Add item
+            </button>
+          )}
+
+          {/* Floating Add Button (FAB) */}
+          {!atLimit && (
+            <div className="sticky bottom-4 mt-8 flex justify-end right-4 z-50 pointer-events-none">
+              <button
+                type="button"
+                onClick={() => setAddingToCategory(null)}
+                className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-105 active:scale-95 transition-transform"
+                aria-label="Add item"
+              >
+                <Plus className="h-5 w-5" />
+              </button>
             </div>
-          </SortableContext>
-        )}
-      </DndContext>
-
-      {/* Add item at bottom (only when not filtered and not grouped) */}
-      {!isGrouped && filter !== "done" && !atLimit && (
-        <button
-          type="button"
-          onClick={() => setAddingToCategory(null)}
-          className="mt-2 flex w-full items-center gap-2 rounded-lg border border-dashed border-border p-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <Plus className="h-4 w-4" />
-          Add item
-        </button>
+          )}
+        </>
       )}
-
-      {/* Floating Add Button (FAB) */}
-      {!atLimit && (
-        <div className="sticky bottom-4 mt-8 flex justify-end right-4 z-50 pointer-events-none">
-          <button
-            type="button"
-            onClick={() => setAddingToCategory(null)}
-            className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-105 active:scale-95 transition-transform"
-            aria-label="Add item"
-          >
-            <Plus className="h-5 w-5" />
-          </button>
-        </div>
-      )}
-    
 
       {/* Categories Modal */}
       <Dialog open={showCategoriesModal} onOpenChange={setShowCategoriesModal}>
@@ -987,7 +1503,8 @@ export function ListEditor({
                 )
               })
             )}
-            <button 
+            <button
+              type="button"
               onClick={() => setEditingCategory({ id: nanoid(), name: "New Category", color: COLOR_PALETTE[0], icon: "FolderKanban" })}
               className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed p-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             >
@@ -1047,7 +1564,6 @@ export function ListEditor({
                     const oldCat = categories.find((c) => c.id === deletedId)
                     const targetName = oldCat?.name || editingCategory.name
                     const newCats = categories.filter((c) => c.id !== deletedId)
-                    onCategoriesChange(newCats)
 
                     // Clear category_id and category on all items that had this category
                     const updatedItems = items.map((item) =>
@@ -1055,7 +1571,7 @@ export function ListEditor({
                         ? { ...item, category_id: null, category: null }
                         : item,
                     )
-                    onChange(updatedItems)
+                    commitBatch({ list_categories: newCats, list_items: updatedItems })
                     setEditingCategory(null)
                   }}
                   className="text-sm text-destructive hover:underline"
@@ -1072,7 +1588,6 @@ export function ListEditor({
                       const newCats = [...categories]
                       if (idx >= 0) newCats[idx] = editingCategory
                       else newCats.push(editingCategory)
-                      onCategoriesChange(newCats)
 
                       // Also sync category name string on items for backwards compatibility
                       if (oldCat && oldCat.name !== editingCategory.name) {
@@ -1081,7 +1596,9 @@ export function ListEditor({
                             ? { ...item, category_id: editingCategory.id, category: editingCategory.name }
                             : item,
                         )
-                        onChange(updatedItems)
+                        commitBatch({ list_categories: newCats, list_items: updatedItems })
+                      } else {
+                        onCategoriesChange(newCats)
                       }
                       setEditingCategory(null)
                     }} 
@@ -1096,6 +1613,33 @@ export function ListEditor({
         </DialogContent>
       </Dialog>
 
+      <FieldsManagerModal
+        open={showFieldsModal}
+        onOpenChange={setShowFieldsModal}
+        fields={sortedFields}
+        items={items}
+        onAddField={handleAddField}
+        onRenameField={handleRenameField}
+        onReorderFields={handleReorderFields}
+        onDeleteField={handleDeleteField}
+      />
+
+      <AddFieldDialog
+        open={showAddFieldModal}
+        onOpenChange={setShowAddFieldModal}
+        existingFields={fields}
+        onAdd={handleAddField}
+      />
+
+      <ImageLightboxDialog
+        open={!!lightboxImage}
+        onOpenChange={(open) => {
+          if (!open) setLightboxImage(null)
+        }}
+        imageUrl={lightboxImage?.url ?? null}
+        title={lightboxImage?.title}
+      />
+
       <ItemModal
         open={addingToCategory !== undefined}
         onOpenChange={(open) => {
@@ -1103,7 +1647,9 @@ export function ListEditor({
         }}
         initialCategory={addingToCategory || null}
         categories={categories}
+        fields={sortedFields}
         items={items}
+        onPreviewImage={(url, title) => setLightboxImage({ url, title })}
         onSave={handleAdd}
       />
       <ItemModal
@@ -1114,18 +1660,19 @@ export function ListEditor({
         initialDescription={editingItem?.description || ""}
         initialDetails={editingItem?.details || ""}
         initialCategory={editingItem?.category_id || editingItem?.category || null}
+        initialCustomFields={editingItem?.custom_fields || null}
         categories={categories}
+        fields={sortedFields}
         items={items}
         isEdit
-        onSave={(desc, catId, details, newCatName) => {
+        onPreviewImage={(url, title) => setLightboxImage({ url, title })}
+        onSave={(desc, catId, details, newCatName, _existingId, customFields) => {
           if (editingItem) {
-            handleRename(editingItem.id, desc, catId, details, newCatName)
+            handleRename(editingItem.id, desc, catId, details, newCatName, customFields)
             setEditingItem(null)
           }
         }}
       />
-
-</div>
+    </div>
   )
 }
-
