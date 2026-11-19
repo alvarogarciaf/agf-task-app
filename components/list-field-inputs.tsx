@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { v4 as uuidv4 } from "uuid"
 import {
+  Calendar,
   Check,
   ChevronDown,
   ChevronUp,
@@ -26,7 +27,9 @@ import { uploadImage } from "@/lib/image-upload"
 import { preloadImage } from "@/lib/image-cache"
 import {
   LIST_FIELD_TYPES,
+  formatDateValue,
   getSafeHref,
+  normalizeDateValue,
   sanitizeCustomFieldValue,
 } from "@/lib/list-field-utils"
 import type { ListField, ListFieldType, ListItem } from "@/lib/types"
@@ -47,6 +50,8 @@ export function FieldTypeIcon({
       return <Link2 className={className} />
     case "image":
       return <ImageIcon className={className} />
+    case "date":
+      return <Calendar className={className} />
   }
 }
 
@@ -287,6 +292,72 @@ export function ImageFieldInput({
           Apply
         </button>
       </div>
+    </div>
+  )
+}
+
+export function DateFieldInput({
+  value,
+  onChange,
+  placeholder = "No date",
+}: {
+  value: string | null
+  onChange: (value: string | null) => void
+  placeholder?: string
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const inputValue = normalizeDateValue(value) ?? ""
+
+  function openPicker() {
+    const el = inputRef.current
+    if (!el) return
+    el.focus()
+    if ("showPicker" in HTMLInputElement.prototype) {
+      try {
+        el.showPicker()
+      } catch {}
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={openPicker}
+        className="flex h-9 w-full items-center gap-2 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      >
+        <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <span
+          className={cn(
+            "flex-1 truncate text-left",
+            !inputValue && "text-muted-foreground",
+          )}
+        >
+          {inputValue ? formatDateValue(inputValue, true) : placeholder}
+        </span>
+      </button>
+
+      {inputValue ? (
+        <button
+          type="button"
+          aria-label="Clear date"
+          onClick={() => onChange(null)}
+          className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
+
+      <input
+        ref={inputRef}
+        type="date"
+        lang="en-GB"
+        value={inputValue}
+        onChange={(e) => onChange(normalizeDateValue(e.target.value))}
+        className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
+        tabIndex={-1}
+        aria-hidden="true"
+      />
     </div>
   )
 }
@@ -730,7 +801,7 @@ export function FieldsManagerModal({
                 {addError && <p className="text-xs text-destructive">{addError}</p>}
               </div>
 
-              <div className="grid grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                 {LIST_FIELD_TYPES.map((meta) => {
                   const active = newType === meta.type
                   return (

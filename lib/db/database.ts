@@ -158,6 +158,10 @@ export const getDatabase = async (userUid: string) => {
               }));
             }
             return oldDoc;
+          },
+          // 17: Migrate from version 16 to 17 (allow 'date' custom list field type)
+          17: (oldDoc: any) => {
+            return oldDoc;
           }
         }
       },

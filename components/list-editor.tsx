@@ -39,6 +39,7 @@ import {
   SlidersHorizontal,
   Link2,
   ExternalLink,
+  Calendar,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -54,6 +55,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { cn } from "@/lib/utils"
 import {
   cleanCustomFields,
+  formatDateValue,
   formatLinkLabel,
   formatNumberValue,
   getSafeHref,
@@ -61,6 +63,7 @@ import {
 } from "@/lib/list-field-utils"
 import {
   AddFieldDialog,
+  DateFieldInput,
   FieldTypeIcon,
   FieldsManagerModal,
   ImageFieldInput,
@@ -198,6 +201,22 @@ function SortableListRow({
                   >
                     <span className="font-sans text-muted-foreground">{field.name}:</span>
                     {formatNumberValue(value)}
+                  </span>
+                )
+              }
+
+              if (field.type === "date") {
+                const formatted = formatDateValue(value)
+                if (!formatted) return null
+                return (
+                  <span
+                    key={field.id}
+                    className="inline-flex items-center gap-1 rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] text-foreground/85"
+                    title={`${field.name}: ${formatDateValue(value, true)}`}
+                  >
+                    <Calendar className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    <span className="font-sans text-muted-foreground">{field.name}:</span>
+                    {formatted}
                   </span>
                 )
               }
@@ -715,6 +734,15 @@ function ItemModal({
                         }
                         onChange={(nextUrl) =>
                           setCustomFields((prev) => ({ ...prev, [field.id]: nextUrl }))
+                        }
+                      />
+                    )}
+
+                    {field.type === "date" && (
+                      <DateFieldInput
+                        value={strVal || null}
+                        onChange={(nextDate) =>
+                          setCustomFields((prev) => ({ ...prev, [field.id]: nextDate }))
                         }
                       />
                     )}

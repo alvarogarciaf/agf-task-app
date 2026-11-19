@@ -3,7 +3,7 @@ import type { Task, Project, Person, Context } from '../types';
 
 export const taskSchemaLiteral = {
   title: 'task schema',
-  version: 16,
+  version: 17,
   description: 'describes a task or note (unified object)',
   primaryKey: 'id',
   type: 'object',
@@ -82,7 +82,7 @@ export const taskSchemaLiteral = {
         properties: {
           id:    { type: 'string' },
           name:  { type: 'string' },
-          type:  { type: 'string', enum: ['text', 'number', 'link', 'image'] },
+          type:  { type: 'string', enum: ['text', 'number', 'link', 'image', 'date'] },
           order: { type: 'number' },
         },
         required: ['id', 'name', 'type', 'order'],

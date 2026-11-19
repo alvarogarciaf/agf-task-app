@@ -32,6 +32,12 @@ export const LIST_FIELD_TYPES: ListFieldTypeMeta[] = [
     description: "Upload a photo or paste an image URL",
     placeholder: "https://...",
   },
+  {
+    type: "date",
+    label: "Date",
+    description: "Due dates, milestones, or schedules",
+    placeholder: "YYYY-MM-DD",
+  },
 ]
 
 const CUSTOM_COLUMN_PREFIX = "custom:"
@@ -89,6 +95,46 @@ export function formatNumberValue(val: number | string | null | undefined): stri
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(num)
 }
 
+export function normalizeDateValue(raw: unknown): string | null {
+  if (typeof raw !== "string") return null
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/)
+  if (!match) return null
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const dt = new Date(Date.UTC(year, month - 1, day))
+  if (
+    dt.getUTCFullYear() !== year ||
+    dt.getUTCMonth() !== month - 1 ||
+    dt.getUTCDate() !== day
+  ) {
+    return null
+  }
+  return `${match[1]}-${match[2]}-${match[3]}`
+}
+
+export function formatDateValue(
+  val: string | number | null | undefined,
+  alwaysIncludeYear = false,
+): string {
+  const normalized = normalizeDateValue(
+    val !== null && val !== undefined ? String(val) : null,
+  )
+  if (!normalized) return ""
+  const [y, m, d] = normalized.split("-").map(Number)
+  const dt = new Date(y, m - 1, d)
+  if (Number.isNaN(dt.getTime())) return ""
+  const includeYear = alwaysIncludeYear || y !== new Date().getFullYear()
+  return dt.toLocaleDateString(
+    undefined,
+    includeYear
+      ? { month: "short", day: "numeric", year: "numeric" }
+      : { month: "short", day: "numeric" },
+  )
+}
+
 export function sanitizeCustomFieldValue(
   type: ListFieldType,
   raw: unknown,
@@ -106,6 +152,10 @@ export function sanitizeCustomFieldValue(
       return Number.isFinite(num) ? num : null
     }
     return null
+  }
+
+  if (type === "date") {
+    return normalizeDateValue(raw)
   }
 
   if (typeof raw !== "string" && typeof raw !== "number") return null
@@ -223,6 +273,12 @@ export function compareListItems(
       const numA = typeof valA === "number" ? valA : Number(valA)
       const numB = typeof valB === "number" ? valB : Number(valB)
       if (numA !== numB) return (numA - numB) * dir
+      return a.order - b.order
+    }
+
+    if (field.type === "date") {
+      const cmp = String(valA).localeCompare(String(valB))
+      if (cmp !== 0) return cmp * dir
       return a.order - b.order
     }
 

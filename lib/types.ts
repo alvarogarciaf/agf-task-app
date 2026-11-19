@@ -7,7 +7,7 @@ export interface UrgencyLevel {
 
 export type ProjectStatus = "Ongoing" | "Closed"
 
-export type ListFieldType = "text" | "number" | "link" | "image"
+export type ListFieldType = "text" | "number" | "link" | "image" | "date"
 
 export interface ListField {
   id: string

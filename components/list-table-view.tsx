@@ -60,12 +60,14 @@ import { ICON_OPTIONS } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 import {
   compareListItems,
+  formatDateValue,
   formatLinkLabel,
   formatNumberValue,
   getCustomFieldId,
   getSafeHref,
   isCustomColumnKey,
   makeCustomColumnKey,
+  normalizeDateValue,
   sanitizeCustomFieldValue,
 } from "@/lib/list-field-utils"
 import { FieldTypeIcon, ImageFieldInput, ImageThumbnail } from "@/components/list-field-inputs"
@@ -107,7 +109,7 @@ function InlineCellTextInput({
   onTab,
 }: {
   value: string
-  type?: "text" | "number" | "url"
+  type?: "text" | "number" | "url" | "date"
   placeholder?: string
   allowEmpty: boolean
   onCommit: (val: string) => void
@@ -120,8 +122,16 @@ function InlineCellTextInput({
 
   useEffect(() => {
     inputRef.current?.focus()
-    inputRef.current?.select()
-  }, [])
+    if (type === "date") {
+      if (inputRef.current && "showPicker" in HTMLInputElement.prototype) {
+        try {
+          inputRef.current.showPicker()
+        } catch {}
+      }
+    } else {
+      inputRef.current?.select()
+    }
+  }, [type])
 
   const finishCommit = () => {
     if (finishedRef.current) return
@@ -139,6 +149,7 @@ function InlineCellTextInput({
       <input
         ref={inputRef}
         type={type}
+        lang={type === "date" ? "en-GB" : undefined}
         step={type === "number" ? "any" : undefined}
         value={text}
         placeholder={placeholder}
@@ -401,6 +412,7 @@ export function ListTableView({
       if (!field) return "min-w-[140px]"
       if (field.type === "number") return "min-w-[100px]"
       if (field.type === "image") return "min-w-[96px]"
+      if (field.type === "date") return "min-w-[120px]"
       return "min-w-[140px]"
     },
     [getColumnField],
@@ -882,6 +894,24 @@ export function ListTableView({
         )
       }
 
+      if (field.type === "date") {
+        const formatted = rawVal !== null ? formatDateValue(rawVal) : ""
+        return formatted ? (
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 font-mono text-xs text-muted-foreground whitespace-nowrap",
+              isDone && "opacity-60",
+            )}
+            title={formatDateValue(rawVal, true)}
+          >
+            <Calendar className="h-3.5 w-3.5 shrink-0" />
+            {formatted}
+          </span>
+        ) : (
+          <EmptyCell />
+        )
+      }
+
       if (field.type === "image") {
         const strVal = rawVal !== null ? String(rawVal) : null
         return (
@@ -1028,6 +1058,26 @@ export function ListTableView({
                 item.id,
                 field.id,
                 sanitizeCustomFieldValue("link", val),
+              )
+              setEditingCell(null)
+            }}
+            onCancel={() => setEditingCell(null)}
+            onTab={sharedTab}
+          />
+        )
+      }
+
+      if (field.type === "date") {
+        return (
+          <InlineCellTextInput
+            type="date"
+            value={normalizeDateValue(currentVal) ?? ""}
+            allowEmpty={true}
+            onCommit={(val) => {
+              onUpdateCustomField(
+                item.id,
+                field.id,
+                sanitizeCustomFieldValue("date", val),
               )
               setEditingCell(null)
             }}
