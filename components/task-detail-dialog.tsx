@@ -135,6 +135,7 @@ export function TaskDetailDialog({
     updateListCategories,
     updateListFields,
     updateListBatch,
+    updateListItemsBackground,
   } = useObjectDraft({
     task,
     projects,
@@ -590,6 +591,7 @@ export function TaskDetailDialog({
             listFields={draft.list_fields}
             onListFieldsChange={updateListFields}
             onListBatchChange={updateListBatch}
+            onListItemsBackgroundUpdate={updateListItemsBackground}
             onListViewModeChange={setListViewMode}
             listId={draft.id}
             projectId={draft.project_id}

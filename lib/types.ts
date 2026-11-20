@@ -16,6 +16,15 @@ export interface ListField {
   order: number
 }
 
+export interface LinkFieldPreview {
+  url: string
+  title?: string | null
+  description?: string | null
+  domain?: string | null
+  imageUrl?: string | null
+  fetched_at?: number | null
+}
+
 export interface ListItem {
   id: string
   description: string
@@ -26,6 +35,8 @@ export interface ListItem {
   category?: string | null
   details?: string | null
   custom_fields?: Record<string, string | number | null> | null
+  /** Cached link preview metadata keyed by ListField.id (for link-type fields) */
+  link_previews?: Record<string, LinkFieldPreview | null> | null
 }
 
 // The unified object can be a task or a note. Both kinds always carry

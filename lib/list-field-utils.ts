@@ -1,4 +1,4 @@
-import type { ListCategory, ListField, ListFieldType, ListItem } from "@/lib/types"
+import type { LinkFieldPreview, ListCategory, ListField, ListFieldType, ListItem } from "@/lib/types"
 
 export interface ListFieldTypeMeta {
   type: ListFieldType
@@ -187,6 +187,87 @@ export function cleanCustomFields(
   }
 
   return count > 0 ? result : null
+}
+
+function cleanOptionalText(val: unknown): string | null {
+  if (typeof val !== "string") return null
+  const trimmed = val.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+export function cleanLinkPreviews(
+  map: Record<string, LinkFieldPreview | null | undefined> | null | undefined,
+  allowedFieldIds?: Set<string>,
+): Record<string, LinkFieldPreview> | null {
+  if (!map || typeof map !== "object") return null
+  const result: Record<string, LinkFieldPreview> = {}
+  let count = 0
+
+  for (const [key, preview] of Object.entries(map)) {
+    if (allowedFieldIds && !allowedFieldIds.has(key)) continue
+    if (!preview || typeof preview !== "object") continue
+    const rawUrl = typeof preview.url === "string" ? preview.url.trim() : ""
+    if (!rawUrl) continue
+
+    result[key] = {
+      url: rawUrl,
+      title: cleanOptionalText(preview.title),
+      description: cleanOptionalText(preview.description),
+      domain: cleanOptionalText(preview.domain),
+      imageUrl: cleanOptionalText(preview.imageUrl),
+      fetched_at:
+        typeof preview.fetched_at === "number" && Number.isFinite(preview.fetched_at)
+          ? preview.fetched_at
+          : null,
+    }
+    count++
+  }
+
+  return count > 0 ? result : null
+}
+
+export function getMatchingLinkPreview(
+  item: ListItem,
+  fieldId: string,
+): LinkFieldPreview | null {
+  const rawFieldUrl = item.custom_fields?.[fieldId]
+  if (typeof rawFieldUrl !== "string") return null
+  const normalizedFieldUrl = getSafeHref(rawFieldUrl)
+  if (!normalizedFieldUrl) return null
+
+  const preview = item.link_previews?.[fieldId]
+  if (!preview || typeof preview.url !== "string") return null
+  const normalizedPreviewUrl = getSafeHref(preview.url)
+  if (!normalizedPreviewUrl || normalizedPreviewUrl !== normalizedFieldUrl) {
+    return null
+  }
+
+  return preview
+}
+
+export function reconcileItemLinkPreviews(
+  item: ListItem,
+  nextCustomFields: Record<string, string | number | null> | null | undefined,
+  fields: ListField[],
+): Record<string, LinkFieldPreview> | null {
+  if (!item.link_previews || !nextCustomFields) return null
+  const linkFieldIds = new Set(
+    fields.filter((f) => f.type === "link").map((f) => f.id),
+  )
+  const kept: Record<string, LinkFieldPreview> = {}
+
+  for (const [fieldId, preview] of Object.entries(item.link_previews)) {
+    if (!linkFieldIds.has(fieldId) || !preview) continue
+    const rawNextUrl = nextCustomFields[fieldId]
+    if (typeof rawNextUrl !== "string") continue
+    const normalizedNext = getSafeHref(rawNextUrl)
+    const normalizedPrev = getSafeHref(preview.url)
+    if (normalizedNext && normalizedPrev && normalizedNext === normalizedPrev) {
+      kept[fieldId] = preview
+    }
+  }
+
+  return cleanLinkPreviews(kept, linkFieldIds)
 }
 
 function getCategoryName(item: ListItem, categories: ListCategory[]): string | null {

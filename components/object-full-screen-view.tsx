@@ -120,6 +120,7 @@ export function ObjectFullScreenView({
     updateListCategories,
     updateListFields,
     updateListBatch,
+    updateListItemsBackground,
   } = useObjectDraft({
     task: effectiveTask,
     projects,
@@ -490,6 +491,7 @@ export function ObjectFullScreenView({
               listFields={draft.list_fields}
               onListFieldsChange={updateListFields}
               onListBatchChange={updateListBatch}
+              onListItemsBackgroundUpdate={updateListItemsBackground}
               onListViewModeChange={setListViewMode}
               listId={draft.id}
               projectId={draft.project_id}

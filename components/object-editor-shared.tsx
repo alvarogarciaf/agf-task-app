@@ -604,6 +604,31 @@ export function useObjectDraft({
     [autosave, onUpdate, pushHistory],
   )
 
+  const updateListItemsBackground = useCallback(
+    (updater: (prevItems: ListItem[]) => ListItem[]) => {
+      setDraft((prev) => {
+        if (!prev) return prev
+        const currentItems = prev.list_items ?? []
+        const nextItems = updater(currentItems)
+        if (nextItems === currentItems) return prev
+        const next: Task = { ...prev, list_items: nextItems }
+        const currentEntry = historyRef.current[historyIndexRef.current]
+        if (currentEntry) {
+          historyRef.current[historyIndexRef.current] = {
+            ...currentEntry,
+            list_items: JSON.parse(JSON.stringify(nextItems)),
+          }
+        }
+        if (autosave) {
+          onUpdate({ ...next, updated_at: Date.now() })
+          lastSavedSnapshotRef.current = toPlain(next)
+        }
+        return next
+      })
+    },
+    [autosave, onUpdate],
+  )
+
   return {
     draft,
     setDraft,
@@ -612,6 +637,7 @@ export function useObjectDraft({
     updateListCategories,
     updateListFields,
     updateListBatch,
+    updateListItemsBackground,
     dirty,
     autoProcess,
     setAutoProcess,
@@ -1096,6 +1122,7 @@ export function ObjectDetailsEditor({
   listFields,
   onListFieldsChange,
   onListBatchChange,
+  onListItemsBackgroundUpdate,
   onListViewModeChange,
   listId,
   projectId,
@@ -1118,6 +1145,7 @@ export function ObjectDetailsEditor({
     list_categories?: ListCategory[]
     list_fields?: ListField[]
   }) => void
+  onListItemsBackgroundUpdate?: (updater: (prevItems: ListItem[]) => ListItem[]) => void
   onListViewModeChange?: (mode: ListViewMode) => void
   listId?: string
   projectId?: string | null
@@ -1167,6 +1195,7 @@ export function ObjectDetailsEditor({
           fields={listFields ?? []}
           onFieldsChange={onListFieldsChange ?? (() => {})}
           onBatchChange={onListBatchChange}
+          onBackgroundItemsUpdate={onListItemsBackgroundUpdate}
           onViewModeChange={onListViewModeChange}
         />
       </div>

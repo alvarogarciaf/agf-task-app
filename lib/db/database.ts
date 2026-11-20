@@ -162,6 +162,16 @@ export const getDatabase = async (userUid: string) => {
           // 17: Migrate from version 16 to 17 (allow 'date' custom list field type)
           17: (oldDoc: any) => {
             return oldDoc;
+          },
+          // 18: Migrate from version 17 to 18 (add link_previews on list_items)
+          18: (oldDoc: any) => {
+            if (Array.isArray(oldDoc.list_items)) {
+              oldDoc.list_items = oldDoc.list_items.map((item: any) => ({
+                ...item,
+                link_previews: item.link_previews ?? null,
+              }));
+            }
+            return oldDoc;
           }
         }
       },

@@ -53,14 +53,19 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command"
 import { IconPicker } from "@/components/icon-picker"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useDatabase } from "@/components/db-provider"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
+import { fetchLinkPreviewMetadata } from "@/lib/link-preview-client"
 import {
   cleanCustomFields,
+  cleanLinkPreviews,
   formatDateValue,
   formatLinkLabel,
   formatNumberValue,
+  getMatchingLinkPreview,
   getSafeHref,
+  reconcileItemLinkPreviews,
   sanitizeCustomFieldValue,
 } from "@/lib/list-field-utils"
 import {
@@ -74,7 +79,7 @@ import {
 } from "@/components/list-field-inputs"
 import { ListCardsView } from "@/components/list-cards-view"
 import { ListTableView } from "@/components/list-table-view"
-import type { ListItem, ListCategory, ListField } from "@/lib/types"
+import type { LinkFieldPreview, ListItem, ListCategory, ListField } from "@/lib/types"
 
 const MAX_ITEMS = 200
 
@@ -228,6 +233,8 @@ function SortableListRow({
                 const strVal = String(value)
                 const safeHref = getSafeHref(strVal)
                 if (safeHref) {
+                  const preview = getMatchingLinkPreview(item, field.id)
+                  const displayLabel = preview?.title || formatLinkLabel(strVal)
                   return (
                     <a
                       key={field.id}
@@ -235,12 +242,16 @@ function SortableListRow({
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="inline-flex max-w-[220px] items-center gap-1 text-xs font-medium text-primary hover:underline"
-                      title={`${field.name}: ${safeHref}`}
+                      className="inline-flex max-w-[240px] items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      title={
+                        preview?.title
+                          ? `${field.name}: ${preview.title} (${safeHref})`
+                          : `${field.name}: ${safeHref}`
+                      }
                     >
                       <Link2 className="h-3 w-3 shrink-0" />
                       <span className="truncate">
-                        {field.name}: {formatLinkLabel(strVal)}
+                        {field.name}: {displayLabel}
                       </span>
                       <ExternalLink className="h-2.5 w-2.5 shrink-0 opacity-70" />
                     </a>
@@ -345,6 +356,7 @@ function ItemModal({
   initialDetails = "",
   initialCategory = null,
   initialCustomFields = null,
+  initialLinkPreviews = null,
   onSave,
   categories,
   fields = [],
@@ -358,6 +370,7 @@ function ItemModal({
   initialDetails?: string | null
   initialCategory?: string | null
   initialCustomFields?: Record<string, string | number | null> | null
+  initialLinkPreviews?: Record<string, LinkFieldPreview | null> | null
   onSave: (
     description: string,
     categoryId: string | null,
@@ -698,36 +711,76 @@ function ItemModal({
                       />
                     )}
 
-                    {field.type === "link" && (
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="url"
-                          value={strVal}
-                          onChange={(e) =>
-                            setCustomFields((prev) => ({ ...prev, [field.id]: e.target.value }))
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault()
-                              handleSave()
-                            }
-                          }}
-                          placeholder="https://example.com"
-                          className="flex h-9 min-w-0 flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        />
-                        {safeHref && (
-                          <a
-                            href={safeHref}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                            title="Open link"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        )}
-                      </div>
-                    )}
+                    {field.type === "link" && (() => {
+                      const savedPreview = initialLinkPreviews?.[field.id]
+                      const previewMatches =
+                        !!savedPreview &&
+                        !!safeHref &&
+                        getSafeHref(savedPreview.url) === safeHref &&
+                        !!(savedPreview.title || savedPreview.imageUrl)
+
+                      return (
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="url"
+                              value={strVal}
+                              onChange={(e) =>
+                                setCustomFields((prev) => ({ ...prev, [field.id]: e.target.value }))
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault()
+                                  handleSave()
+                                }
+                              }}
+                              placeholder="https://example.com"
+                              className="flex h-9 min-w-0 flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            />
+                            {safeHref && (
+                              <a
+                                href={safeHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                title="Open link"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            )}
+                          </div>
+                          {previewMatches && savedPreview && (
+                            <div className="flex items-center gap-2.5 rounded-md border border-border/70 bg-muted/30 px-2.5 py-1.5">
+                              {savedPreview.imageUrl && (
+                                <ImageThumbnail
+                                  src={savedPreview.imageUrl}
+                                  alt={savedPreview.title || field.name}
+                                  onClick={() =>
+                                    onPreviewImage?.(
+                                      savedPreview.imageUrl!,
+                                      savedPreview.title || field.name,
+                                    )
+                                  }
+                                  className="h-9 w-9 shrink-0 cursor-zoom-in"
+                                />
+                              )}
+                              <div className="min-w-0 flex-1">
+                                {savedPreview.title && (
+                                  <p className="truncate text-xs font-medium text-foreground">
+                                    {savedPreview.title}
+                                  </p>
+                                )}
+                                {savedPreview.domain && (
+                                  <p className="truncate text-[11px] text-muted-foreground">
+                                    {savedPreview.domain}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
 
                     {field.type === "image" && (
                       <ImageFieldInput
@@ -779,6 +832,7 @@ export function ListEditor({
   fields = [],
   onFieldsChange = () => {},
   onBatchChange,
+  onBackgroundItemsUpdate,
   onViewModeChange,
 }: {
   listId?: string
@@ -793,8 +847,10 @@ export function ListEditor({
     list_categories?: ListCategory[]
     list_fields?: ListField[]
   }) => void
+  onBackgroundItemsUpdate?: (updater: (prevItems: ListItem[]) => ListItem[]) => void
   onViewModeChange?: (mode: ListViewMode) => void
 }) {
+  const db = useDatabase()
   const isMobile = useIsMobile()
   const [filter, setFilter] = useState<StatusFilter>("open")
   const [isGrouped, setIsGrouped] = useState(() => {
@@ -1015,7 +1071,19 @@ export function ListEditor({
           } else {
             nextMap[fieldId] = sanitized
           }
-          return { ...item, custom_fields: cleanCustomFields(nextMap) }
+          const cleanedCustomFields = cleanCustomFields(nextMap)
+          if (field?.type === "link") {
+            return {
+              ...item,
+              custom_fields: cleanedCustomFields,
+              link_previews: reconcileItemLinkPreviews(
+                item,
+                cleanedCustomFields,
+                fields,
+              ),
+            }
+          }
+          return { ...item, custom_fields: cleanedCustomFields }
         }),
       )
     },
@@ -1045,6 +1113,11 @@ export function ListEditor({
               category: finalCatName,
               details,
               custom_fields: cleanedCustomFields,
+              link_previews: reconcileItemLinkPreviews(
+                item,
+                cleanedCustomFields,
+                fields,
+              ),
             }
           : item,
       )
@@ -1054,7 +1127,7 @@ export function ListEditor({
         onChange(nextItems)
       }
     },
-    [items, onChange, resolveCategory, commitBatch],
+    [items, fields, onChange, resolveCategory, commitBatch],
   )
 
   const handleAdd = useCallback(
@@ -1083,6 +1156,11 @@ export function ListEditor({
                 category: finalCatName,
                 details,
                 custom_fields: cleanedCustomFields,
+                link_previews: reconcileItemLinkPreviews(
+                  item,
+                  cleanedCustomFields,
+                  fields,
+                ),
               }
             : item,
         )
@@ -1108,6 +1186,7 @@ export function ListEditor({
         category: finalCatName,
         details,
         custom_fields: cleanedCustomFields,
+        link_previews: null,
       }
       const nextItems = [...items, newItem]
       if (nextCategories) {
@@ -1117,7 +1196,7 @@ export function ListEditor({
       }
       setAddingToCategory(undefined)
     },
-    [items, onChange, resolveCategory, commitBatch],
+    [items, fields, onChange, resolveCategory, commitBatch],
   )
 
   const handleAddField = useCallback(
@@ -1148,15 +1227,176 @@ export function ListEditor({
         .map((f, idx) => ({ ...f, order: idx }))
       const allowedIds = new Set(nextFields.map((f) => f.id))
       const nextItems = items.map((item) => {
-        if (!item.custom_fields || !(fieldId in item.custom_fields)) return item
-        const nextMap = { ...item.custom_fields }
-        delete nextMap[fieldId]
-        return { ...item, custom_fields: cleanCustomFields(nextMap, allowedIds) }
+        const hasCustom = !!item.custom_fields && fieldId in item.custom_fields
+        const hasPreview = !!item.link_previews && fieldId in item.link_previews
+        if (!hasCustom && !hasPreview) return item
+
+        let nextCustom = item.custom_fields ?? null
+        if (hasCustom && item.custom_fields) {
+          const nextMap = { ...item.custom_fields }
+          delete nextMap[fieldId]
+          nextCustom = cleanCustomFields(nextMap, allowedIds)
+        }
+
+        let nextPreviews = item.link_previews ?? null
+        if (hasPreview && item.link_previews) {
+          const nextPreviewMap = { ...item.link_previews }
+          delete nextPreviewMap[fieldId]
+          nextPreviews = cleanLinkPreviews(nextPreviewMap, allowedIds)
+        }
+
+        return {
+          ...item,
+          custom_fields: nextCustom,
+          link_previews: nextPreviews,
+        }
       })
       commitBatch({ list_fields: nextFields, list_items: nextItems })
     },
     [fields, items, commitBatch],
   )
+
+  // Background metadata enrichment for link-type custom fields
+  const isMountedRef = useRef(true)
+  const latestItemsRef = useRef(items)
+  const latestFieldsRef = useRef(fields)
+  const onChangeRef = useRef(onChange)
+  const onBackgroundItemsUpdateRef = useRef(onBackgroundItemsUpdate)
+  const inFlightKeysRef = useRef<Set<string>>(new Set())
+  const attemptedKeysRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    latestItemsRef.current = items
+  }, [items])
+
+  useEffect(() => {
+    latestFieldsRef.current = fields
+  }, [fields])
+
+  useEffect(() => {
+    onChangeRef.current = onChange
+    onBackgroundItemsUpdateRef.current = onBackgroundItemsUpdate
+  }, [onChange, onBackgroundItemsUpdate])
+
+  useEffect(() => {
+    const linkFields = sortedFields.filter((f) => f.type === "link")
+    if (linkFields.length === 0 || items.length === 0) return
+
+    const pending: {
+      itemId: string
+      fieldId: string
+      safeHref: string
+      key: string
+    }[] = []
+
+    for (const item of items) {
+      if (!item.custom_fields) continue
+      for (const field of linkFields) {
+        const rawUrl = item.custom_fields[field.id]
+        if (typeof rawUrl !== "string") continue
+        const safeHref = getSafeHref(rawUrl)
+        if (!safeHref) continue
+        if (getMatchingLinkPreview(item, field.id)) continue
+
+        const key = `${item.id}:${field.id}:${safeHref}`
+        if (
+          inFlightKeysRef.current.has(key) ||
+          attemptedKeysRef.current.has(key)
+        ) {
+          continue
+        }
+        pending.push({ itemId: item.id, fieldId: field.id, safeHref, key })
+      }
+    }
+
+    if (pending.length === 0) return
+
+    for (const entry of pending) {
+      inFlightKeysRef.current.add(entry.key)
+      attemptedKeysRef.current.add(entry.key)
+    }
+
+    let index = 0
+    const MAX_CONCURRENCY = 3
+
+    const runWorker = async () => {
+      while (index < pending.length) {
+        const entry = pending[index++]
+        if (!entry) break
+
+        try {
+          const preview = await fetchLinkPreviewMetadata(entry.safeHref)
+          if (!preview) continue
+
+          const applyPreview = (currentItems: ListItem[]): ListItem[] => {
+            let didChange = false
+            const allowedIds = new Set(latestFieldsRef.current.map((f) => f.id))
+            const nextItems = currentItems.map((it) => {
+              if (it.id !== entry.itemId) return it
+              const currentHref = getSafeHref(
+                typeof it.custom_fields?.[entry.fieldId] === "string"
+                  ? String(it.custom_fields[entry.fieldId])
+                  : null,
+              )
+              if (currentHref !== entry.safeHref) return it
+
+              const existingMatch = getMatchingLinkPreview(it, entry.fieldId)
+              if (
+                existingMatch &&
+                existingMatch.url === preview.url &&
+                existingMatch.imageUrl === preview.imageUrl &&
+                existingMatch.title === preview.title
+              ) {
+                return it
+              }
+
+              didChange = true
+              const merged = cleanLinkPreviews(
+                { ...(it.link_previews || {}), [entry.fieldId]: preview },
+                allowedIds,
+              )
+              return { ...it, link_previews: merged }
+            })
+            return didChange ? nextItems : currentItems
+          }
+
+          if (isMountedRef.current) {
+            if (onBackgroundItemsUpdateRef.current) {
+              onBackgroundItemsUpdateRef.current(applyPreview)
+            } else {
+              onChangeRef.current(applyPreview(latestItemsRef.current))
+            }
+          } else if (db && listId) {
+            const doc = await db.tasks.findOne(listId).exec()
+            if (doc) {
+              const currentDbItems = (doc.toJSON().list_items ?? []) as ListItem[]
+              const nextDbItems = applyPreview(currentDbItems)
+              if (nextDbItems !== currentDbItems) {
+                await doc.incrementalPatch({
+                  list_items: nextDbItems,
+                  updated_at: Date.now(),
+                })
+              }
+            }
+          }
+        } finally {
+          inFlightKeysRef.current.delete(entry.key)
+        }
+      }
+    }
+
+    const workerCount = Math.min(MAX_CONCURRENCY, pending.length)
+    for (let i = 0; i < workerCount; i++) {
+      void runWorker()
+    }
+  }, [items, sortedFields, db, listId])
 
   const visibleItems = useMemo(
     () =>
@@ -1737,6 +1977,7 @@ export function ListEditor({
         initialDetails={editingItem?.details || ""}
         initialCategory={editingItem?.category_id || editingItem?.category || null}
         initialCustomFields={editingItem?.custom_fields || null}
+        initialLinkPreviews={editingItem?.link_previews || null}
         categories={categories}
         fields={sortedFields}
         items={items}

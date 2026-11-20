@@ -64,6 +64,7 @@ import {
   formatLinkLabel,
   formatNumberValue,
   getCustomFieldId,
+  getMatchingLinkPreview,
   getSafeHref,
   isCustomColumnKey,
   makeCustomColumnKey,
@@ -861,6 +862,8 @@ export function ListTableView({
         if (rawVal === null) return <EmptyCell />
         const strVal = String(rawVal)
         const safeHref = getSafeHref(strVal)
+        const preview = getMatchingLinkPreview(item, field.id)
+        const displayLabel = preview?.title || formatLinkLabel(strVal)
         return (
           <div className="group/link flex items-center gap-1.5 min-w-0 max-w-[240px]">
             {safeHref ? (
@@ -870,10 +873,10 @@ export function ListTableView({
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 className="inline-flex min-w-0 items-center gap-1 text-xs font-medium text-primary hover:underline"
-                title={safeHref}
+                title={preview?.title ? `${preview.title} (${safeHref})` : safeHref}
               >
                 <Link2 className="h-3 w-3 shrink-0" />
-                <span className="truncate">{formatLinkLabel(strVal)}</span>
+                <span className="truncate">{displayLabel}</span>
                 <ExternalLink className="h-3 w-3 shrink-0 opacity-70" />
               </a>
             ) : (

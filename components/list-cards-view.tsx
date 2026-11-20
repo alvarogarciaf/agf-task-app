@@ -52,12 +52,13 @@ import {
   formatLinkLabel,
   formatNumberValue,
   getCustomFieldId,
+  getMatchingLinkPreview,
   getSafeHref,
   isCustomColumnKey,
   makeCustomColumnKey,
   sanitizeCustomFieldValue,
 } from "@/lib/list-field-utils"
-import { FieldTypeIcon, ImageThumbnail } from "@/components/list-field-inputs"
+import { FieldTypeIcon } from "@/components/list-field-inputs"
 import type { ListCategory, ListField, ListItem } from "@/lib/types"
 
 type BuiltInCardFieldKey = "status" | "category" | "details" | "date_created"
@@ -228,6 +229,14 @@ export function ListCardsView({
     [sortedFields, visibility],
   )
 
+  const visibleLinkFields = useMemo(
+    () =>
+      sortedFields.filter(
+        (f) => f.type === "link" && !!visibility[makeCustomColumnKey(f.id)],
+      ),
+    [sortedFields, visibility],
+  )
+
   const visibleMetaFields = useMemo(
     () =>
       sortedFields.filter(
@@ -236,19 +245,31 @@ export function ListCardsView({
     [sortedFields, visibility],
   )
 
-  // Preload visible card images for smooth scrolling
+  const anyItemHasLinkCover = useMemo(() => {
+    if (!visibleLinkFields.length || !items.length) return false
+    return items.some((it) =>
+      visibleLinkFields.some((f) => !!getMatchingLinkPreview(it, f.id)?.imageUrl),
+    )
+  }, [items, visibleLinkFields])
+
+  // Preload visible card images and link preview images for smooth scrolling
   useEffect(() => {
-    if (!visibleImageFields.length || !items.length) return
+    if ((!visibleImageFields.length && !visibleLinkFields.length) || !items.length) return
     for (const item of items) {
-      if (!item.custom_fields) continue
       for (const f of visibleImageFields) {
-        const val = sanitizeCustomFieldValue("image", item.custom_fields[f.id])
+        const val = sanitizeCustomFieldValue("image", item.custom_fields?.[f.id])
         if (typeof val === "string") {
           preloadImage(val)
         }
       }
+      for (const f of visibleLinkFields) {
+        const preview = getMatchingLinkPreview(item, f.id)
+        if (preview?.imageUrl) {
+          preloadImage(preview.imageUrl)
+        }
+      }
     }
-  }, [items, visibleImageFields])
+  }, [items, visibleImageFields, visibleLinkFields])
 
   const groupedItems = useMemo(() => {
     if (!isGrouped) return null
@@ -306,17 +327,34 @@ export function ListCardsView({
       ? ICON_OPTIONS.find((o) => o.name === catDef.icon)?.icon || Tag
       : Tag
 
-    const populatedImages: { field: ListField; url: string }[] = []
+    // Priority 1: top-most populated explicit image field
+    let coverImage: { url: string; title: string } | null = null
     for (const imgField of visibleImageFields) {
       const val = sanitizeCustomFieldValue("image", item.custom_fields?.[imgField.id])
       if (typeof val === "string") {
-        populatedImages.push({ field: imgField, url: val })
+        coverImage = {
+          url: val,
+          title: `${item.description} (${imgField.name})`,
+        }
+        break
       }
     }
 
-    const coverImage = populatedImages[0] ?? null
-    const extraImages = populatedImages.slice(1)
-    const showCoverWhenEmpty = visibleImageFields.length > 0
+    // Priority 2: top-most link field with a preview image (when no image field has an image)
+    if (!coverImage) {
+      for (const linkField of visibleLinkFields) {
+        const preview = getMatchingLinkPreview(item, linkField.id)
+        if (preview?.imageUrl) {
+          coverImage = {
+            url: preview.imageUrl,
+            title: preview.title || `${item.description} (${linkField.name})`,
+          }
+          break
+        }
+      }
+    }
+
+    const showCoverWhenEmpty = visibleImageFields.length > 0 || anyItemHasLinkCover
     const hasCover = !!coverImage || showCoverWhenEmpty
 
     const populatedMetaValues: { field: ListField; value: string | number }[] = []
@@ -348,15 +386,12 @@ export function ListCardsView({
       <SortableCardWrapper key={item.id} id={item.id}>
         <MediaCard
           imageUrl={coverImage?.url ?? null}
-          imageAlt={coverImage ? `${item.description} - ${coverImage.field.name}` : item.description}
+          imageAlt={coverImage?.title ?? item.description}
           onImageClick={
             coverImage
               ? (e) => {
                   e.stopPropagation()
-                  onPreviewImage(
-                    coverImage.url,
-                    `${item.description} (${coverImage.field.name})`,
-                  )
+                  onPreviewImage(coverImage.url, coverImage.title)
                 }
               : undefined
           }
@@ -526,6 +561,8 @@ export function ListCardsView({
                   const strVal = String(value)
                   const safeHref = getSafeHref(strVal)
                   if (safeHref) {
+                    const preview = getMatchingLinkPreview(item, field.id)
+                    const displayLabel = preview?.title || formatLinkLabel(strVal)
                     return (
                       <a
                         key={field.id}
@@ -534,11 +571,15 @@ export function ListCardsView({
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
                         className="inline-flex max-w-full items-center gap-1 text-xs font-medium text-primary hover:underline"
-                        title={`${field.name}: ${safeHref}`}
+                        title={
+                          preview?.title
+                            ? `${field.name}: ${preview.title} (${safeHref})`
+                            : `${field.name}: ${safeHref}`
+                        }
                       >
                         <Link2 className="h-3 w-3 shrink-0" />
                         <span className="truncate">
-                          {field.name}: {formatLinkLabel(strVal)}
+                          {field.name}: {displayLabel}
                         </span>
                         <ExternalLink className="h-2.5 w-2.5 shrink-0 opacity-70" />
                       </a>
@@ -557,23 +598,6 @@ export function ListCardsView({
                   </div>
                 )
               })}
-            </div>
-          )}
-
-          {extraImages.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              {extraImages.map(({ field, url }) => (
-                <ImageThumbnail
-                  key={field.id}
-                  src={url}
-                  alt={`${item.description} - ${field.name}`}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onPreviewImage(url, `${item.description} (${field.name})`)
-                  }}
-                  className="h-9 w-9 shrink-0 cursor-zoom-in transition-transform hover:scale-105"
-                />
-              ))}
             </div>
           )}
         </MediaCard>
