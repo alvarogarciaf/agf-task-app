@@ -83,6 +83,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
+import { MediaCard } from "@/components/ui/media-card"
 import { ICONS, COLOR_PALETTE } from "@/lib/constants"
 import { IconPicker } from "@/components/icon-picker"
 import type { Context, Person, Project, Tag, Task, UrgencyLevel, ProjectStatus } from "@/lib/types"
@@ -1187,88 +1188,53 @@ export function ProjectsView({
                       const isPreviewed = !isMobile && previewProjectId === p.id
 
                       if (viewMode === "grid") {
+                        const linkedPerson = p.linked_person_id
+                          ? persons.find((per) => per.id === p.linked_person_id)
+                          : undefined
                         return (
                           <SortableProjectItem
                             id={p.id}
                             key={p.id}
                             onClick={() => handleSelect(p.id)}
-                            className="group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition-all hover:border-primary/50 hover:shadow-md aspect-[16/9]"
+                            className="h-full"
                             viewMode={viewMode}
                             isMobile={isMobile}
                           >
-                            {/* Background Layer */}
-                            <div
-                              className="absolute inset-0 z-0 opacity-40 transition-opacity group-hover:opacity-50"
-                              style={
-                                p.background_image
-                                  ? {
-                                      backgroundImage: `url(${p.background_image})`,
-                                      backgroundSize: "cover",
-                                      backgroundPosition: "center",
-                                    }
-                                  : p.color
-                                    ? {
-                                        backgroundColor: `color-mix(in oklch, ${p.color} 20%, transparent)`,
-                                      }
-                                    : { backgroundColor: "var(--muted)" }
+                            <MediaCard
+                              imageUrl={p.background_image}
+                              imageAlt={p.name}
+                              accentColor={p.color}
+                              fallbackIcon={ProjIcon}
+                              showCoverWhenEmpty={true}
+                              coverClassName="aspect-[16/9]"
+                              className="h-full cursor-pointer"
+                              topLeft={
+                                linkedPerson ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/85 backdrop-blur px-2 py-0.5 text-xs text-white font-medium shadow-sm">
+                                    👤 {linkedPerson.name}
+                                  </span>
+                                ) : undefined
                               }
-                            >
-                              {p.background_image && (
-                                <img
-                                  src={p.background_image}
-                                  alt=""
-                                  aria-hidden="true"
-                                  loading="eager"
-                                  decoding="async"
-                                  className="h-full w-full object-cover opacity-0 pointer-events-none"
-                                />
-                              )}
-                            </div>
-                            {!p.background_image && (
-                              <div className="absolute inset-0 z-0 flex items-center justify-center opacity-20">
-                                <ProjIcon
-                                  className="w-24 h-24"
-                                  style={{ color: p.color || "var(--primary)" }}
-                                />
-                              </div>
-                            )}
-                            <div className="absolute inset-0 z-0 bg-gradient-to-t from-background/90 via-background/40 to-transparent" />
-
-                            <div
-                              className="absolute top-2 right-2 z-20"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {renderProjectActionsMenu(
+                              topRight={renderProjectActionsMenu(
                                 p,
-                                "flex h-8 w-8 items-center justify-center rounded-full bg-background/50 backdrop-blur-sm text-foreground hover:bg-background/80 transition-colors shadow-sm md:opacity-0 md:group-hover:opacity-100",
+                                "flex h-8 w-8 items-center justify-center rounded-full bg-background/75 backdrop-blur-sm text-foreground hover:bg-background/95 transition-colors shadow-sm md:opacity-0 md:group-hover:opacity-100",
                               )}
-                            </div>
-
-                            {/* Content */}
-                            <div className="relative z-10 flex flex-col justify-end h-full p-4">
-                              <div className="flex items-center gap-2 mb-1.5">
-                                {p.linked_person_id &&
-                                  (() => {
-                                    const lp = persons.find((per) => per.id === p.linked_person_id)
-                                    return lp ? (
-                                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/80 backdrop-blur px-2 py-0.5 text-xs text-white font-medium">
-                                        👤 {lp.name}
-                                      </span>
-                                    ) : null
-                                  })()}
-                              </div>
-                              <h3 className="text-base font-bold tracking-tight text-foreground line-clamp-1 mb-1">
-                                {p.name}
-                              </h3>
-                              <div className="flex items-center gap-3 text-xs text-muted-foreground font-medium drop-shadow-sm">
-                                <span className="flex items-center gap-1">
-                                  <Circle className="h-3 w-3" /> {open} open
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <ListChecks className="h-3.5 w-3.5" /> {pct}%
-                                </span>
-                              </div>
-                            </div>
+                              title={
+                                <h3 className="text-sm sm:text-base font-bold tracking-tight text-foreground line-clamp-1">
+                                  {p.name}
+                                </h3>
+                              }
+                              footer={
+                                <div className="flex items-center gap-3 text-xs text-muted-foreground font-medium">
+                                  <span className="flex items-center gap-1">
+                                    <Circle className="h-3 w-3" /> {open} open
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <ListChecks className="h-3.5 w-3.5" /> {pct}%
+                                  </span>
+                                </div>
+                              }
+                            />
                           </SortableProjectItem>
                         )
                       }

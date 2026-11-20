@@ -105,12 +105,15 @@ export interface DynamicColumnSpec {
   defaultVisible: boolean
 }
 
-function buildDefaultVisibility(columns: DynamicColumnSpec[]): Record<string, boolean> {
+function buildDefaultVisibility(
+  columns: DynamicColumnSpec[],
+  allowNoneVisible = false,
+): Record<string, boolean> {
   const vis: Record<string, boolean> = {}
   for (const col of columns) {
     vis[col.key] = col.defaultVisible
   }
-  if (columns.length > 0 && !Object.values(vis).some(Boolean)) {
+  if (!allowNoneVisible && columns.length > 0 && !Object.values(vis).some(Boolean)) {
     vis[columns[0].key] = true
   }
   return vis
@@ -119,7 +122,9 @@ function buildDefaultVisibility(columns: DynamicColumnSpec[]): Record<string, bo
 export function useDynamicTableColumns(
   storageKey: string | undefined,
   columns: DynamicColumnSpec[],
+  options?: { allowNoneVisible?: boolean },
 ) {
+  const allowNoneVisible = !!options?.allowNoneVisible
   const columnsRef = useRef(columns)
   useEffect(() => {
     columnsRef.current = columns
@@ -129,7 +134,7 @@ export function useDynamicTableColumns(
 
   const [order, setOrder] = useState<string[]>(() => columns.map((c) => c.key))
   const [visibility, setVisibility] = useState<Record<string, boolean>>(() =>
-    buildDefaultVisibility(columns),
+    buildDefaultVisibility(columns, allowNoneVisible),
   )
   const [hydrated, setHydrated] = useState(false)
 
@@ -138,7 +143,7 @@ export function useDynamicTableColumns(
     setHydrated(false)
     const currentCols = columnsRef.current
     const defaultOrder = currentCols.map((c) => c.key)
-    const defaultVis = buildDefaultVisibility(currentCols)
+    const defaultVis = buildDefaultVisibility(currentCols, allowNoneVisible)
 
     if (!storageKey) {
       setOrder(defaultOrder)
@@ -163,7 +168,7 @@ export function useDynamicTableColumns(
             }
           }
         }
-        if (currentCols.length > 0 && !Object.values(mergedVis).some(Boolean)) {
+        if (!allowNoneVisible && currentCols.length > 0 && !Object.values(mergedVis).some(Boolean)) {
           mergedVis[currentCols[0].key] = true
         }
         setVisibility(mergedVis)
@@ -186,7 +191,7 @@ export function useDynamicTableColumns(
     }
 
     setHydrated(true)
-  }, [storageKey])
+  }, [storageKey, allowNoneVisible])
 
   // Reconcile order & visibility when dynamic columns are added or removed
   useEffect(() => {
@@ -217,14 +222,14 @@ export function useDynamicTableColumns(
         }
       }
 
-      if (currentCols.length > 0 && !Object.values(next).some(Boolean)) {
+      if (!allowNoneVisible && currentCols.length > 0 && !Object.values(next).some(Boolean)) {
         next[currentCols[0].key] = true
         changed = true
       }
 
       return changed ? next : prev
     })
-  }, [columnsSignature, hydrated])
+  }, [columnsSignature, hydrated, allowNoneVisible])
 
   // Persist changes to localStorage
   useEffect(() => {
@@ -242,10 +247,11 @@ export function useDynamicTableColumns(
   const toggle = useCallback((key: string) => {
     setVisibility((prev) => {
       const next = { ...prev, [key]: !prev[key] }
+      if (allowNoneVisible) return next
       const anyVisible = Object.values(next).some(Boolean)
       return anyVisible ? next : prev
     })
-  }, [])
+  }, [allowNoneVisible])
 
   const reorder = useCallback((sourceKey: string, targetKey: string) => {
     if (sourceKey === targetKey) return
@@ -261,8 +267,8 @@ export function useDynamicTableColumns(
   const reset = useCallback(() => {
     const currentCols = columnsRef.current
     setOrder(currentCols.map((c) => c.key))
-    setVisibility(buildDefaultVisibility(currentCols))
-  }, [])
+    setVisibility(buildDefaultVisibility(currentCols, allowNoneVisible))
+  }, [allowNoneVisible])
 
   return { order, visibility, toggle, reorder, reset, hydrated }
 }

@@ -34,6 +34,7 @@ import {
   ObjectDetailsEditor,
   useObjectDraft,
 } from "@/components/object-editor-shared"
+import type { ListViewMode } from "@/components/list-editor"
 import { useOpenObjectFullScreen } from "@/components/tab-object-context"
 import {
   discardHeldBackTask,
@@ -143,7 +144,7 @@ export function TaskDetailDialog({
     autosave: true,
   })
 
-  const [listViewMode, setListViewMode] = useState<"list" | "table">("list")
+  const [listViewMode, setListViewMode] = useState<ListViewMode>("list")
   useEffect(() => {
     setListViewMode("list")
   }, [task?.id])
@@ -714,7 +715,7 @@ export function TaskDetailDialog({
           "gap-0 overflow-hidden p-0",
           isMobile 
             ? "fixed inset-0 z-50 flex h-full w-full max-w-none translate-x-0 translate-y-0 flex-col rounded-none border-none duration-200 shadow-none" 
-            : draft.is_list && listViewMode === "table"
+            : draft.is_list && (listViewMode === "table" || listViewMode === "cards")
               ? cn(portalContainer && "max-h-[calc(100%-2rem)]", "sm:max-w-4xl lg:max-w-5xl sm:rounded-lg")
               : cn(portalContainer && "max-h-[calc(100%-2rem)]", "sm:max-w-2xl sm:rounded-lg")
         )}

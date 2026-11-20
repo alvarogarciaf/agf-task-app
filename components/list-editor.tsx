@@ -35,6 +35,7 @@ import {
   Tag,
   ChevronsUpDown,
   List,
+  LayoutGrid,
   Table2,
   SlidersHorizontal,
   Link2,
@@ -52,6 +53,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command"
 import { IconPicker } from "@/components/icon-picker"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import {
   cleanCustomFields,
@@ -70,6 +72,7 @@ import {
   ImageLightboxDialog,
   ImageThumbnail,
 } from "@/components/list-field-inputs"
+import { ListCardsView } from "@/components/list-cards-view"
 import { ListTableView } from "@/components/list-table-view"
 import type { ListItem, ListCategory, ListField } from "@/lib/types"
 
@@ -763,6 +766,8 @@ function ItemModal({
 
 // ─── ListEditor (main export) ────────────────────────────────────────────────
 
+export type ListViewMode = "list" | "cards" | "table"
+
 type StatusFilter = "all" | "open" | "done"
 
 export function ListEditor({
@@ -788,8 +793,9 @@ export function ListEditor({
     list_categories?: ListCategory[]
     list_fields?: ListField[]
   }) => void
-  onViewModeChange?: (mode: "list" | "table") => void
+  onViewModeChange?: (mode: ListViewMode) => void
 }) {
+  const isMobile = useIsMobile()
   const [filter, setFilter] = useState<StatusFilter>("open")
   const [isGrouped, setIsGrouped] = useState(() => {
     if (typeof window !== "undefined" && listId) {
@@ -798,13 +804,15 @@ export function ListEditor({
     }
     return false
   })
-  const [viewMode, setViewMode] = useState<"list" | "table">(() => {
+  const [viewMode, setViewMode] = useState<ListViewMode>(() => {
     if (typeof window !== "undefined" && listId) {
       const stored = localStorage.getItem(`list_view_mode_${listId}`)
-      if (stored === "table" || stored === "list") return stored
+      if (stored === "table" || stored === "cards" || stored === "list") return stored
     }
     return "list"
   })
+
+  const effectiveViewMode: ListViewMode = isMobile && viewMode === "table" ? "list" : viewMode
 
   useEffect(() => {
     if (listId) {
@@ -816,8 +824,11 @@ export function ListEditor({
     if (listId) {
       localStorage.setItem(`list_view_mode_${listId}`, viewMode)
     }
-    onViewModeChange?.(viewMode)
-  }, [viewMode, listId, onViewModeChange])
+  }, [viewMode, listId])
+
+  useEffect(() => {
+    onViewModeChange?.(effectiveViewMode)
+  }, [effectiveViewMode, onViewModeChange])
 
   const [showCategoriesModal, setShowCategoriesModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState<ListCategory | null>(null)
@@ -1217,10 +1228,10 @@ export function ListEditor({
     const observer = new ResizeObserver(checkFit)
     observer.observe(container)
     return () => observer.disconnect()
-  }, [items.length, sortedFields.length, viewMode, atLimit])
+  }, [items.length, sortedFields.length, effectiveViewMode, atLimit, isMobile])
 
   return (
-    <div className={cn("flex flex-col gap-3 relative", viewMode === "list" ? "pb-20" : "pb-6")}>
+    <div className={cn("flex flex-col gap-3 relative", effectiveViewMode === "list" ? "pb-20" : "pb-6")}>
       {/* Invisible measurement element to calculate natural button width */}
       <button
         ref={groupMeasureRef}
@@ -1285,7 +1296,7 @@ export function ListEditor({
             </span>
           )}
 
-          {/* List / Table View Switcher */}
+          {/* List / Cards / Table View Switcher (Table hidden on mobile) */}
           <div
             role="radiogroup"
             aria-label="List display mode"
@@ -1294,11 +1305,11 @@ export function ListEditor({
             <button
               type="button"
               role="radio"
-              aria-checked={viewMode === "list"}
+              aria-checked={effectiveViewMode === "list"}
               onClick={() => setViewMode("list")}
               className={cn(
                 "inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors",
-                viewMode === "list"
+                effectiveViewMode === "list"
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground",
               )}
@@ -1310,19 +1321,37 @@ export function ListEditor({
             <button
               type="button"
               role="radio"
-              aria-checked={viewMode === "table"}
-              onClick={() => setViewMode("table")}
+              aria-checked={effectiveViewMode === "cards"}
+              onClick={() => setViewMode("cards")}
               className={cn(
                 "inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors",
-                viewMode === "table"
+                effectiveViewMode === "cards"
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground",
               )}
-              title="Table view"
+              title="Cards view"
             >
-              <Table2 className="h-3.5 w-3.5" />
-              <span>Table</span>
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>Cards</span>
             </button>
+            {!isMobile && (
+              <button
+                type="button"
+                role="radio"
+                aria-checked={effectiveViewMode === "table"}
+                onClick={() => setViewMode("table")}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors",
+                  effectiveViewMode === "table"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                title="Table view"
+              >
+                <Table2 className="h-3.5 w-3.5" />
+                <span>Table</span>
+              </button>
+            )}
           </div>
 
           <DropdownMenu>
@@ -1367,8 +1396,8 @@ export function ListEditor({
         </div>
       </div>
 
-      {/* Main Content: Table View vs List View */}
-      {viewMode === "table" ? (
+      {/* Main Content: Table View vs Cards View vs List View */}
+      {effectiveViewMode === "table" ? (
         <ListTableView
           listId={listId}
           items={visibleItems}
@@ -1385,6 +1414,25 @@ export function ListEditor({
           onUpdateItem={handleUpdateItem}
           onSelectCategory={handleSelectItemCategory}
           onUpdateCustomField={handleUpdateItemCustomField}
+          onReorderItems={handleReorderItems}
+          onOpenAddField={() => setShowAddFieldModal(true)}
+          onOpenFieldsManager={() => setShowFieldsModal(true)}
+          onPreviewImage={(url, title) => setLightboxImage({ url, title })}
+        />
+      ) : effectiveViewMode === "cards" ? (
+        <ListCardsView
+          listId={listId}
+          items={visibleItems}
+          allItemsCount={items.length}
+          categories={categories}
+          fields={sortedFields}
+          filter={filter}
+          isGrouped={isGrouped}
+          atLimit={atLimit}
+          onToggleStatus={handleToggleStatus}
+          onDeleteItem={handleDelete}
+          onEditItem={(item) => setEditingItem(item)}
+          onAddItem={(catId) => setAddingToCategory(catId)}
           onReorderItems={handleReorderItems}
           onOpenAddField={() => setShowAddFieldModal(true)}
           onOpenFieldsManager={() => setShowFieldsModal(true)}

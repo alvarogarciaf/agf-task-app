@@ -51,7 +51,7 @@ import type {
   UrgencyLevel,
 } from "@/lib/types"
 import { IconPicker } from "@/components/icon-picker"
-import { ListEditor } from "@/components/list-editor"
+import { ListEditor, type ListViewMode } from "@/components/list-editor"
 
 /**
  * Step-slider for urgency levels. Displays:
@@ -1118,7 +1118,7 @@ export function ObjectDetailsEditor({
     list_categories?: ListCategory[]
     list_fields?: ListField[]
   }) => void
-  onListViewModeChange?: (mode: "list" | "table") => void
+  onListViewModeChange?: (mode: ListViewMode) => void
   listId?: string
   projectId?: string | null
 }) {

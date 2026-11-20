@@ -21,6 +21,7 @@ import {
   ObjectDetailsEditor,
   useObjectDraft,
 } from "@/components/object-editor-shared"
+import type { ListViewMode } from "@/components/list-editor"
 import type {
   Context,
   Person,
@@ -128,7 +129,7 @@ export function ObjectFullScreenView({
     autosave: true,
   })
 
-  const [listViewMode, setListViewMode] = useState<"list" | "table">("list")
+  const [listViewMode, setListViewMode] = useState<ListViewMode>("list")
   useEffect(() => {
     setListViewMode("list")
   }, [draft?.id])
@@ -473,9 +474,9 @@ export function ObjectFullScreenView({
           />
         </div>
 
-        {/* Right: details editor only, capped to the maximized-editor width (widens for table view) */}
+        {/* Right: details editor only, capped to the maximized-editor width (widens for table & cards view) */}
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-5">
-          <div className={cn("flex min-h-0 w-full flex-1 flex-col", draft.is_list && listViewMode === "table" ? "max-w-none" : "max-w-3xl")}>
+          <div className={cn("flex min-h-0 w-full flex-1 flex-col", draft.is_list && (listViewMode === "table" || listViewMode === "cards") ? "max-w-none" : "max-w-3xl")}>
             <ObjectDetailsEditor
               value={draft.details ?? ""}
               onChange={(val) => update("details", val)}
