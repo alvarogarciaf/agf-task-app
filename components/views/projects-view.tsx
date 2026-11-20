@@ -2209,7 +2209,7 @@ export function ProjectEditor({
           </div>
           <div className="flex items-center justify-between rounded-lg border border-border p-3 shadow-sm">
             <div className="space-y-0.5">
-              <Label htmlFor="order-dependent">Order Dependent</Label>
+              <Label htmlFor="order-dependent" className="cursor-pointer">Order Dependent</Label>
               <p className="text-xs text-muted-foreground leading-normal">
                 When enabled, only the first open task is visible throughout the app until
                 completed.

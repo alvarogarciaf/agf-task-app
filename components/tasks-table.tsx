@@ -820,7 +820,7 @@ export const TasksTable = memo(function TasksTable({
                     )}
                   >
                     <td 
-                      className="w-14 px-3 py-2 text-left align-middle"
+                      className="w-14 px-3 py-2 text-left align-middle cursor-pointer"
                       onClick={(e) => {
                         e.stopPropagation()
                         onToggleSelection?.(task.id, e.shiftKey)
@@ -902,7 +902,7 @@ export const TasksTable = memo(function TasksTable({
                             "relative px-3 py-2 align-middle outline-none transition-shadow",
                             COLUMN_CELL_CLASSES[key],
                             dropTarget === key && dragKey !== key && "bg-primary/5",
-                            isEditable && "cursor-cell",
+                            selectedIds.size > 0 ? "cursor-pointer" : isEditable && "cursor-cell",
                             isSelected && "ring-2 ring-inset ring-primary z-20",
                             isEditingThis && "ring-primary bg-background shadow-lg",
                           )}
@@ -1552,7 +1552,7 @@ const MobileTaskRow = memo(function MobileTaskRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "relative flex min-h-[48px] items-center gap-3 rounded-xl border pl-4 pr-2.5 py-2 transition-all active:scale-[0.98] select-none shadow-sm",
+        "relative flex min-h-[48px] cursor-pointer items-center gap-3 rounded-xl border pl-4 pr-2.5 py-2 transition-all active:scale-[0.98] select-none shadow-sm",
         isSelected 
           ? "border-primary bg-primary/5 ring-1 ring-primary/20" 
           : "border-border/80 bg-card hover:border-border",

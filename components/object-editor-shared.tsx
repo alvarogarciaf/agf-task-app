@@ -109,7 +109,7 @@ function UrgencySlider({
           step={1}
           value={[sliderVal]}
           onValueChange={handleChange}
-          className="relative flex h-4 w-full touch-none items-center select-none"
+          className="relative flex h-4 w-full cursor-pointer touch-none items-center select-none"
           aria-label="Urgency"
         >
           <SliderPrimitive.Track className="relative h-1 w-full grow overflow-hidden rounded-full bg-muted">
@@ -119,7 +119,7 @@ function UrgencySlider({
             />
           </SliderPrimitive.Track>
           <SliderPrimitive.Thumb
-            className="block h-3.5 w-3.5 rounded-full border-2 bg-background shadow-sm ring-0 transition-all duration-200 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            className="block h-3.5 w-3.5 cursor-grab active:cursor-grabbing rounded-full border-2 bg-background shadow-sm ring-0 transition-all duration-200 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
             style={{ borderColor: current.color }}
           />
         </SliderPrimitive.Root>

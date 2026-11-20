@@ -2502,7 +2502,7 @@ function EditorSurface({
           "[&_li]:leading-relaxed [&_li]:text-sm [&_li]:text-foreground/90",
           "[&_strong]:font-bold [&_strong]:text-foreground",
           "[&_em]:italic [&_em]:text-foreground/90",
-          "[&_a]:text-primary [&_a]:hover:underline [&_a]:font-semibold",
+          "[&_a]:text-primary [&_a]:hover:underline [&_a]:font-semibold [&_a]:cursor-pointer",
           "[&_p]:mb-3 [&_p]:text-sm [&_p]:text-foreground/90 [&_p]:leading-relaxed",
           "[&>div]:mb-3 [&>div]:text-sm [&>div]:text-foreground/90 [&>div]:leading-relaxed",
           "[&_.md-task]:relative [&_.md-task]:pl-6 [&_.md-task]:block",

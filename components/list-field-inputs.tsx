@@ -78,6 +78,7 @@ export function ImageThumbnail({
         onClick={onClick}
         className={cn(
           "flex items-center justify-center rounded-md border border-border bg-muted/60 text-muted-foreground",
+          onClick && "cursor-pointer",
           className,
         )}
         title="Image could not be loaded"
@@ -93,7 +94,11 @@ export function ImageThumbnail({
       alt={alt}
       onError={() => setHasError(true)}
       onClick={onClick}
-      className={cn("rounded-md border border-border object-cover bg-muted/30", className)}
+      className={cn(
+        "rounded-md border border-border object-cover bg-muted/30",
+        onClick && "cursor-pointer",
+        className,
+      )}
       loading="lazy"
     />
   )

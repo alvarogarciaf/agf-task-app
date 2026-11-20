@@ -476,8 +476,7 @@ function NavLink({
         <div
           onClick={item.subItems ? onExpandToggle : onClick}
           className={cn(
-            "group/row relative flex w-full items-center rounded-md transition-colors",
-            item.subItems ? "cursor-pointer" : "",
+            "group/row relative flex w-full cursor-pointer items-center rounded-md transition-colors",
             active && !item.subItems ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
           )}
         >
