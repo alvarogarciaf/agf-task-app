@@ -193,6 +193,8 @@ function toPlain(t: Task | null) {
     list_items: data.list_items ?? null,
     list_categories: data.list_categories ?? null,
     list_fields: data.list_fields ?? null,
+    is_public: data.is_public ?? false,
+    public_id: data.public_id ?? null,
   }
 }
 
@@ -629,10 +631,36 @@ export function useObjectDraft({
     [autosave, onUpdate],
   )
 
+  const updatePublicState = useCallback(
+    (isPublic: boolean, publicId: string | null) => {
+      setDraft((prev) => {
+        if (!prev) return prev
+        const next: Task = {
+          ...prev,
+          is_public: isPublic,
+          public_id: publicId,
+        }
+        const currentEntry = historyRef.current[historyIndexRef.current]
+        if (currentEntry) {
+          historyRef.current[historyIndexRef.current] = {
+            ...currentEntry,
+            is_public: isPublic,
+            public_id: publicId,
+          }
+        }
+        lastSavedSnapshotRef.current = toPlain(next)
+        onUpdate({ ...next, updated_at: Date.now() })
+        return next
+      })
+    },
+    [onUpdate],
+  )
+
   return {
     draft,
     setDraft,
     update,
+    updatePublicState,
     updateListItems,
     updateListCategories,
     updateListFields,

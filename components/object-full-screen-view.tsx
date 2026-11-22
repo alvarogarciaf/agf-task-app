@@ -16,6 +16,12 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { shareTaskLink } from "@/lib/public-pages-client"
+import {
+  PageSettingsMenu,
+  PublicPageBadge,
+  useToggleTaskPublic,
+} from "@/components/page-settings-menu"
 import {
   ObjectEditFields,
   ObjectDetailsEditor,
@@ -103,6 +109,7 @@ export function ObjectFullScreenView({
     draft,
     setDraft,
     update,
+    updatePublicState,
     dirty,
     autoProcess,
     setAutoProcess,
@@ -128,6 +135,11 @@ export function ObjectFullScreenView({
     onUpdate,
     onClose: onBack,
     autosave: true,
+  })
+
+  const { togglingPublic, togglePublic } = useToggleTaskPublic({
+    task: draft,
+    onApply: updatePublicState,
   })
 
   const [listViewMode, setListViewMode] = useState<ListViewMode>("list")
@@ -205,31 +217,7 @@ export function ObjectFullScreenView({
 
   const handleShare = async () => {
     if (!draft?.id) return
-    const title = (draft.description || "").trim() || (isNote ? "Note" : "Task")
-    const params = new URLSearchParams()
-    params.set("objectId", draft.id)
-    params.set("title", title)
-    params.set("_t", Date.now().toString(36))
-    const url = `${window.location.origin}/?${params.toString()}`
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url)
-        toast.success("Link copied to clipboard")
-      } else {
-        const textArea = document.createElement("textarea")
-        textArea.value = url
-        textArea.style.position = "fixed"
-        textArea.style.opacity = "0"
-        document.body.appendChild(textArea)
-        textArea.focus()
-        textArea.select()
-        document.execCommand("copy")
-        document.body.removeChild(textArea)
-        toast.success("Link copied to clipboard")
-      }
-    } catch {
-      toast.error("Could not copy link")
-    }
+    await shareTaskLink(draft)
   }
 
   useEffect(() => {
@@ -321,6 +309,10 @@ export function ObjectFullScreenView({
           </>
         )}
 
+        {draft.is_public && draft.public_id && (
+          <PublicPageBadge publicId={draft.public_id} />
+        )}
+
         <div className="ml-auto flex items-center gap-2">
           {task && !task.processed && !draft.processed && (
             <label className="mr-1 flex cursor-pointer items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
@@ -350,11 +342,23 @@ export function ObjectFullScreenView({
             type="button"
             onClick={handleShare}
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-            title={isNote ? "Share note link" : "Share task link"}
+            title={
+              draft.is_public
+                ? "Copy public link"
+                : isNote
+                  ? "Share note link"
+                  : "Share task link"
+            }
           >
             <Share2 className="h-3 w-3" />
             <span>Share</span>
           </button>
+          <PageSettingsMenu
+            task={draft}
+            onTogglePublic={togglePublic}
+            togglingPublic={togglingPublic}
+            triggerClassName="rounded-md border border-border bg-background p-1.5 text-muted-foreground hover:text-foreground"
+          />
           {onDeleteTask && (
             <button
               type="button"

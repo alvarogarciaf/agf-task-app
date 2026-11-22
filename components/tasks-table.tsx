@@ -1,10 +1,16 @@
 "use client"
 
 import React, { useState, useRef, useCallback, useEffect, memo } from "react"
-import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock, Pencil, FileText, ArrowLeftRight, ArrowUpRight, GripVertical, Share2 } from "lucide-react"
+import { Plus, Calendar, Circle, CircleCheck, Check, Columns3, ExternalLink, Globe, RotateCcw, MoreVertical, Archive, Trash2, Minus, Lock, Pencil, FileText, ArrowLeftRight, ArrowUpRight, GripVertical, Share2 } from "lucide-react"
 import { ProjectChip } from "@/components/project-select"
 import { ObjectIcon } from "@/components/ui/object-icon"
 import { ICONS } from "@/lib/constants"
+import {
+  buildPublicPageUrl,
+  copyTextToClipboard,
+  shareTaskLink,
+  syncPublicPageSetting,
+} from "@/lib/public-pages-client"
 import { toast } from "sonner"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -288,43 +294,51 @@ export const TasksTable = memo(function TasksTable({
   const [isCreatingTask, setIsCreatingTask] = useState(false)
 
   const handleShareTask = useCallback(async (t: Task) => {
-    if (!t?.id) return
-    const title = (t.description || "").trim() || (t.type === "note" ? "Note" : "Task")
-    const params = new URLSearchParams()
-    params.set("objectId", t.id)
-    params.set("title", title)
-    params.set("_t", Date.now().toString(36))
-    const url = `${window.location.origin}/?${params.toString()}`
-
-    if (isMobile && typeof navigator !== "undefined" && navigator.share) {
-      try {
-        await navigator.share({ title, url })
-        return
-      } catch (err: any) {
-        if (err?.name === "AbortError") return
-      }
-    }
-
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url)
-        toast.success("Link copied to clipboard")
-      } else {
-        const textArea = document.createElement("textarea")
-        textArea.value = url
-        textArea.style.position = "fixed"
-        textArea.style.opacity = "0"
-        document.body.appendChild(textArea)
-        textArea.focus()
-        textArea.select()
-        document.execCommand("copy")
-        document.body.removeChild(textArea)
-        toast.success("Link copied to clipboard")
-      }
-    } catch {
-      toast.error("Could not copy link")
-    }
+    await shareTaskLink(t, { isMobile })
   }, [isMobile])
+
+  const handleTogglePublicTask = useCallback(async (t: Task) => {
+    if (!t?.id) return
+    const nextPublic = !t.is_public
+    if (nextPublic) {
+      const candidateId = t.public_id || crypto.randomUUID()
+      try {
+        const res = await syncPublicPageSetting(t.id, true, candidateId)
+        const finalId = res.publicId || candidateId
+        onUpdate({
+          ...t,
+          is_public: true,
+          public_id: finalId,
+          updated_at: Date.now(),
+        })
+        toast.success("Page is now public", {
+          action: {
+            label: "Copy link",
+            onClick: () => {
+              void copyTextToClipboard(buildPublicPageUrl(finalId)).then(
+                (ok) => ok && toast.success("Public link copied"),
+              )
+            },
+          },
+        })
+      } catch {
+        toast.error("Could not make page public. Check your internet connection.")
+      }
+    } else {
+      onUpdate({
+        ...t,
+        is_public: false,
+        public_id: t.public_id ?? null,
+        updated_at: Date.now(),
+      })
+      try {
+        await syncPublicPageSetting(t.id, false, t.public_id ?? null)
+        toast.success("Page is now private")
+      } catch {
+        toast.success("Page set to private (will sync when online)")
+      }
+    }
+  }, [onUpdate])
 
   /** Open a task/note, routing to full-screen, sidebar, or popup based on preferences, or if requested explicitly via newTab. */
   const openObject = useCallback((task: Task, mode: "view" | "edit", newTab = false, creating = false) => {
@@ -728,6 +742,7 @@ export const TasksTable = memo(function TasksTable({
                   onToggleSelection={() => onToggleSelection?.(task.id)}
                   showDragHandle={sortConfig?.key === "urgency"}
                   onShareTask={handleShareTask}
+                  onTogglePublicTask={handleTogglePublicTask}
                 />
               )
             })}
@@ -1026,7 +1041,7 @@ export const TasksTable = memo(function TasksTable({
                               <MoreVertical className="h-3.5 w-3.5" />
                             </button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-32">
+                          <DropdownMenuContent align="end" className="w-44">
                             {!task.processed && (
                               <DropdownMenuItem 
                                 onClick={(e) => {
@@ -1069,6 +1084,41 @@ export const TasksTable = memo(function TasksTable({
                               <Share2 className="mr-2 h-3 w-3" />
                               Share link
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleTogglePublicTask(task)
+                              }}
+                              className="text-xs"
+                            >
+                              {task.is_public ? (
+                                <>
+                                  <Lock className="mr-2 h-3 w-3" />
+                                  Make private
+                                </>
+                              ) : (
+                                <>
+                                  <Globe className="mr-2 h-3 w-3" />
+                                  Make public
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                            {task.is_public && task.public_id && (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  window.open(
+                                    buildPublicPageUrl(task.public_id!),
+                                    "_blank",
+                                    "noopener,noreferrer",
+                                  )
+                                }}
+                                className="text-xs"
+                              >
+                                <ExternalLink className="mr-2 h-3 w-3" />
+                                Open public page
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem 
                               onClick={(e) => {
                                 e.stopPropagation()
@@ -1491,6 +1541,7 @@ const MobileTaskRow = memo(function MobileTaskRow({
   notesMode = false,
   showDragHandle = false,
   onShareTask,
+  onTogglePublicTask,
 }: {
   task: Task
   project?: Project
@@ -1508,6 +1559,7 @@ const MobileTaskRow = memo(function MobileTaskRow({
   notesMode?: boolean
   showDragHandle?: boolean
   onShareTask?: (task: Task) => void
+  onTogglePublicTask?: (task: Task) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `m-${task.id}` });
   const style = { 
@@ -1751,6 +1803,41 @@ const MobileTaskRow = memo(function MobileTaskRow({
               >
                 <Share2 className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
                 <span>Share link</span>
+              </DropdownMenuItem>
+            )}
+
+            {onTogglePublicTask && (
+              <DropdownMenuItem
+                className="py-3 px-3 text-[15px] font-medium cursor-pointer"
+                onClick={() => onTogglePublicTask(task)}
+              >
+                {task.is_public ? (
+                  <>
+                    <Lock className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
+                    <span>Make private</span>
+                  </>
+                ) : (
+                  <>
+                    <Globe className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
+                    <span>Make public</span>
+                  </>
+                )}
+              </DropdownMenuItem>
+            )}
+
+            {task.is_public && task.public_id && (
+              <DropdownMenuItem
+                className="py-3 px-3 text-[15px] font-medium cursor-pointer"
+                onClick={() =>
+                  window.open(
+                    buildPublicPageUrl(task.public_id!),
+                    "_blank",
+                    "noopener,noreferrer",
+                  )
+                }
+              >
+                <ExternalLink className="mr-3 h-5 w-5 shrink-0 text-muted-foreground" />
+                <span>Open public page</span>
               </DropdownMenuItem>
             )}
 

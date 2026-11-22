@@ -46,5 +46,10 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.keys().hasOnly(['uid']);
     }
+
+    // ── Public page lookup index (managed exclusively by server API) ──
+    match /public_pages/{publicId} {
+      allow read, write: if false;
+    }
   }
 }

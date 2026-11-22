@@ -80,6 +80,10 @@ export interface AppObject {
   list_categories?: ListCategory[] | null
   /** Custom field definitions for this list database. Only meaningful when is_list = true */
   list_fields?: ListField[] | null
+  /** When true, anyone with the link can view this task/note read-only */
+  is_public?: boolean | null
+  /** Unguessable random slug for the public URL (/p/<public_id>) */
+  public_id?: string | null
 }
 
 // `Task` remains the name used across the app; it is now an alias of the

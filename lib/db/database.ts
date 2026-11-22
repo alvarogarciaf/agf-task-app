@@ -172,6 +172,12 @@ export const getDatabase = async (userUid: string) => {
               }));
             }
             return oldDoc;
+          },
+          // 19: Migrate from version 18 to 19 (add is_public and public_id for public page sharing)
+          19: (oldDoc: any) => {
+            oldDoc.is_public = oldDoc.is_public ?? false;
+            oldDoc.public_id = oldDoc.public_id ?? null;
+            return oldDoc;
           }
         }
       },

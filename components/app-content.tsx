@@ -44,6 +44,10 @@ import { holdBackTask } from "@/lib/sync-coordinator"
 import { useSubscription } from "@/hooks/use-subscription"
 import { PaywallDialog } from "@/components/paywall-dialog"
 import { TourProvider } from "@/components/onboarding/tour-provider"
+import {
+  syncPublicPageSetting,
+  unpublishPublicPageQuietly,
+} from "@/lib/public-pages-client"
 
 const CACHE_PREFIX = "tasker_cache_"
 function getCachedData<T>(key: string, defaultVal: T): T {
@@ -378,6 +382,8 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
       google_event_id: null,
       bookmarked: input.bookmarked ?? false,
       order: 0,
+      is_public: false,
+      public_id: null,
     })
     return doc.id
   }
@@ -536,10 +542,16 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
     if (doc) {
       const data = doc.toJSON()
       await doc.remove()
+      if (data.is_public || data.public_id) {
+        void unpublishPublicPageQuietly(data.id, data.public_id)
+      }
       undoStackRef.current.push({
         label: data.type === "note" ? "Undo delete note" : "Undo delete task",
         reverse: async () => {
           await db.tasks.insert(data)
+          if (data.is_public && data.public_id) {
+            void syncPublicPageSetting(data.id, true, data.public_id).catch(() => {})
+          }
         },
       })
       if (!options?.silent) {
@@ -562,11 +574,21 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
 
     const allData = validDocs.map((d) => d.toJSON())
     await Promise.all(validDocs.map((d) => d.remove()))
+    for (const data of allData) {
+      if (data.is_public || data.public_id) {
+        void unpublishPublicPageQuietly(data.id, data.public_id)
+      }
+    }
 
     undoStackRef.current.push({
       label: `Undo delete ${allData.length} items`,
       reverse: async () => {
         await Promise.all(allData.map((data) => db.tasks.insert(data)))
+        for (const data of allData) {
+          if (data.is_public && data.public_id) {
+            void syncPublicPageSetting(data.id, true, data.public_id).catch(() => {})
+          }
+        }
       },
     })
 
@@ -2008,20 +2030,32 @@ export function AppContent({ user, onSignOut }: AppContentProps) {
             notFoundTimer = setTimeout(() => {
               if (pendingOpenObjectIdRef.current === objId) {
                 pendingOpenObjectIdRef.current = null
-                if (typeof window !== "undefined") {
-                  const p = new URLSearchParams(window.location.search)
-                  p.delete("objectId")
-                  p.delete("taskId")
-                  p.delete("noteId")
-                  p.delete("title")
-                  p.delete("t")
-                  p.delete("_t")
-                  const qs = p.toString()
-                  const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
-                  window.history.replaceState(window.history.state, "", newUrl)
-                }
-                updateTabUi(activeTabIdRef.current, { objectId: undefined, objectMode: undefined })
-                toast.error("This item doesn't exist or you don't have access to it.")
+                void (async () => {
+                  try {
+                    const res = await fetch(`/api/public/${encodeURIComponent(objId)}`)
+                    if (res.ok) {
+                      const data = await res.json().catch(() => null)
+                      if (data?.public_id && typeof window !== "undefined") {
+                        window.location.replace(`/p/${encodeURIComponent(data.public_id)}`)
+                        return
+                      }
+                    }
+                  } catch {}
+                  if (typeof window !== "undefined") {
+                    const p = new URLSearchParams(window.location.search)
+                    p.delete("objectId")
+                    p.delete("taskId")
+                    p.delete("noteId")
+                    p.delete("title")
+                    p.delete("t")
+                    p.delete("_t")
+                    const qs = p.toString()
+                    const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+                    window.history.replaceState(window.history.state, "", newUrl)
+                  }
+                  updateTabUi(activeTabIdRef.current, { objectId: undefined, objectMode: undefined })
+                  toast.error("This item doesn't exist or you don't have access to it.")
+                })()
               }
             }, 2500)
           }

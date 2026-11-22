@@ -239,6 +239,8 @@ export function MessageSyncProvider({ children }: { children: ReactNode }) {
                       google_event_id: null,
                       bookmarked: false,
                       order: msg.task.order ?? 0,
+                      is_public: false,
+                      public_id: null,
                     });
                   }
                 }

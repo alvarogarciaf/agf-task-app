@@ -22,6 +22,12 @@ import {
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { shareTaskLink } from "@/lib/public-pages-client"
+import {
+  PageSettingsMenu,
+  PublicPageBadge,
+  useToggleTaskPublic,
+} from "@/components/page-settings-menu"
 import {
   Dialog,
   DialogContent,
@@ -118,6 +124,7 @@ export function TaskDetailDialog({
     draft,
     setDraft,
     update,
+    updatePublicState,
     dirty,
     autoProcess,
     setAutoProcess,
@@ -143,6 +150,11 @@ export function TaskDetailDialog({
     onUpdate,
     onClose: () => onOpenChange(false),
     autosave: true,
+  })
+
+  const { togglingPublic, togglePublic } = useToggleTaskPublic({
+    task: draft,
+    onApply: updatePublicState,
   })
 
   const [listViewMode, setListViewMode] = useState<ListViewMode>("list")
@@ -179,44 +191,7 @@ export function TaskDetailDialog({
 
   const handleShare = async () => {
     if (!draft?.id) return
-    const title = (draft.description || "").trim() || (isNote ? "Note" : "Task")
-    const params = new URLSearchParams()
-    params.set("objectId", draft.id)
-    params.set("title", title)
-    params.set("_t", Date.now().toString(36))
-    const url = `${window.location.origin}/?${params.toString()}`
-
-    if (isMobile && typeof navigator !== "undefined" && navigator.share) {
-      try {
-        await navigator.share({
-          title,
-          url,
-        })
-        return
-      } catch (err: any) {
-        if (err?.name === "AbortError") return
-      }
-    }
-
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url)
-        toast.success("Link copied to clipboard")
-      } else {
-        const textArea = document.createElement("textarea")
-        textArea.value = url
-        textArea.style.position = "fixed"
-        textArea.style.opacity = "0"
-        document.body.appendChild(textArea)
-        textArea.focus()
-        textArea.select()
-        document.execCommand("copy")
-        document.body.removeChild(textArea)
-        toast.success("Link copied to clipboard")
-      }
-    } catch {
-      toast.error("Could not copy link")
-    }
+    await shareTaskLink(draft, { isMobile })
   }
 
   // Keyboard shortcut listener for Undo (Ctrl+Z / Cmd+Z) and Redo (Ctrl+Shift+Z / Cmd+Shift+Z / Ctrl+Y)
@@ -450,6 +425,10 @@ export function TaskDetailDialog({
           </>
         )}
 
+        {!isActuallyCreating && draft.is_public && draft.public_id && (
+          <PublicPageBadge publicId={draft.public_id} />
+        )}
+
         <div className="ml-auto flex items-center gap-1 shrink-0">
           {canExpand && (
             <button
@@ -463,15 +442,35 @@ export function TaskDetailDialog({
             </button>
           )}
           {!isActuallyCreating && (
-            <button
-              type="button"
-              onClick={handleShare}
-              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label={isNote ? "Share note link" : "Share task link"}
-              title={isNote ? "Share note link" : "Share task link"}
-            >
-              <Share2 className="h-4 w-4" />
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={handleShare}
+                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label={
+                  draft.is_public
+                    ? "Copy public link"
+                    : isNote
+                      ? "Share note link"
+                      : "Share task link"
+                }
+                title={
+                  draft.is_public
+                    ? "Copy public link"
+                    : isNote
+                      ? "Share note link"
+                      : "Share task link"
+                }
+              >
+                <Share2 className="h-4 w-4" />
+              </button>
+              <PageSettingsMenu
+                task={draft}
+                onTogglePublic={togglePublic}
+                togglingPublic={togglingPublic}
+                isMobile={isMobile}
+              />
+            </>
           )}
           {onDelete && !isActuallyCreating && (
             <button

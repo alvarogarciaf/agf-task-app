@@ -3,7 +3,7 @@ import type { Task, Project, Person, Context } from '../types';
 
 export const taskSchemaLiteral = {
   title: 'task schema',
-  version: 18,
+  version: 19,
   description: 'describes a task or note (unified object)',
   primaryKey: 'id',
   type: 'object',
@@ -103,6 +103,8 @@ export const taskSchemaLiteral = {
         required: ['id', 'name', 'type', 'order'],
       },
     },
+    is_public: { type: ['boolean', 'null'], default: false },
+    public_id: { type: ['string', 'null'], default: null },
   },
   required: ['id', 'description', 'date_created', 'context_ids', 'processed', 'status', 'urgency_id', 'order'],
   indexes: ['date_created', 'processed'],

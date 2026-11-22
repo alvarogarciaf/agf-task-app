@@ -1,4 +1,4 @@
-const CACHE_NAME = "tasker-agf-v1795204178995";
+const CACHE_NAME = "tasker-agf-v1795306620236";
 const IMAGE_CACHE_NAME = "tasker-images-v1";
 const PRECACHE_URLS = ["/", "/manifest.json", "/logo.svg", "/placeholder.jpg"];
 
@@ -109,6 +109,8 @@ const NETWORK_ONLY_PATTERNS = [
   /analytics/,
   /vitals/,
   /sw\.js/,
+  /\/api\//,
+  /\/p\//,
 ];
 
 function isNetworkOnly(url) {
